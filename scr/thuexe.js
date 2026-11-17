@@ -193,8 +193,10 @@ function renderBikes() {
 
 function updateBookingSummary() {
     const bike = bikesData.find(b => b.id === selectedBikeId) || bikesData[0];
+    const locEl = document.getElementById("rentalLocation");
+    const loc = locEl ? locEl.value : "Quận 1, TP.HCM";
     document.getElementById("detailBikeName").textContent = bike.name;
-    document.getElementById("detailBikeSpecs").textContent = `${bike.brand} • ${bike.type} • ${bike.cc} • ${bike.fuel} • Quận 1, TP.HCM`;
+    document.getElementById("detailBikeSpecs").textContent = `${bike.brand} • ${bike.type} • ${bike.cc} • ${bike.fuel} • ${loc}`;
     document.getElementById("detailBikeOwner").textContent = `Chủ xe: ${bike.owner}`;
     document.getElementById("detailBikeBadge").textContent = bike.badge;
 
@@ -224,6 +226,66 @@ function updateBookingSummary() {
     document.getElementById("sumTotalVal").textContent = formatVND(total);
 }
 
+const pickupInput = document.getElementById("pickupDateTime");
+const returnInput = document.getElementById("returnDateTime");
+
+function syncDurationFromDates() {
+    if (!pickupInput || !returnInput) return;
+    const start = new Date(pickupInput.value);
+    const end = new Date(returnInput.value);
+    const diffMs = end - start;
+
+    if (!isNaN(diffMs) && diffMs > 0) {
+        if (rentMode === "day") {
+            const diffDays = Math.max(1, Math.round(diffMs / (1000 * 60 * 60 * 24)));
+            const durEl = document.getElementById("rentDuration");
+            if (durEl) durEl.value = diffDays;
+        } else {
+            const diffHours = Math.max(1, Math.round(diffMs / (1000 * 60 * 60)));
+            const durEl = document.getElementById("rentDuration");
+            if (durEl) durEl.value = diffHours;
+        }
+    }
+    updateBookingSummary();
+}
+
+function syncReturnDateFromDuration() {
+    if (!pickupInput || !returnInput) return;
+    const start = new Date(pickupInput.value);
+    if (isNaN(start.getTime())) return;
+
+    const duration = Math.max(1, Number(document.getElementById("rentDuration").value) || 1);
+    const end = new Date(start.getTime());
+
+    if (rentMode === "day") {
+        end.setDate(end.getDate() + duration);
+    } else {
+        end.setHours(end.getHours() + duration);
+    }
+
+    const pad = n => String(n).padStart(2, "0");
+    const formatted = `${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())}T${pad(end.getHours())}:${pad(end.getMinutes())}`;
+    returnInput.value = formatted;
+}
+
+[pickupInput, returnInput].forEach(inp => {
+    if (inp) {
+        inp.addEventListener("click", () => {
+            try {
+                if (typeof inp.showPicker === "function") {
+                    inp.showPicker();
+                }
+            } catch (e) {}
+        });
+        inp.addEventListener("change", syncDurationFromDates);
+    }
+});
+
+const rentalLocEl = document.getElementById("rentalLocation");
+if (rentalLocEl) {
+    rentalLocEl.addEventListener("change", updateBookingSummary);
+}
+
 ["filterBrand", "filterType", "filterCc", "filterFuel"].forEach(id => {
     document.getElementById(id).addEventListener("change", renderBikes);
 });
@@ -232,6 +294,7 @@ document.getElementById("pkgHourBtn").addEventListener("click", () => {
     rentMode = "hour";
     document.getElementById("pkgHourBtn").classList.add("active");
     document.getElementById("pkgDayBtn").classList.remove("active");
+    syncReturnDateFromDuration();
     updateBookingSummary();
 });
 
@@ -239,10 +302,16 @@ document.getElementById("pkgDayBtn").addEventListener("click", () => {
     rentMode = "day";
     document.getElementById("pkgDayBtn").classList.add("active");
     document.getElementById("pkgHourBtn").classList.remove("active");
+    syncReturnDateFromDuration();
     updateBookingSummary();
 });
 
-["rentDuration", "voucherSelect", "pickupMethod"].forEach(id => {
+document.getElementById("rentDuration").addEventListener("input", () => {
+    syncReturnDateFromDuration();
+    updateBookingSummary();
+});
+
+["voucherSelect", "pickupMethod"].forEach(id => {
     document.getElementById(id).addEventListener("input", updateBookingSummary);
 });
 
