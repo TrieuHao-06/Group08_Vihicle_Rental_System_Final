@@ -339,31 +339,235 @@ document.getElementById("btnBookNow").addEventListener("click", () => {
         txList.prepend(row);
     }
 
-    document.getElementById("hoOrderInput").value = `#BK0001 — ${bike.name} • Chờ Check-in`;
+    document.getElementById("hoOrderSelect").value = "BK0001";
+
+    // Add this booking to the handover order dropdown if not exists
+    const orderSelect = document.getElementById("hoOrderSelect");
+    const bookingId = `BK${String(Math.floor(1000 + Math.random() * 9000))}`;
+    const existingOpt = Array.from(orderSelect.options).find(o => o.textContent.includes(bike.name));
+    if (!existingOpt) {
+        const opt = document.createElement("option");
+        opt.value = bookingId;
+        opt.dataset.bike = bike.name;
+        opt.textContent = `📋 #${bookingId} — ${bike.name}`;
+        orderSelect.appendChild(opt);
+        orderSelect.value = bookingId;
+    }
+
     switchTab("tab2");
 });
 
+/* ========================================
+   HANDOVER SYSTEM — Đối chiếu 2 chiều
+   ======================================== */
+
+let pendingHandovers = [];
+let completedHandovers = [];
+let storedImages = [];
+let handoverIdCounter = 1;
+
+function getTimestamp() {
+    const now = new Date();
+    const pad = n => String(n).padStart(2, "0");
+    return `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+}
+
+function getDaysRemaining(createdDate) {
+    const now = new Date();
+    const diffMs = 3 * 24 * 60 * 60 * 1000 - (now - createdDate);
+    if (diffMs <= 0) return 0;
+    const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    if (days > 0) return `${days} ngày ${hours}h`;
+    return `${hours} giờ`;
+}
+
+function renderPendingHandovers() {
+    const list = document.getElementById("pendingHandoverList");
+    if (pendingHandovers.length === 0) {
+        list.innerHTML = '<div class="ho-empty-state">Chưa có biên bản nào đang chờ đối chiếu</div>';
+        return;
+    }
+    list.innerHTML = pendingHandovers.map(h => `
+        <div class="table-row-6 pending">
+            <strong>#${h.orderId} • ${h.bikeName}</strong>
+            <span><span class="badge-info-sm">${h.txType}</span></span>
+            <span>${h.role}</span>
+            <span>${Number(h.odo).toLocaleString("vi-VN")} km</span>
+            <span>${h.fuel}%</span>
+            <span><span class="badge-pending">⏳ Chờ ${h.role === "Khách thuê" ? "Chủ xe" : "Khách thuê"}</span></span>
+        </div>
+    `).join("");
+}
+
+function renderCompletedHandovers() {
+    const list = document.getElementById("handoverHistoryList");
+    if (completedHandovers.length === 0) {
+        list.innerHTML = '<div class="ho-empty-state">Chưa có giao dịch nào hoàn tất</div>';
+        return;
+    }
+    list.innerHTML = completedHandovers.map(h => `
+        <div class="table-row-6 matched ho-match-animation">
+            <span><span class="badge-matched">✅ ${h.txType}</span></span>
+            <strong>#${h.orderId} • ${h.bikeName}</strong>
+            <span>${Number(h.odo).toLocaleString("vi-VN")} km</span>
+            <span>${h.fuel}%</span>
+            <span>${h.time}</span>
+            <span class="text-muted">${h.note || "—"}</span>
+        </div>
+    `).join("");
+}
+
+function renderStoredImages() {
+    const list = document.getElementById("storageList");
+
+    // Remove expired images (> 3 days)
+    const now = new Date();
+    storedImages = storedImages.filter(img => (now - img.createdAt) < 3 * 24 * 60 * 60 * 1000);
+
+    if (storedImages.length === 0) {
+        list.innerHTML = '<div class="ho-empty-state">Chưa có hình ảnh nào được lưu</div>';
+        return;
+    }
+    list.innerHTML = storedImages.map(img => `
+        <div class="storage-card">
+            <div class="storage-thumb">${img.label}</div>
+            <div class="storage-filename">${img.filename}</div>
+            <div class="storage-meta">Từ: ${img.role} • #${img.orderId} • ${img.txType}</div>
+            <span class="badge-warn-sm">🗑️ Xóa sau ${getDaysRemaining(img.createdAt)}</span>
+        </div>
+    `).join("");
+}
+
+function tryMatchHandover(newEntry) {
+    const matchIndex = pendingHandovers.findIndex(h =>
+        h.orderId === newEntry.orderId &&
+        h.txType === newEntry.txType &&
+        h.role !== newEntry.role &&
+        Number(h.odo) === Number(newEntry.odo) &&
+        Number(h.fuel) === Number(newEntry.fuel)
+    );
+
+    if (matchIndex !== -1) {
+        const matched = pendingHandovers.splice(matchIndex, 1)[0];
+        const completed = {
+            txType: newEntry.txType,
+            orderId: newEntry.orderId,
+            bikeName: newEntry.bikeName,
+            odo: newEntry.odo,
+            fuel: newEntry.fuel,
+            time: getTimestamp(),
+            note: `${matched.role}: ${matched.note || "—"} | ${newEntry.role}: ${newEntry.note || "—"}`
+        };
+        completedHandovers.unshift(completed);
+        renderPendingHandovers();
+        renderCompletedHandovers();
+
+        const roleName = newEntry.role;
+        const otherRole = roleName === "Khách thuê" ? "Chủ xe" : "Khách thuê";
+        alert(`✅ ${newEntry.txType} THÀNH CÔNG!\n\nĐơn #${newEntry.orderId} — ${newEntry.bikeName}\nThông số từ ${roleName} và ${otherRole} đã trùng khớp hoàn toàn.\n• Odometer: ${Number(newEntry.odo).toLocaleString("vi-VN")} km\n• Xăng/Pin: ${newEntry.fuel}%`);
+        return true;
+    }
+    return false;
+}
+
 document.getElementById("btnExecHandover").addEventListener("click", () => {
     const txType = document.querySelector('input[name="txType"]:checked').value;
-    const odo = Number(document.getElementById("hoOdoInput").value) || 8420;
-    const fuel = document.getElementById("hoFuelInput").value || "90";
-    const note = document.getElementById("hoNoteInput").value || "Đủ 2 mũ, nguyên vẹn";
+    const role = document.querySelector('input[name="roleType"]:checked').value;
+    const orderSelect = document.getElementById("hoOrderSelect");
+    const orderId = orderSelect.value;
+    const bikeName = orderSelect.options[orderSelect.selectedIndex].dataset.bike;
+    const odo = document.getElementById("hoOdoInput").value;
+    const fuel = document.getElementById("hoFuelInput").value;
+    const imgFile = document.getElementById("hoImgInput").value.trim();
+    const note = document.getElementById("hoNoteInput").value.trim();
 
-    const list = document.getElementById("handoverHistoryList");
-    const row = document.createElement("div");
-    row.className = "table-row-5";
-    row.innerHTML = `
-    <span><span class="badge-info-sm">${txType}</span></span>
-    <strong>#BK0001 • Vision 2024</strong>
-    <span>${odo.toLocaleString("vi-VN")} km</span>
-    <span>${fuel}%</span>
-    <span class="text-muted">${note}</span>
-  `;
-    list.prepend(row);
+    if (!odo || !fuel) {
+        alert("⚠️ Vui lòng nhập đầy đủ Odometer và Mức xăng/Pin!");
+        return;
+    }
+
+    // Check duplicate: same order + same type + same role already pending
+    const duplicate = pendingHandovers.find(h =>
+        h.orderId === orderId && h.txType === txType && h.role === role
+    );
+    if (duplicate) {
+        alert(`⚠️ Bạn (${role}) đã gửi biên bản ${txType} cho đơn #${orderId} rồi.\nVui lòng chờ phía còn lại xác nhận.`);
+        return;
+    }
+
+    const entry = {
+        id: handoverIdCounter++,
+        txType, role, orderId, bikeName,
+        odo: Number(odo),
+        fuel: Number(fuel),
+        imgFile, note,
+        createdAt: new Date()
+    };
+
+    // Save image to storage
+    if (imgFile) {
+        const files = imgFile.split(",").map(f => f.trim()).filter(f => f);
+        files.forEach(filename => {
+            storedImages.unshift({
+                label: `${txType} • ${bikeName}`,
+                filename,
+                role,
+                orderId,
+                txType,
+                createdAt: new Date()
+            });
+        });
+        renderStoredImages();
+    }
+
+    // Try to match with existing pending entry
+    const matched = tryMatchHandover(entry);
+
+    if (!matched) {
+        pendingHandovers.unshift(entry);
+        renderPendingHandovers();
+
+        const otherRole = role === "Khách thuê" ? "Chủ xe" : "Khách thuê";
+        alert(`📤 Biên bản ${txType} đã được gửi!\n\nĐơn #${orderId} — ${bikeName}\nVai trò: ${role}\n\n⏳ Đang chờ ${otherRole} gửi biên bản với thông số trùng khớp để xác nhận.`);
+    }
+
+    // Clear form
+    document.getElementById("hoOdoInput").value = "";
+    document.getElementById("hoFuelInput").value = "";
+    document.getElementById("hoImgInput").value = "";
+    document.getElementById("hoNoteInput").value = "";
+});
+
+// Update label based on role selection
+document.querySelectorAll('input[name="roleType"]').forEach(radio => {
+    radio.addEventListener("change", () => {
+        const role = document.querySelector('input[name="roleType"]:checked').value;
+        document.getElementById("hoNoteLabel").textContent =
+            role === "Khách thuê" ? "Ghi chú của Khách thuê" : "Ghi chú của Chủ xe";
+    });
 });
 
 document.getElementById("btnToggleIncident").addEventListener("click", () => {
     document.getElementById("incidentBox").classList.toggle("hidden");
+});
+
+document.getElementById("btnSendIncident").addEventListener("click", () => {
+    const desc = document.getElementById("incidentDesc").value.trim();
+    const cost = document.getElementById("incidentCost").value;
+    const orderSelect = document.getElementById("hoOrderSelect");
+    const orderId = orderSelect.value;
+    const bikeName = orderSelect.options[orderSelect.selectedIndex].dataset.bike;
+
+    if (!desc) {
+        alert("⚠️ Vui lòng mô tả chi tiết sự cố!");
+        return;
+    }
+
+    alert(`🚨 Báo cáo sự cố đã gửi!\n\nĐơn #${orderId} — ${bikeName}\nMô tả: ${desc}\nChi phí dự kiến: ${formatVND(Number(cost) || 0)}\n\nAdmin sẽ xem xét hình ảnh lưu trữ trong kho ảnh giao nhận (3 ngày) để đưa ra quyết định xử lý.`);
+
+    document.getElementById("incidentDesc").value = "";
+    document.getElementById("incidentBox").classList.add("hidden");
 });
 
 document.querySelectorAll("#starRow .star-btn").forEach(btn => {

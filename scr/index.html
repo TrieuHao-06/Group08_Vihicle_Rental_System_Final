@@ -213,23 +213,24 @@
         <section class="tab-panel" id="tab2">
             <div class="card">
                 <h2 class="section-title">Đối chiếu Giao nhận xe 2 chiều</h2>
+                <p class="section-sub">Khách thuê và Chủ xe gửi biên bản riêng biệt. Hệ thống tự động đối chiếu — khi thông số trùng khớp hoàn toàn, giao dịch sẽ thành công.</p>
                 <div class="handover-radios">
                     <div class="radio-block">
                         <div class="radio-title">Loại giao dịch</div>
                         <div class="radio-options">
                             <label class="radio-label">
                                 <input type="radio" name="txType" value="Check-in" checked>
-                                <span>Check In - Khách nhận xe</span>
+                                <span>Check-in — Nhận xe</span>
                             </label>
                             <label class="radio-label">
                                 <input type="radio" name="txType" value="Check-out">
-                                <span>Check Out - Khách trả xe</span>
+                                <span>Check-out — Trả xe</span>
                             </label>
                         </div>
                     </div>
 
                     <div class="radio-block">
-                        <div class="radio-title">Phân quyền tài khoản</div>
+                        <div class="radio-title">Vai trò của bạn</div>
                         <div class="radio-options">
                             <label class="radio-label">
                                 <input type="radio" name="roleType" value="Khách thuê" checked>
@@ -245,38 +246,40 @@
 
                 <div class="handover-form-panel">
                     <div class="form-group">
-                        <label>Đơn xe đã đặt</label>
-                        <input type="text" class="input-white-bordered" id="hoOrderInput"
-                            value="#BK0001 — Honda Vision 2024 • Chờ Check-in">
+                        <label>Chọn đơn xe</label>
+                        <select class="input-white-bordered" id="hoOrderSelect">
+                            <option value="BK0001" data-bike="Honda Vision 2024">📋 #BK0001 — Honda Vision 2024</option>
+                            <option value="BK0002" data-bike="Honda AirBlade 160 2024">📋 #BK0002 — Honda AirBlade 160 2024</option>
+                        </select>
                     </div>
 
                     <div class="grid-2 mt-12">
                         <div class="form-group">
-                            <label>Số Odometer hiện tại *</label>
-                            <input type="number" class="input-white-bordered" id="hoOdoInput" value="8420">
+                            <label>Số Odometer hiện tại (km) *</label>
+                            <input type="number" class="input-white-bordered" id="hoOdoInput" value="8420" min="0">
                         </div>
                         <div class="form-group">
-                            <label>Mức xăng / Pin *</label>
-                            <input type="number" class="input-white-bordered" id="hoFuelInput" value="90">
+                            <label>Mức xăng / Pin (%) *</label>
+                            <input type="number" class="input-white-bordered" id="hoFuelInput" value="90" min="0" max="100">
                         </div>
                     </div>
 
                     <div class="form-group mt-12">
-                        <label>Ảnh chụp phía Khách</label>
+                        <label>Hình ảnh chụp xe (tên file) *</label>
                         <input type="text" class="input-white-bordered" id="hoImgInput"
-                            value="Chọn tệp — anh_nhan_xe_vision.jpg">
+                            placeholder="VD: anh_xe_truoc.jpg, anh_xe_sau.jpg">
                     </div>
 
                     <div class="form-group mt-12">
-                        <label>Ghi chú của Khách thuê</label>
+                        <label id="hoNoteLabel">Ghi chú</label>
                         <input type="text" class="input-white-bordered" id="hoNoteInput"
-                            value="Đã nhận đủ 02 mũ bảo hiểm, áo mưa, xe hoạt động tốt.">
+                            placeholder="Mô tả tình trạng xe, phụ kiện đi kèm...">
                     </div>
                 </div>
 
                 <div class="handover-actions mt-16">
-                    <button class="btn-primary-pill" id="btnExecHandover">So sánh &amp; Thực thi Giao nhận</button>
-                    <button class="btn-secondary-pill" id="btnToggleIncident">Báo cáo sự cố / Hư hỏng</button>
+                    <button class="btn-primary-pill" id="btnExecHandover">📤 Gửi biên bản giao nhận</button>
+                    <button class="btn-secondary-pill" id="btnToggleIncident">⚠️ Báo cáo sự cố / Hư hỏng</button>
                 </div>
 
                 <div class="incident-box mt-16" id="incidentBox">
@@ -284,56 +287,65 @@
                     <div class="incident-grid">
                         <div class="form-group">
                             <label>Mô tả chi tiết vị trí hư hỏng</label>
-                            <input type="text" class="input-white-plain"
+                            <input type="text" class="input-white-plain" id="incidentDesc"
                                 placeholder="VD: Trầy ốp sườn phải / Gãy gương chiếu hậu">
                         </div>
                         <div class="form-group">
                             <label>Chi phí đền bù dự kiến</label>
-                            <input type="number" class="input-white-plain" value="150000">
+                            <input type="number" class="input-white-plain" id="incidentCost" value="150000">
                         </div>
                         <button class="btn-danger-white" id="btnSendIncident">Gửi Báo cáo sự cố</button>
                     </div>
                 </div>
             </div>
 
+            <!-- DANH SÁCH CHỜ ĐỐI CHIẾU -->
+            <div class="card">
+                <h2 class="section-title">📋 Danh sách chờ đối chiếu</h2>
+                <p class="section-sub">Biên bản đã gửi từ một phía (Khách thuê hoặc Chủ xe), đang chờ phía còn lại xác nhận với thông số trùng khớp.</p>
+                <div class="table-head-6" id="pendingHead">
+                    <span>Đơn</span>
+                    <span>Loại</span>
+                    <span>Gửi từ</span>
+                    <span>Odo</span>
+                    <span>Xăng/Pin</span>
+                    <span>Trạng thái</span>
+                </div>
+                <div id="pendingHandoverList">
+                    <div class="ho-empty-state">Chưa có biên bản nào đang chờ đối chiếu</div>
+                </div>
+            </div>
+
             <div class="grid-2-bottom">
+                <!-- KHO HÌNH ẢNH -->
                 <div class="card">
-                    <h2 class="section-title">Kho lưu trữ Hình ảnh Giao nhận</h2>
-                    <p class="section-sub">Hình ảnh Check-in / Check-out được lưu trữ trên hệ thống và tự động xóa sau 4
-                        ngày.</p>
+                    <h2 class="section-title">📸 Kho lưu trữ Hình ảnh Giao nhận</h2>
+                    <p class="section-sub">Hình ảnh được lưu trữ 3 ngày. Admin sẽ sử dụng để xem xét khi có khiếu nại hoặc báo cáo sự cố.</p>
                     <div class="storage-list" id="storageList">
-                        <div class="storage-card">
-                            <div class="storage-thumb">Ảnh mẫu Honda Vision</div>
-                            <div class="storage-filename">anh_nhan_xe_vision.jpg</div>
-                            <div class="storage-meta">Từ: Khách thuê • #BK0001</div>
-                            <span class="badge-warn-sm">Xóa sau 3 ngày</span>
-                        </div>
+                        <div class="ho-empty-state">Chưa có hình ảnh nào được lưu</div>
                     </div>
                 </div>
 
                 <div class="stack-col">
+                    <!-- LỊCH SỬ HOÀN TẤT -->
                     <div class="card">
-                        <h2 class="section-title">Lịch sử Biên bản Check-in / Check-out đã khớp</h2>
-                        <div class="table-head-5">
+                        <h2 class="section-title">✅ Lịch sử Giao nhận đã khớp thành công</h2>
+                        <div class="table-head-6">
                             <span>Loại</span>
                             <span>Xe &amp; Đơn</span>
-                            <span>Odo khớp</span>
+                            <span>Odo</span>
                             <span>Xăng/Pin</span>
+                            <span>Thời gian</span>
                             <span>Ghi chú</span>
                         </div>
                         <div id="handoverHistoryList">
-                            <div class="table-row-5">
-                                <span><span class="badge-info-sm">Check-in</span></span>
-                                <strong>#BK0001 • Vision 2024</strong>
-                                <span>8.420 km</span>
-                                <span>90%</span>
-                                <span class="text-muted">Đủ 2 mũ, nguyên vẹn</span>
-                            </div>
+                            <div class="ho-empty-state">Chưa có giao dịch nào hoàn tất</div>
                         </div>
                     </div>
 
+                    <!-- ĐÁNH GIÁ SAO -->
                     <div class="card">
-                        <h2 class="section-title">Đánh giá sao sau khi Check-out trả xe</h2>
+                        <h2 class="section-title">⭐ Đánh giá sao sau khi Check-out trả xe</h2>
                         <div class="form-group">
                             <label>Chọn mức độ hài lòng</label>
                             <div class="star-row" id="starRow">
@@ -346,7 +358,7 @@
                         </div>
                         <div class="form-group mt-12">
                             <label>Nhận xét chất lượng xe máy &amp; dịch vụ</label>
-                            <input type="text" class="input-soft"
+                            <input type="text" class="input-soft" id="reviewText"
                                 value="Xe tay ga chạy êm, tiết kiệm xăng, có sẵn 2 nón bảo hiểm sạch sẽ.">
                         </div>
                         <button class="btn-primary-pill mt-12" id="btnSendReview">Gửi đánh giá</button>
