@@ -1,13 +1,10 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="vi">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Thuê Xe Máy</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="thuexe.css">
 </head>
 
@@ -15,34 +12,26 @@
     <header class="topbar">
         <div class="topbar-inner">
             <div class="brand" id="brandLogo">
-                <img src="logo.png" alt="Logo Thuê Xe Máy" class="brand-logo-img">
+                <svg class="brand-icon" viewBox="0 0 64 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="12" cy="29" r="8" stroke="#0f172a" stroke-width="4" fill="#fff" />
+                    <circle cx="52" cy="29" r="8" stroke="#0f172a" stroke-width="4" fill="#fff" />
+                    <path d="M12 29L24 14H38L46 22H52L42 10H32M20 29H44L36 18H22L12 29Z" fill="#0f172a" />
+                    <path d="M8 18C12 14 18 14 22 16L16 24H8V18Z" fill="#0f172a" />
+                </svg>
                 <span class="brand-text">THUÊ XE MÁY</span>
             </div>
 
             <nav class="nav-segmented" id="mainNav">
                 <button class="nav-tab active" data-target="tab1">Đặt xe</button>
+                <span class="nav-divider">|</span>
                 <button class="nav-tab" data-target="tab2">Giao nhận xe</button>
-                <button class="nav-tab" data-target="tab3">Tài khoản &amp; Ví</button>
-                <span class="nav-divider"></span>
+                <span class="nav-divider">|</span>
                 <button class="nav-tab" data-target="tab4">Xe của bạn</button>
             </nav>
 
             <div class="top-actions">
-                <button class="btn-top-account hidden" id="btnTopAccount">Tài khoản</button>
-                <div class="user-menu-wrap" id="userMenuWrap">
-                    <button class="btn-top-login" id="btnTopLogin">Đăng nhập</button>
-                    <div class="user-dropdown hidden" id="userDropdown">
-                        <div class="user-dropdown-header" id="dropdownRoleLabel">Vai trò: Khách thuê</div>
-                        <button type="button" class="user-dropdown-item" data-role="Khách thuê">Đổi sang Người
-                            thuê</button>
-                        <button type="button" class="user-dropdown-item" data-role="Chủ xe">Đổi sang Chủ xe</button>
-                        <button type="button" class="user-dropdown-item" data-role="Quản trị viên">Đổi sang Quản trị
-                            viên</button>
-                        <div class="user-dropdown-sep"></div>
-                        <button type="button" class="user-dropdown-item logout-item" id="btnDropdownLogout">Đăng
-                            xuất</button>
-                    </div>
-                </div>
+                <button class="btn-top-login" id="btnTopLogin">Đăng nhập</button>
+                <button class="btn-top-account" id="btnTopAccount">Tài khoản</button>
                 <button class="btn-top-admin" id="btnTopAdmin">Admin</button>
             </div>
         </div>
@@ -54,16 +43,27 @@
                 <h2 class="section-title">Tìm kiếm lịch trình thuê xe máy</h2>
                 <div class="grid-3">
                     <div class="form-group">
-                        <label>Địa điểm nhận xe</label>
-                        <input type="text" class="input-soft" value="Quận 1, TP.HCM">
+                        <label for="rentalLocation">Địa điểm nhận xe</label>
+                        <select class="input-soft" id="rentalLocation">
+                            <option value="Quận 1, TP.HCM" selected>Quận 1, TP.HCM</option>
+                            <option value="Quận 3, TP.HCM">Quận 3, TP.HCM</option>
+                            <option value="Quận 5, TP.HCM">Quận 5, TP.HCM</option>
+                            <option value="Quận 7, TP.HCM">Quận 7, TP.HCM</option>
+                            <option value="Quận 10, TP.HCM">Quận 10, TP.HCM</option>
+                            <option value="Quận Bình Thạnh, TP.HCM">Quận Bình Thạnh, TP.HCM</option>
+                            <option value="Quận Tân Bình (Sân bay TSN), TP.HCM">Quận Tân Bình (Sân bay TSN), TP.HCM</option>
+                            <option value="Quận Phú Nhuận, TP.HCM">Quận Phú Nhuận, TP.HCM</option>
+                            <option value="Quận Gò Vấp, TP.HCM">Quận Gò Vấp, TP.HCM</option>
+                            <option value="TP. Thủ Đức, TP.HCM">TP. Thủ Đức, TP.HCM</option>
+                        </select>
                     </div>
                     <div class="form-group">
-                        <label>Ngày &amp; Giờ nhận xe</label>
-                        <input type="text" class="input-soft" value="04/11/2026 08:00 SA">
+                        <label for="pickupDateTime">Ngày &amp; Giờ nhận xe</label>
+                        <input type="datetime-local" class="input-soft" id="pickupDateTime" value="2026-11-04T08:00">
                     </div>
                     <div class="form-group">
-                        <label>Ngày &amp; Giờ trả xe</label>
-                        <input type="text" class="input-soft" value="05/11/2026 08:00 SA">
+                        <label for="returnDateTime">Ngày &amp; Giờ trả xe</label>
+                        <input type="datetime-local" class="input-soft" id="returnDateTime" value="2026-11-05T08:00">
                     </div>
                 </div>
             </div>
@@ -124,7 +124,9 @@
                             <div class="selected-bike-name" id="detailBikeName">Honda Vision 2024</div>
                             <div class="selected-bike-specs" id="detailBikeSpecs">Honda • Xe tay ga • 110cc • Xăng •
                                 Quận 1, TP.HCM</div>
+                            <div class="selected-bike-owner" id="detailBikeOwner">Chủ xe: Trương Công Hào</div>
                         </div>
+                        <span class="badge-promo" id="detailBikeBadge">Giảm 10%</span>
                     </div>
 
                     <div class="form-group mt-16">
@@ -158,8 +160,12 @@
 
                 <div class="card">
                     <h2 class="section-title">Thanh toán &amp; Xác nhận</h2>
+                    <div class="ekyc-status-row">
+                        <span class="muted-label">Trạng thái xác thực eKYC</span>
+                        <span class="badge-success">Đã xác thực</span>
+                    </div>
 
-                    <div class="grid-2">
+                    <div class="grid-2 mt-12">
                         <div class="form-group">
                             <label>Phương thức nhận xe</label>
                             <select class="input-soft" id="pickupMethod">
@@ -170,11 +176,9 @@
                         <div class="form-group">
                             <label>Phương thức thanh toán</label>
                             <select class="input-soft" id="paymentMethod">
-                                <option value="wallet" id="payMethodWalletOpt">Tiền trong tài khoản cá nhân — 2.500.000đ
-                                </option>
+                                <option value="wallet" id="payMethodWalletOpt">Tiền trong tài khoản cá nhân — 2.500.000đ</option>
                             </select>
-                            <span class="payment-hint">* Chỉ áp dụng thanh toán bằng tài khoản cá nhân (không hỗ trợ
-                                chuyển khoản ngân hàng)</span>
+                            <span class="payment-hint">* Chỉ áp dụng thanh toán bằng tài khoản cá nhân (không hỗ trợ chuyển khoản ngân hàng)</span>
                         </div>
                     </div>
 
@@ -209,23 +213,24 @@
         <section class="tab-panel" id="tab2">
             <div class="card">
                 <h2 class="section-title">Đối chiếu Giao nhận xe 2 chiều</h2>
+                <p class="section-sub">Khách thuê và Chủ xe gửi biên bản riêng biệt. Hệ thống tự động đối chiếu — khi thông số trùng khớp hoàn toàn, giao dịch sẽ thành công.</p>
                 <div class="handover-radios">
                     <div class="radio-block">
                         <div class="radio-title">Loại giao dịch</div>
                         <div class="radio-options">
                             <label class="radio-label">
                                 <input type="radio" name="txType" value="Check-in" checked>
-                                <span>Check In - Khách nhận xe</span>
+                                <span>Check-in — Nhận xe</span>
                             </label>
                             <label class="radio-label">
                                 <input type="radio" name="txType" value="Check-out">
-                                <span>Check Out - Khách trả xe</span>
+                                <span>Check-out — Trả xe</span>
                             </label>
                         </div>
                     </div>
 
                     <div class="radio-block">
-                        <div class="radio-title">Phân quyền tài khoản</div>
+                        <div class="radio-title">Vai trò của bạn</div>
                         <div class="radio-options">
                             <label class="radio-label">
                                 <input type="radio" name="roleType" value="Khách thuê" checked>
@@ -239,81 +244,42 @@
                     </div>
                 </div>
 
-                <div class="handover-form-panel" id="panelRenter">
-                    <div class="handover-panel-title">Thông tin giao nhận phía Người thuê</div>
+                <div class="handover-form-panel">
                     <div class="form-group">
-                        <label>Đơn xe đã đặt</label>
-                        <select class="input-white-bordered" id="hoOrderInput">
-                            <option value="#BK0001 — Honda Vision 2024 • Chờ Check-in">#BK0001 — Honda Vision 2024 • Chờ
-                                Check-in</option>
-                            <option value="#BK0002 — Honda AirBlade 160 2024 • Đang thuê">#BK0002 — Honda AirBlade 160
-                                2024 • Đang thuê</option>
+                        <label>Chọn đơn xe</label>
+                        <select class="input-white-bordered" id="hoOrderSelect">
+                            <option value="BK0001" data-bike="Honda Vision 2024">📋 #BK0001 — Honda Vision 2024</option>
+                            <option value="BK0002" data-bike="Honda AirBlade 160 2024">📋 #BK0002 — Honda AirBlade 160 2024</option>
                         </select>
                     </div>
 
                     <div class="grid-2 mt-12">
                         <div class="form-group">
-                            <label>Số Odometer hiện tại *</label>
-                            <input type="number" class="input-white-bordered" id="hoOdoInput" value="8420">
+                            <label>Số Odometer hiện tại (km) *</label>
+                            <input type="number" class="input-white-bordered" id="hoOdoInput" value="8420" min="0">
                         </div>
                         <div class="form-group">
-                            <label>Mức xăng / Pin *</label>
-                            <input type="number" class="input-white-bordered" id="hoFuelInput" value="90">
+                            <label>Mức xăng / Pin (%) *</label>
+                            <input type="number" class="input-white-bordered" id="hoFuelInput" value="90" min="0" max="100">
                         </div>
                     </div>
 
                     <div class="form-group mt-12">
-                        <label>Ảnh chụp phía Khách</label>
+                        <label>Hình ảnh chụp xe (tên file) *</label>
                         <input type="text" class="input-white-bordered" id="hoImgInput"
-                            value="Chọn tệp — anh_nhan_xe_vision.jpg">
+                            placeholder="VD: anh_xe_truoc.jpg, anh_xe_sau.jpg">
                     </div>
 
                     <div class="form-group mt-12">
-                        <label>Ghi chú của Khách thuê</label>
+                        <label id="hoNoteLabel">Ghi chú</label>
                         <input type="text" class="input-white-bordered" id="hoNoteInput"
-                            value="Đã nhận đủ 02 mũ bảo hiểm, áo mưa, xe hoạt động tốt.">
-                    </div>
-                </div>
-
-                <div class="handover-form-panel hidden" id="panelOwner">
-                    <div class="handover-panel-title">Thông tin giao nhận phía Chủ xe</div>
-                    <div class="form-group">
-                        <label>Đơn xe đang cho thuê</label>
-                        <select class="input-white-bordered" id="hoOwnerOrderInput">
-                            <option value="#BK0001 — Honda Vision 2024 • Chờ Chủ xe xác nhận">#BK0001 — Honda Vision
-                                2024 • Chờ Chủ xe xác nhận</option>
-                            <option value="#BK0002 — Honda AirBlade 160 2024 • Đang bàn giao">#BK0002 — Honda AirBlade
-                                160 2024 • Đang bàn giao</option>
-                        </select>
-                    </div>
-
-                    <div class="grid-2 mt-12">
-                        <div class="form-group">
-                            <label>Số Odometer chủ xe ghi nhận *</label>
-                            <input type="number" class="input-white-bordered" id="hoOwnerOdoInput" value="8420">
-                        </div>
-                        <div class="form-group">
-                            <label>Mức xăng / Pin chủ xe kiểm tra *</label>
-                            <input type="number" class="input-white-bordered" id="hoOwnerFuelInput" value="90">
-                        </div>
-                    </div>
-
-                    <div class="form-group mt-12">
-                        <label>Ảnh chụp phía Chủ xe</label>
-                        <input type="text" class="input-white-bordered" id="hoOwnerImgInput"
-                            value="Chọn tệp — anh_chuxe_ban_giao.jpg">
-                    </div>
-
-                    <div class="form-group mt-12">
-                        <label>Ghi chú của Chủ xe</label>
-                        <input type="text" class="input-white-bordered" id="hoOwnerNoteInput"
-                            value="Xe mới rửa sạch sẽ, đủ 02 mũ bảo hiểm và giấy tờ xe photo.">
+                            placeholder="Mô tả tình trạng xe, phụ kiện đi kèm...">
                     </div>
                 </div>
 
                 <div class="handover-actions mt-16">
-                    <button class="btn-primary-pill" id="btnExecHandover">So sánh &amp; Thực thi Giao nhận</button>
-                    <button class="btn-secondary-pill" id="btnToggleIncident">Báo cáo sự cố / Hư hỏng</button>
+                    <button class="btn-primary-pill" id="btnExecHandover">📤 Gửi biên bản giao nhận</button>
+                    <button class="btn-secondary-pill" id="btnToggleIncident">⚠️ Báo cáo sự cố / Hư hỏng</button>
                 </div>
 
                 <div class="incident-box mt-16" id="incidentBox">
@@ -321,56 +287,65 @@
                     <div class="incident-grid">
                         <div class="form-group">
                             <label>Mô tả chi tiết vị trí hư hỏng</label>
-                            <input type="text" class="input-white-plain" id="incidentDescInput"
+                            <input type="text" class="input-white-plain" id="incidentDesc"
                                 placeholder="VD: Trầy ốp sườn phải / Gãy gương chiếu hậu">
                         </div>
                         <div class="form-group">
                             <label>Chi phí đền bù dự kiến</label>
-                            <input type="number" class="input-white-plain" id="incidentCostInput" value="150000">
+                            <input type="number" class="input-white-plain" id="incidentCost" value="150000">
                         </div>
                         <button class="btn-danger-white" id="btnSendIncident">Gửi Báo cáo sự cố</button>
                     </div>
                 </div>
             </div>
 
+            <!-- DANH SÁCH CHỜ ĐỐI CHIẾU -->
+            <div class="card">
+                <h2 class="section-title">📋 Danh sách chờ đối chiếu</h2>
+                <p class="section-sub">Biên bản đã gửi từ một phía (Khách thuê hoặc Chủ xe), đang chờ phía còn lại xác nhận với thông số trùng khớp.</p>
+                <div class="table-head-6" id="pendingHead">
+                    <span>Đơn</span>
+                    <span>Loại</span>
+                    <span>Gửi từ</span>
+                    <span>Odo</span>
+                    <span>Xăng/Pin</span>
+                    <span>Trạng thái</span>
+                </div>
+                <div id="pendingHandoverList">
+                    <div class="ho-empty-state">Chưa có biên bản nào đang chờ đối chiếu</div>
+                </div>
+            </div>
+
             <div class="grid-2-bottom">
+                <!-- KHO HÌNH ẢNH -->
                 <div class="card">
-                    <h2 class="section-title">Kho lưu trữ Hình ảnh Giao nhận</h2>
-                    <p class="section-sub">Hình ảnh Check-in / Check-out được lưu trữ trên hệ thống và tự động xóa sau 4
-                        ngày.</p>
+                    <h2 class="section-title">📸 Kho lưu trữ Hình ảnh Giao nhận</h2>
+                    <p class="section-sub">Hình ảnh được lưu trữ 3 ngày. Admin sẽ sử dụng để xem xét khi có khiếu nại hoặc báo cáo sự cố.</p>
                     <div class="storage-list" id="storageList">
-                        <div class="storage-card">
-                            <div class="storage-thumb">Ảnh mẫu Honda Vision</div>
-                            <div class="storage-filename">anh_nhan_xe_vision.jpg</div>
-                            <div class="storage-meta">Từ: Khách thuê • #BK0001</div>
-                            <span class="badge-warn-sm">Xóa sau 3 ngày</span>
-                        </div>
+                        <div class="ho-empty-state">Chưa có hình ảnh nào được lưu</div>
                     </div>
                 </div>
 
                 <div class="stack-col">
+                    <!-- LỊCH SỬ HOÀN TẤT -->
                     <div class="card">
-                        <h2 class="section-title">Lịch sử Biên bản Check-in / Check-out đã khớp</h2>
-                        <div class="table-head-5">
+                        <h2 class="section-title">✅ Lịch sử Giao nhận đã khớp thành công</h2>
+                        <div class="table-head-6">
                             <span>Loại</span>
                             <span>Xe &amp; Đơn</span>
-                            <span>Odo khớp</span>
+                            <span>Odo</span>
                             <span>Xăng/Pin</span>
+                            <span>Thời gian</span>
                             <span>Ghi chú</span>
                         </div>
                         <div id="handoverHistoryList">
-                            <div class="table-row-5">
-                                <span><span class="badge-info-sm">Check-in</span></span>
-                                <strong>#BK0001 • Vision 2024</strong>
-                                <span>8.420 km</span>
-                                <span>90%</span>
-                                <span class="text-muted">Đủ 2 mũ, nguyên vẹn</span>
-                            </div>
+                            <div class="ho-empty-state">Chưa có giao dịch nào hoàn tất</div>
                         </div>
                     </div>
 
+                    <!-- ĐÁNH GIÁ SAO -->
                     <div class="card">
-                        <h2 class="section-title">Đánh giá sao sau khi Check-out trả xe</h2>
+                        <h2 class="section-title">⭐ Đánh giá sao sau khi Check-out trả xe</h2>
                         <div class="form-group">
                             <label>Chọn mức độ hài lòng</label>
                             <div class="star-row" id="starRow">
@@ -383,7 +358,7 @@
                         </div>
                         <div class="form-group mt-12">
                             <label>Nhận xét chất lượng xe máy &amp; dịch vụ</label>
-                            <input type="text" class="input-soft" id="reviewTextInput"
+                            <input type="text" class="input-soft" id="reviewText"
                                 value="Xe tay ga chạy êm, tiết kiệm xăng, có sẵn 2 nón bảo hiểm sạch sẽ.">
                         </div>
                         <button class="btn-primary-pill mt-12" id="btnSendReview">Gửi đánh giá</button>
@@ -395,18 +370,18 @@
         <section class="tab-panel" id="tab3">
             <div class="card">
                 <h2 class="section-title">Quản lý Phiên tài khoản</h2>
-                <div class="session-bar hidden" id="sessionBarLoggedIn">
+                <div class="session-bar" id="sessionBarLoggedIn">
                     <div class="session-status">
                         <strong>Trạng thái hiện tại:</strong>
                         <span class="text-green-bold" id="sessionUserText">Trương Công Hào — Khách thuê</span>
                     </div>
                     <div class="session-btns">
-                        <button class="btn-secondary-pill" id="btnChangePass">Đổi mật khẩu</button>
+                        <button class="btn-secondary-pill">Đổi mật khẩu</button>
                         <button class="btn-logout-pill" id="btnLogout">Đăng xuất</button>
                     </div>
                 </div>
 
-                <div class="session-bar" id="sessionBarLoggedOut">
+                <div class="session-bar hidden" id="sessionBarLoggedOut">
                     <div class="session-status">
                         <strong>Trạng thái hiện tại:</strong>
                         <span class="text-muted-bold">Chưa đăng nhập</span>
@@ -446,8 +421,8 @@
 
                     <div class="form-group mt-12">
                         <label>Hình ảnh CCCD / Chân dung *</label>
-                        <div class="file-bar hidden" id="ekycFileLoggedIn">Chọn tệp — cccd_truongconghao.jpg</div>
-                        <div class="file-bar" id="ekycFileLoggedOut">
+                        <div class="file-bar" id="ekycFileLoggedIn">Chọn tệp — cccd_truongconghao.jpg</div>
+                        <div class="file-bar hidden" id="ekycFileLoggedOut">
                             <button type="button" class="native-file-btn">Chọn tệp</button>
                             <span>Không có tệp nào được chọn</span>
                         </div>
@@ -458,7 +433,7 @@
                             <span class="muted-label">Trạng thái hồ sơ:</span>
                             <span class="badge-success">Đã duyệt</span>
                         </div>
-                        <button class="btn-primary-pill" id="btnUpdateEkyc">Cập nhật &amp; Gửi duyệt</button>
+                        <button class="btn-primary-pill">Cập nhật &amp; Gửi duyệt</button>
                     </div>
                 </div>
 
@@ -686,6 +661,55 @@
                         <div class="login-sub-actions">
                             <button type="button" class="btn-login-link" id="btnRegister">Đăng ký</button>
                             <button type="button" class="btn-login-link" id="btnForgotPassword">Quên mật khẩu?</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="tab-panel" id="tab7">
+            <div class="login-wrapper">
+                <div class="login-card">
+                    <div class="login-header">
+                        <svg class="login-user-icon" viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="10" fill="#7c7c7c" />
+                            <circle cx="12" cy="9" r="3.2" fill="#fff" />
+                            <path d="M6.5 18.2C7.8 15.8 9.7 14.6 12 14.6C14.3 14.6 16.2 15.8 17.5 18.2" stroke="#fff"
+                                stroke-width="2" stroke-linecap="round" />
+                        </svg>
+                        <h2>Đăng ký tài khoản</h2>
+                    </div>
+
+                    <div class="login-form">
+                        <div class="login-row">
+                            <label>Họ và tên</label>
+                            <input type="text" class="login-input focus-ring" id="registerFullName" placeholder="Nhập họ và tên">
+                        </div>
+
+                        <div class="login-row">
+                            <label>Email</label>
+                            <input type="email" class="login-input" id="registerEmail" placeholder="example@gmail.com">
+                        </div>
+
+                        <div class="login-row">
+                            <label>Số điện thoại</label>
+                            <input type="tel" class="login-input" id="registerPhone" placeholder="+84">
+                        </div>
+
+                        <div class="login-row">
+                            <label>Mật khẩu</label>
+                            <input type="password" class="login-input" id="registerPassword" placeholder="Tối thiểu 8 ký tự">
+                        </div>
+
+                        <div class="login-row">
+                            <label>Xác nhận mật khẩu</label>
+                            <input type="password" class="login-input" id="registerConfirmPassword" placeholder="Nhập lại mật khẩu">
+                        </div>
+
+                        <button type="button" class="btn-login-submit" id="btnSubmitRegister">Đăng ký</button>
+
+                        <div class="login-sub-actions">
+                            <button type="button" class="btn-login-link" id="btnBackToLogin">Đã có tài khoản? Đăng nhập</button>
                         </div>
                     </div>
                 </div>
