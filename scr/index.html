@@ -22,22 +22,16 @@
             <nav class="nav-segmented" id="mainNav">
                 <button class="nav-tab active" data-target="tab1">Đặt xe</button>
                 <button class="nav-tab" data-target="tab2">Giao nhận xe</button>
-                <button class="nav-tab" data-target="tab3">Tài khoản &amp; Ví</button>
                 <span class="nav-divider"></span>
                 <button class="nav-tab" data-target="tab4">Xe của bạn</button>
             </nav>
 
             <div class="top-actions">
-                <button class="btn-top-account hidden" id="btnTopAccount">Tài khoản</button>
                 <div class="user-menu-wrap" id="userMenuWrap">
                     <button class="btn-top-login" id="btnTopLogin">Đăng nhập</button>
                     <div class="user-dropdown hidden" id="userDropdown">
-                        <div class="user-dropdown-header" id="dropdownRoleLabel">Vai trò: Khách thuê</div>
-                        <button type="button" class="user-dropdown-item" data-role="Khách thuê">Đổi sang Người
-                            thuê</button>
-                        <button type="button" class="user-dropdown-item" data-role="Chủ xe">Đổi sang Chủ xe</button>
-                        <button type="button" class="user-dropdown-item" data-role="Quản trị viên">Đổi sang Quản trị
-                            viên</button>
+                        <div class="user-dropdown-header" id="dropdownUserLabel">Tài khoản: Trương Công Hào</div>
+                        <button type="button" class="user-dropdown-item" id="btnDropdownToAccount">Tài khoản &amp; Ví</button>
                         <div class="user-dropdown-sep"></div>
                         <button type="button" class="user-dropdown-item logout-item" id="btnDropdownLogout">Đăng
                             xuất</button>
@@ -164,7 +158,7 @@
                             <label>Phương thức nhận xe</label>
                             <select class="input-soft" id="pickupMethod">
                                 <option value="0">Tự lấy xe tại điểm</option>
-                                <option value="30000">Giao xe tận nơi (+30.000đ)</option>
+                                <option value="30000">Giao xe tận nơi ( <5km +30.000đ)</option>
                             </select>
                         </div>
                         <div class="form-group">
@@ -398,7 +392,7 @@
                 <div class="session-bar hidden" id="sessionBarLoggedIn">
                     <div class="session-status">
                         <strong>Trạng thái hiện tại:</strong>
-                        <span class="text-green-bold" id="sessionUserText">Trương Công Hào — Khách thuê</span>
+                        <span class="text-green-bold" id="sessionUserText">Trương Công Hào</span>
                     </div>
                     <div class="session-btns">
                         <button class="btn-secondary-pill" id="btnChangePass">Đổi mật khẩu</button>
@@ -425,7 +419,7 @@
                     <div class="grid-2">
                         <div class="form-group">
                             <label>Họ và tên *</label>
-                            <input type="text" class="input-soft" value="Trương Công Hào">
+                            <input type="text" class="input-soft" id="ekycFullName" value="Trương Công Hào">
                         </div>
                         <div class="form-group">
                             <label>Số CCCD *</label>
