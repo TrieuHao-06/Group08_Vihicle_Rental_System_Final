@@ -4,738 +4,742 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MOTO RENTER — THUÊ XE MÁY</title>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Ops+One&display=swap">
+    <title>Thuê Xe Máy</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="thuexe.css">
 </head>
 
 <body>
-
-    <header>
-        <div class="header-inner">
-            <div class="brand">
-                <img src="logo.png" alt="Logo" class="brand-icon">
+    <header class="topbar">
+        <div class="topbar-inner">
+            <div class="brand" id="brandLogo">
+                <img src="logo.png" alt="Logo Thuê Xe Máy" class="brand-logo-img">
                 <span class="brand-text">THUÊ XE MÁY</span>
             </div>
-            <div class="nav-tabs" id="mainNavTabs">
-                <button class="nav-btn active" data-tab="renter" onclick="switchTab('renter', this)">Đặt xe</button>
-                <button class="nav-btn" data-tab="handover" onclick="switchTab('handover', this)">Giao nhận xe</button>
-                <button class="nav-btn" data-tab="wallet" onclick="switchTab('wallet', this)">Tài khoản & Ví</button>
+
+            <nav class="nav-segmented" id="mainNav">
+                <button class="nav-tab active" data-target="tab1">Đặt xe</button>
+                <button class="nav-tab" data-target="tab2">Giao nhận xe</button>
+                <button class="nav-tab" data-target="tab3">Tài khoản &amp; Ví</button>
                 <span class="nav-divider"></span>
-                <button class="nav-btn" data-tab="owner" onclick="switchTab('owner', this)">Xe của bạn</button>
-                <button class="nav-btn" id="navAdminTab" data-tab="admin" style="display: none;"
-                    onclick="switchTab('admin', this)">Công cụ quản lý</button>
-            </div>
-            <div class="auth-bar">
+                <button class="nav-tab" data-target="tab4">Xe của bạn</button>
+            </nav>
+
+            <div class="top-actions">
+                <button class="btn-top-account hidden" id="btnTopAccount">Tài khoản</button>
                 <div class="user-menu-wrap" id="userMenuWrap">
-                    <button id="headerLoginBtn" class="btn btn-primary" onclick="handleHeaderAuthClick()">Đăng
-                        nhập</button>
-                    <div id="userDropdown" class="user-dropdown" style="display: none;">
-                        <div id="userRoleLabel" class="user-role-label">Vai trò: Khách thuê</div>
-                        <select id="roleSwitcher" onchange="changeUserRole(this.value)">
-                            <option value="RENTER">Vai trò: Khách thuê</option>
-                            <option value="OWNER">Vai trò: Chủ xe</option>
-                            <option value="ADMIN">Vai trò: Quản trị viên</option>
-                        </select>
-                        <button class="btn btn-danger user-logout-btn" onclick="handleAuthAction('LOGOUT')">Đăng
+                    <button class="btn-top-login" id="btnTopLogin">Đăng nhập</button>
+                    <div class="user-dropdown hidden" id="userDropdown">
+                        <div class="user-dropdown-header" id="dropdownRoleLabel">Vai trò: Khách thuê</div>
+                        <button type="button" class="user-dropdown-item" data-role="Khách thuê">Đổi sang Người
+                            thuê</button>
+                        <button type="button" class="user-dropdown-item" data-role="Chủ xe">Đổi sang Chủ xe</button>
+                        <button type="button" class="user-dropdown-item" data-role="Quản trị viên">Đổi sang Quản trị
+                            viên</button>
+                        <div class="user-dropdown-sep"></div>
+                        <button type="button" class="user-dropdown-item logout-item" id="btnDropdownLogout">Đăng
                             xuất</button>
                     </div>
                 </div>
-                <button id="headerAccountBtn" class="btn btn-secondary" style="display: none;"
-                    onclick="quickSwitchTab('wallet')">Tài khoản</button>
+                <button class="btn-top-admin" id="btnTopAdmin">Admin</button>
             </div>
         </div>
     </header>
 
-    <div id="authModal" class="modal-backdrop" style="display: none;">
-        <div class="modal-card">
-            <div class="section-bar">
-                <h2 id="modalTitle">Đăng nhập hệ thống</h2>
-                <button class="btn btn-secondary" style="padding: 4px 10px;" onclick="closeAuthModal()">✕</button>
-            </div>
-            <div id="loginFormBox">
-                <div style="margin-bottom:12px;">
-                    <label>Tên tài khoản hiển thị</label>
-                    <input type=text id="loginUsernameInput" value="Trương Công Hào">
-                </div>
-                <div style="margin-bottom: 12px; ">
-                    <label>Mật khẩu</label>
-                    <input type="password" id="loginPasswordInput" value="123456">
-                </div>
-                <div style="margin-bottom: 16px;">
-                    <label>Đăng nhập với vai trò</label>
-                    <select id="loginRoleSelect">
-                        <option value="RENTER">User — Người thuê xe </option>
-                        <option value="OWNER">User — Chủ xe</option>
-                        <option value="ADMIN">Admin — Quản trị viên</option>
-                    </select>
-                </div>
-                <button class="btn btn-primary" style="width:100%;" onclick="confirmLogin()">Xác nhận Đăng nhập</button>
-            </div>
-
-            <div id="changePassFormBox" style="display: none;">
-                <div style="margin-bottom: 12px;">
-                    <label>Mật khẩu hiện tại</label>
-                    <input type="password" id="oldPassInput" placeholder="Nhập mật khẩu cũ">
-                </div>
-                <div style="margin-bottom: 12px;">
-                    <label>Mật khẩu mới</label>
-                    <input type="password" id="newPassInput" placeholder="Nhập mật khẩu mới">
-                </div>
-                <div style="margin-bottom: 16px;">
-                    <label>Xác nhận mật khẩu mới</label>
-                    <input type="password" id="confirmPassInput" placeholder="Nhập lại mật khẩu mới">
-                </div>
-                <button class="btn btn-primary" style="width: 100%;" onclick="confirmChangePassword()">Lưu mật khẩu
-                    mới</button>
-            </div>
-        </div>
-    </div>
-
-    <div class="container">
-
-        <div id="renter" class="section active">
+    <main class="main-container">
+        <section class="tab-panel active" id="tab1">
             <div class="card">
-                <div class="section-bar">
-                    <h2>Tìm kiếm lịch trình thuê xe máy</h2>
-                </div>
+                <h2 class="section-title">Tìm kiếm lịch trình thuê xe máy</h2>
                 <div class="grid-3">
-                    <div>
+                    <div class="form-group">
                         <label>Địa điểm nhận xe</label>
-                        <select id="searchLocation" onchange="updateSelectedLocation()">
-                            <option value="Quận 1, TP.HCM">Quận 1, TP.HCM</option>
-                            <option value="Quận 7, TP.HCM">Quận 7, TP.HCM</option>
-                            <option value="TP. Thủ Đức, TP.HCM">TP. Thủ Đức, TP.HCM</option>
-                            <option value="Bình Thạnh, TP.HCM">Bình Thạnh, TP.HCM</option>
-                        </select>
+                        <input type="text" class="input-soft" value="Quận 1, TP.HCM">
                     </div>
-                    <div>
-                        <label>Ngày & Giờ nhận xe</label>
-                        <input type="datetime-local" id="pickupTime" value="2026-11-04T08:00">
+                    <div class="form-group">
+                        <label>Ngày &amp; Giờ nhận xe</label>
+                        <input type="text" class="input-soft" value="04/11/2026 08:00 SA">
                     </div>
-                    <div>
-                        <label>Ngày & Giờ trả xe</label>
-                        <input type="datetime-local" id="returnTime" value="2026-11-05T08:00">
+                    <div class="form-group">
+                        <label>Ngày &amp; Giờ trả xe</label>
+                        <input type="text" class="input-soft" value="05/11/2026 08:00 SA">
                     </div>
                 </div>
             </div>
 
             <div class="card">
-                <div class="section-bar">
-                    <h2>Chọn dòng xe máy</h2>
-                </div>
-
-                <div class="filter-strip grid-4" style="margin-bottom: 20px;">
-                    <div>
-                        <label>Hãng xe máy</label>
-                        <select id="filterBrand" onchange="renderVehicles()">
-                            <option value="ALL">Tất cả hãng xe</option>
-                            <option value="Honda">Honda</option>
-                            <option value="Yamaha">Yamaha</option>
-                            <option value="VinFast">VinFast</option>
-                            <option value="Piaggio">Piaggio</option>
-                            <option value="SYM">SYM</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label>Loại xe</label>
-                        <select id="filterSeats" onchange="renderVehicles()">
-                            <option value="ALL">Tất cả loại xe</option>
-                            <option value="Xe tay ga">Xe tay ga</option>
-                            <option value="Xe số">Xe số</option>
-                            <option value="Xe côn tay">Xe côn tay</option>
-                            <option value="Xe máy điện">Xe máy điện</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label>Phân khối</label>
-                        <select id="filterTrans" onchange="renderVehicles()">
-                            <option value="ALL">Tất cả phân khối</option>
-                            <option value="110cc">110cc</option>
-                            <option value="125cc">125cc</option>
-                            <option value="155cc - 160cc">155cc - 160cc</option>
-                            <option value="Pin LFP">Pin LFP</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label>Nhiên liệu</label>
-                        <select id="filterFuel" onchange="renderVehicles()">
-                            <option value="ALL">Tất cả nhiên liệu</option>
-                            <option value="Xăng">Xăng</option>
-                            <option value="Điện">Điện</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div id="vehicleList" class="grid-3"></div>
-            </div>
-
-            <div class="grid-2">
-                <div class="card">
-                    <div class="section-bar">
-                        <h2>Chi tiết xe máy & Chọn gói thuê</h2>
-                    </div>
-
-                    <div class="selected-car-box">
-                        <h3 id="selectedCarName" style="margin: 0 0 6px; font-size: 18px; color: #0F172A;">Honda Vision
-                            2024</h3>
-                        <p id="selectedCarSpecs" class="sub-text" style="margin: 0;">Honda • Xe tay ga • 110cc • Xăng •
-                            Quận 1, TP.HCM</p>
-                    </div>
-
-                    <label>Chọn gói thời gian thuê</label>
-                    <div class="plan-selector plan-selector-2">
-                        <div class="plan-option" id="planHour" onclick="selectPlan('Theo giờ')">
-                            <span>Thuê theo giờ</span>
-                            <strong id="priceHourLabel">25K / giờ</strong>
-                        </div>
-                        <div class="plan-option selected" id="planDay" onclick="selectPlan('Theo ngày')">
-                            <span>Thuê theo ngày</span>
-                            <strong id="priceDayLabel">140K / ngày</strong>
-                        </div>
-                    </div>
-
-                    <div style="margin-bottom: 16px;">
-                        <label id="durationQtyLabel">Số ngày thuê</label>
-                        <input type="number" id="rentalDurationQty" value="1" min="1" max="60"
-                            onchange="updateBookingSummary()" oninput="updateBookingSummary()">
-                    </div>
-
-                    <label>Chọn Voucher khuyến mãi</label>
-                    <select id="promoCode" onchange="updateBookingSummary()">
-                    </select>
-                    <p id="promoNotice" class="sub-text" style="margin-top: 8px; color: #059669; font-weight: 600;"></p>
-                </div>
-
-                <div class="card">
-                    <div class="section-bar">
-                        <h2>Thanh toán & Xác nhận <span id="bookingCodeLabel">#BK0001</span></h2>
-                    </div>
-
-                    <div class="grid-2" style="gap: 12px; margin-bottom: 14px;">
-                        <div>
-                            <label>Phương thức nhận xe</label>
-                            <select id="deliveryMethod" onchange="toggleDeliveryKmInput(); updateBookingSummary()">
-                                <option value="SELF">Tự lấy xe tại điểm</option>
-                                <option value="DELIVERY">Giao xe tận nơi — 4.000₫/km + 10.000₫</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label>Phương thức thanh toán</label>
-                            <select id="paymentGateway" disabled>
-                                <option value="WALLET">Ví nội bộ — 2.500.000₫</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div id="deliveryKmBox" style="display: none; margin-bottom: 14px;">
-                        <label>Khoảng cách giao xe — 4.000₫/km + 10.000₫ phí</label>
-                        <input type="number" id="deliveryDistanceKm" value="5" min="1" max="100"
-                            onchange="updateBookingSummary()" oninput="updateBookingSummary()">
-                    </div>
-
-                    <div class="invoice-box">
-                        <div class="summary-row">
-                            <span>Gói cước thuê: <span id="planLabel">Theo ngày × 1</span></span>
-                            <strong id="rentPriceText">140.000₫</strong>
-                        </div>
-                        <div class="summary-row">
-                            <span>Phí giao xe: <span id="deliveryFormulaText">Tự lấy tại điểm</span></span>
-                            <strong id="deliveryFeeText">0₫</strong>
-                        </div>
-                        <div class="summary-row">
-                            <span>Chiết khấu Voucher</span>
-                            <strong id="discountText" style="color: #059669;">-14.000₫</strong>
-                        </div>
-                        <div class="summary-row">
-                            <span>Tiền đặt cọc xe máy</span>
-                            <strong>300.000₫</strong>
-                        </div>
-                        <div class="summary-row summary-total">
-                            <span>Tổng cộng thanh toán</span>
-                            <span id="totalPayText" style="color: #2563EB; font-size: 20px;">426.000₫</span>
-                        </div>
-                    </div>
-
-                    <button class="btn btn-primary" style="width: 100%; margin-top: 14px; padding: 13px;"
-                        onclick="confirmPayment()">Thanh toán & Đặt xe</button>
-                    <p id="paymentResult" class="sub-text" style="text-align: center; margin-top: 10px;"></p>
-                </div>
-            </div>
-        </div>
-
-        <div id="handover" class="section">
-            <div class="card">
-                <div class="section-bar">
-                    <div>
-                        <h2>Đối chiếu Giao nhận xe 2 chiều</h2>
-                    </div>
-                    <span id="currentTripStateBadge" class="badge badge-orange">Chờ Check-in</span>
-                </div>
-
-                <div class="handover-controls">
-                    <div>
-                        <label>Loại giao dịch</label>
-                        <div class="radio-group">
-                            <label class="radio-item">
-                                <input type="radio" name="handoverType" value="CHECKIN" checked
-                                    onchange="updateHandoverModeUI()">
-                                <span>Check In - Khách nhận xe</span>
-                            </label>
-                            <label class="radio-item">
-                                <input type="radio" name="handoverType" value="CHECKOUT"
-                                    onchange="updateHandoverModeUI()">
-                                <span>Check Out - Khách trả xe</span>
-                            </label>
-                        </div>
-                    </div>
-                    <div>
-                        <label>Phân quyền tài khoản</label>
-                        <div class="radio-group">
-                            <label class="radio-item">
-                                <input type="radio" name="handoverParty" value="RENTER" checked
-                                    onchange="switchHandoverParty('RENTER')">
-                                <span>Người thuê</span>
-                            </label>
-                            <label class="radio-item">
-                                <input type="radio" name="handoverParty" value="OWNER"
-                                    onchange="switchHandoverParty('OWNER')">
-                                <span>Chủ xe</span>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="handover-party-box" id="renterPartyBox">
-                    <div class="handover-field">
-                        <label>Đơn xe đã đặt</label>
-                        <select id="renterBookingSelect"></select>
-                    </div>
-                    <div class="grid-2 handover-field" style="gap: 16px;">
-                        <div>
-                            <label>Số Odometer hiện tại *</label>
-                            <input type="number" id="renterOdoInput" value="8420" placeholder="Nhập số km">
-                        </div>
-                        <div>
-                            <label>Mức xăng / Pin *</label>
-                            <input type="number" id="renterFuelInput" value="90" min="0" max="100" placeholder="VD: 90">
-                        </div>
-                    </div>
-                    <div class="handover-field">
-                        <label>Ảnh chụp phía Khách</label>
-                        <input type="file" id="renterPhotos" accept="image/*" multiple
-                            onchange="handlePhotoUpload(this, 'Khách thuê')">
-                    </div>
-                    <div>
-                        <label>Ghi chú của Khách thuê</label>
-                        <input type=text id="renterNote" value="Đã nhận đủ 02 mũ bảo hiểm, áo mưa, xe hoạt động tốt.">
-                    </div>
-                </div>
-
-                <div class="handover-party-box" id="ownerPartyBox" style="display: none;">
-                    <div class="handover-field">
-                        <label>Xe của Chủ xe</label>
-                        <select id="ownerVehicleSelect"></select>
-                    </div>
-                    <div class="grid-2 handover-field" style="gap: 16px;">
-                        <div>
-                            <label>Số Odometer hiện tại *</label>
-                            <input type="number" id="ownerOdoInput" value="8420" placeholder="Nhập số km">
-                        </div>
-                        <div>
-                            <label>Mức xăng / Pin *</label>
-                            <input type="number" id="ownerFuelInput" value="90" min="0" max="100" placeholder="VD: 90">
-                        </div>
-                    </div>
-                    <div class="handover-field">
-                        <label>Ảnh chụp phía Chủ xe</label>
-                        <input type="file" id="ownerPhotos" accept="image/*" multiple
-                            onchange="handlePhotoUpload(this, 'Chủ xe')">
-                    </div>
-                    <div>
-                        <label>Ghi chú của Chủ xe</label>
-                        <input type="text" id="ownerNote" value="Giao xe đúng hẹn, dàn áo nguyên vẹn, đủ giấy tờ.">
-                    </div>
-                </div>
-
-                <div style="display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap;">
-                    <button class="btn btn-primary" onclick="submitHandover()">So sánh & Thực thi Giao nhận</button>
-                    <button class="btn btn-secondary" onclick="toggleIncidentBox()">Báo cáo sự cố / Hư hỏng</button>
-                </div>
-                <p id="handoverMsg" class="sub-text" style="margin-top: 10px; font-weight: 600;"></p>
-
-                <div id="incidentBox" class="incident-alert" style="display: none;">
-                    <h3 style="color: #DC2626;">Báo cáo sự cố / Hư hỏng phát sinh</h3>
-                    <div class="grid-2" style="gap: 10px; margin-bottom: 10px;">
-                        <div>
-                            <label>Mô tả chi tiết vị trí hư hỏng</label>
-                            <input type="text" id="incidentDesc"
-                                placeholder="VD: Trầy ốp sườn phải / Gãy gương chiếu hậu">
-                        </div>
-                        <div>
-                            <label>Chi phí đền bù dự kiến</label>
-                            <input type="number" id="incidentCost" value="150000">
-                        </div>
-                    </div>
-                    <button class="btn btn-danger" onclick="reportIncident()">Gửi Báo cáo sự cố</button>
-                    <p id="incidentMsg" class="sub-text" style="margin-top: 8px; color: #DC2626; font-weight: 600;"></p>
-                </div>
-            </div>
-
-            <div class="grid-2">
-                <div class="card">
-                    <div class="section-bar">
-                        <h2>Kho lưu trữ Hình ảnh Giao nhận</h2>
-                    </div>
-                    <p class="sub-text" style="margin-bottom: 12px;">Hình ảnh Check-in / Check-out được lưu trữ trên hệ
-                        thống và tự động xóa sau 4 ngày.</p>
-                    <div id="savedPhotosGallery" class="photo-gallery"></div>
-                </div>
-
-                <div>
-                    <div class="card">
-                        <div class="section-bar">
-                            <h2>Lịch sử Biên bản Check-in / Check-out đã khớp</h2>
-                        </div>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Loại</th>
-                                    <th>Xe & Đơn</th>
-                                    <th>Odo khớp</th>
-                                    <th>Xăng/Pin</th>
-                                    <th>Ghi chú</th>
-                                </tr>
-                            </thead>
-                            <tbody id="handoverHistoryTable"></tbody>
-                        </table>
-                    </div>
-
-                    <div class="card">
-                        <div class="section-bar">
-                            <h2>Đánh giá sao sau khi Check-out trả xe</h2>
-                        </div>
-                        <label>Chọn mức độ hài lòng</label>
-                        <div class="star-group" id="starSelector">
-                            <button class="star-btn" onclick="selectStar(1, this)">1 ★</button>
-                            <button class="star-btn" onclick="selectStar(2, this)">2 ★</button>
-                            <button class="star-btn" onclick="selectStar(3, this)">3 ★</button>
-                            <button class="star-btn" onclick="selectStar(4, this)">4 ★</button>
-                            <button class="star-btn active" onclick="selectStar(5, this)">5 ★</button>
-                        </div>
-                        <div style="margin-bottom: 12px;">
-                            <label>Nhận xét chất lượng xe máy & dịch vụ</label>
-                            <input type="text" id="reviewComment"
-                                value="Xe tay ga chạy êm, tiết kiệm xăng, có sẵn 2 nón bảo hiểm sạch sẽ.">
-                        </div>
-                        <button class="btn btn-primary" onclick="submitReview()">Gửi đánh giá</button>
-                        <p id="reviewMsg" class="sub-text" style="margin-top: 8px; color: #059669; font-weight: 600;">
-                        </p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div id="wallet" class="section">
-            <div class="card">
-                <div class="section-bar">
-                    <h2>Quản lý Phiên tài khoản</h2>
-                </div>
-                <div
-                    style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-                    <div>
-                        <p style="font-size: 14px; font-weight: 700; margin: 0 0 4px;">Trạng thái hiện tại: <span
-                                id="authAccountState" style="color: #64748B;">Chưa đăng nhập</span></p>
-                    </div>
-                    <div style="display: flex; gap: 8px;">
-                        <button class="btn btn-primary" id="btnOpenLoginInWallet" onclick="openLoginModal()">Đăng
-                            nhập</button>
-                        <button class="btn btn-secondary" id="btnChangePassword" onclick="openChangePasswordModal()">Đổi
-                            mật khẩu</button>
-                        <button class="btn btn-danger" id="btnLogout" onclick="handleAuthAction('LOGOUT')">Đăng
-                            xuất</button>
-                    </div>
-                </div>
-                <p id="authActionNotice" class="sub-text" style="margin-top: 8px; color: #059669; font-weight: 600;">
-                </p>
-            </div>
-
-            <div class="grid-2">
-                <div class="card">
-                    <div class="section-bar">
-                        <h2>Xác thực Thông tin eKYC</h2>
-                    </div>
-                    <div class="grid-2" style="gap: 10px; margin-bottom: 12px;">
-                        <div>
-                            <label>Họ và tên *</label>
-                            <input type="text" id="kycName" value="Trương Công Hào">
-                        </div>
-                        <div>
-                            <label>Số CCCD *</label>
-                            <input type="text" id="kycCccd" value="089206001234">
-                        </div>
-                    </div>
-                    <div class="grid-2" style="gap: 10px; margin-bottom: 12px;">
-                        <div>
-                            <label>Số điện thoại *</label>
-                            <input type="tel" id="kycPhone" value="0909123456">
-                        </div>
-                        <div>
-                            <label>Email *</label>
-                            <input type="email" id="kycEmail" value="truongconghao@email.com">
-                        </div>
-                    </div>
-                    <div style="margin-bottom: 12px;">
-                        <label>Hình ảnh CCCD / Chân dung *</label>
-                        <input type="file" id="kycFile" accept="image/*">
-                    </div>
-
-                    <div
-                        style="display: flex; justify-content: space-between; align-items: center; margin-top: 18px; padding-top: 8px;">
-                        <div>
-                            <span class="sub-text">Trạng thái hồ sơ: </span>
-                            <span id="kycStatusBadge" class="badge badge-green">Đã duyệt</span>
-                        </div>
-                        <button class="btn btn-primary" onclick="submitKycDocument()">Cập nhật & Gửi duyệt</button>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="section-bar">
-                        <h2>Ví điện tử nội bộ & Hoàn cọc</h2>
-                    </div>
-                    <div class="wallet-banner">
-                        <span class="wallet-label">SỐ DƯ KHẢ DỤNG HIỆN TẠI</span>
-                        <div id="walletBalance" class="wallet-amount">2.500.000₫</div>
-                    </div>
-
-                    <label>Số tiền giao dịch</label>
-                    <input type="number" id="walletAmount" value="500000" style="margin-bottom: 12px;">
-
-                    <div style="display: flex; gap: 10px; margin-bottom: 18px;">
-                        <button class="btn btn-primary" style="flex: 1;" onclick="processWallet('DEPOSIT')">Nạp
-                            tiền</button>
-                        <button class="btn btn-secondary" style="flex: 1;" onclick="processWallet('WITHDRAW')">Rút
-                            tiền</button>
-                    </div>
-
-                    <h3>Lịch sử giao dịch & Hoàn cọc</h3>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Mã GD</th>
-                                <th>Nội dung</th>
-                                <th>Biến động</th>
-                                <th>Trạng thái</th>
-                            </tr>
-                        </thead>
-                        <tbody id="txTable">
-                            <tr>
-                                <td><strong>#TX101</strong></td>
-                                <td>Hoàn cọc tự động đơn #BK0000</td>
-                                <td style="color:#059669; font-weight:700;">+300.000₫</td>
-                                <td><span class="badge badge-green">Hoàn tất</span></td>
-                            </tr>
-                            <tr>
-                                <td><strong>#TX100</strong></td>
-                                <td>Nạp tiền qua ngân hàng</td>
-                                <td style="color:#059669; font-weight:700;">+2.200.000₫</td>
-                                <td><span class="badge badge-green">Hoàn tất</span></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <div id="owner" class="section">
-            <div class="grid-2">
-                <div class="card">
-                    <div class="section-bar">
-                        <h2>Đăng ký Ký gửi xe máy của bạn</h2>
-                    </div>
-                    <div class="grid-2" style="gap: 10px; margin-bottom: 10px;">
-                        <div>
+                <h2 class="section-title">Chọn dòng xe máy</h2>
+                <div class="filter-box">
+                    <div class="grid-4">
+                        <div class="form-group">
                             <label>Hãng xe máy</label>
-                            <select id="newCarBrand">
+                            <select class="input-white" id="filterBrand">
+                                <option value="all">Tất cả hãng xe</option>
                                 <option value="Honda">Honda</option>
                                 <option value="Yamaha">Yamaha</option>
                                 <option value="VinFast">VinFast</option>
                                 <option value="Piaggio">Piaggio</option>
-                                <option value="SYM">SYM</option>
                             </select>
                         </div>
-                        <div>
-                            <label>Tên mẫu xe & Đời xe</label>
-                            <input type="text" id="newCarModel" placeholder="VD: Honda SH 160i 2024">
-                        </div>
-                    </div>
-                    <div class="grid-3" style="gap: 10px; margin-bottom: 10px;">
-                        <div>
+                        <div class="form-group">
                             <label>Loại xe</label>
-                            <select id="newCarSeats">
+                            <select class="input-white" id="filterType">
+                                <option value="all">Tất cả loại xe</option>
                                 <option value="Xe tay ga">Xe tay ga</option>
                                 <option value="Xe số">Xe số</option>
                                 <option value="Xe côn tay">Xe côn tay</option>
                                 <option value="Xe máy điện">Xe máy điện</option>
                             </select>
                         </div>
-                        <div>
+                        <div class="form-group">
                             <label>Phân khối</label>
-                            <select id="newCarTrans">
+                            <select class="input-white" id="filterCc">
+                                <option value="all">Tất cả phân khối</option>
                                 <option value="110cc">110cc</option>
                                 <option value="125cc">125cc</option>
                                 <option value="155cc - 160cc">155cc - 160cc</option>
                                 <option value="Pin LFP">Pin LFP</option>
                             </select>
                         </div>
-                        <div>
+                        <div class="form-group">
                             <label>Nhiên liệu</label>
-                            <select id="newCarFuel">
+                            <select class="input-white" id="filterFuel">
+                                <option value="all">Tất cả nhiên liệu</option>
                                 <option value="Xăng">Xăng</option>
                                 <option value="Điện">Điện</option>
                             </select>
                         </div>
                     </div>
-                    <div class="grid-3" style="gap: 10px; margin-bottom: 14px;">
+                </div>
+
+                <div class="bike-grid" id="bikeGrid"></div>
+            </div>
+
+            <div class="grid-2-bottom">
+                <div class="card">
+                    <h2 class="section-title">Chi tiết xe máy &amp; Chọn gói thuê</h2>
+                    <div class="selected-bike-banner">
                         <div>
-                            <label>Giá thuê theo giờ</label>
-                            <input type="number" id="newCarPriceHour" value="30000">
-                        </div>
-                        <div>
-                            <label>Giá thuê theo ngày</label>
-                            <input type="number" id="newCarPriceDay" value="180000">
-                        </div>
-                        <div>
-                            <label>Biển số kiểm soát</label>
-                            <input type="text" id="newCarPlate" value="59-P2 688.88">
+                            <div class="selected-bike-name" id="detailBikeName">Honda Vision 2024</div>
+                            <div class="selected-bike-specs" id="detailBikeSpecs">Honda • Xe tay ga • 110cc • Xăng •
+                                Quận 1, TP.HCM</div>
                         </div>
                     </div>
-                    <button class="btn btn-primary" style="width: 100%;" onclick="submitConsignVehicle()">Gửi hồ sơ ký
-                        gửi xe lên Admin</button>
-                    <p id="consignMsg" class="sub-text" style="margin-top: 8px; color: #059669; font-weight: 600;"></p>
+
+                    <div class="form-group mt-16">
+                        <label>Chọn gói thời gian thuê</label>
+                        <div class="package-toggle">
+                            <button type="button" class="pkg-btn" id="pkgHourBtn" data-mode="hour">
+                                <span class="pkg-label">Thuê theo giờ</span>
+                                <strong class="pkg-price" id="pkgHourText">25K / giờ</strong>
+                            </button>
+                            <button type="button" class="pkg-btn active" id="pkgDayBtn" data-mode="day">
+                                <span class="pkg-label">Thuê theo ngày</span>
+                                <strong class="pkg-price" id="pkgDayText">140K / ngày</strong>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="form-group mt-16">
+                        <label id="durationLabel">Số ngày thuê</label>
+                        <input type="number" min="1" class="input-soft" id="rentDuration" value="1">
+                    </div>
+
+                    <div class="form-group mt-16">
+                        <label>Chọn Voucher khuyến mãi</label>
+                        <select class="input-soft" id="voucherSelect">
+                            <option value="10">BONBON10 — Giảm 10%</option>
+                            <option value="15">BONBON15 — Giảm 15%</option>
+                            <option value="0">Không sử dụng Voucher</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div class="card">
-                    <div class="section-bar">
-                        <h2>Quản lý lịch xe trống & Doanh thu của bạn</h2>
-                    </div>
-                    <div class="grid-2" style="gap: 12px; margin-bottom: 16px;">
-                        <div class="kpi-box">
-                            <span class="kpi-title">Tổng chuyến hoàn tất tháng 11</span>
-                            <div class="kpi-number">36 chuyến</div>
+                    <h2 class="section-title">Thanh toán &amp; Xác nhận</h2>
+
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>Phương thức nhận xe</label>
+                            <select class="input-soft" id="pickupMethod">
+                                <option value="0">Tự lấy xe tại điểm</option>
+                                <option value="30000">Giao xe tận nơi (+30.000đ)</option>
+                            </select>
                         </div>
-                        <div class="kpi-box">
-                            <span class="kpi-title">Doanh thu ròng chủ xe</span>
-                            <div class="kpi-number" style="color: #059669;">6.450.000₫</div>
+                        <div class="form-group">
+                            <label>Phương thức thanh toán</label>
+                            <select class="input-soft" id="paymentMethod">
+                                <option value="wallet" id="payMethodWalletOpt">Tiền trong tài khoản cá nhân — 2.500.000đ
+                                </option>
+                            </select>
+                            <span class="payment-hint">* Chỉ áp dụng thanh toán bằng tài khoản cá nhân (không hỗ trợ
+                                chuyển khoản ngân hàng)</span>
                         </div>
                     </div>
 
-                    <h3>Danh sách xe máy thuộc sở hữu của bạn</h3>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Tên xe máy</th>
-                                <th>Khung ngày</th>
-                                <th>Trạng thái lịch</th>
-                                <th>Đổi trạng thái</th>
-                            </tr>
-                        </thead>
-                        <tbody id="ownerScheduleTableBody">
-                            <tr>
-                                <td><strong>Honda Vision 2024</strong></td>
-                                <td>04/11 - 06/11</td>
-                                <td><span class="badge badge-green">Đang trống</span></td>
-                                <td><button class="btn btn-secondary" onclick="toggleScheduleStatus(this)">Khóa
-                                        lịch</button></td>
-                            </tr>
-                            <tr>
-                                <td><strong>Honda AirBlade 160 2024</strong></td>
-                                <td>04/11 - 05/11</td>
-                                <td><span class="badge badge-orange">Đang cho thuê</span></td>
-                                <td><button class="btn btn-secondary" onclick="toggleScheduleStatus(this)">Mở
-                                        trống</button></td>
-                            </tr>
-                        </tbody>
-                    </table>
+                    <div class="summary-box mt-16">
+                        <div class="summary-row">
+                            <span id="sumBaseLabel">Gói cước thuê: Theo ngày × 1 ngày</span>
+                            <strong id="sumBaseVal">140.000đ</strong>
+                        </div>
+                        <div class="summary-row">
+                            <span id="sumShipLabel">Phí giao xe: Tự lấy tại điểm</span>
+                            <strong id="sumShipVal">0đ</strong>
+                        </div>
+                        <div class="summary-row">
+                            <span>Chiết khấu Voucher</span>
+                            <strong class="text-green" id="sumDiscountVal">-14.000đ</strong>
+                        </div>
+                        <div class="summary-row">
+                            <span>Tiền đặt cọc xe máy</span>
+                            <strong>300.000đ</strong>
+                        </div>
+                        <div class="summary-total-box">
+                            <span>Tổng cộng thanh toán</span>
+                            <strong class="total-price" id="sumTotalVal">426.000đ</strong>
+                        </div>
+                    </div>
+
+                    <button class="btn-primary-full mt-16" id="btnBookNow">Thanh toán &amp; Đặt xe</button>
                 </div>
+            </div>
+        </section>
+
+        <section class="tab-panel" id="tab2">
+            <div class="card">
+                <h2 class="section-title">Đối chiếu Giao nhận xe 2 chiều</h2>
+                <div class="handover-radios">
+                    <div class="radio-block">
+                        <div class="radio-title">Loại giao dịch</div>
+                        <div class="radio-options">
+                            <label class="radio-label">
+                                <input type="radio" name="txType" value="Check-in" checked>
+                                <span>Check In - Khách nhận xe</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="txType" value="Check-out">
+                                <span>Check Out - Khách trả xe</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="radio-block">
+                        <div class="radio-title">Phân quyền tài khoản</div>
+                        <div class="radio-options">
+                            <label class="radio-label">
+                                <input type="radio" name="roleType" value="Khách thuê" checked>
+                                <span>Người thuê</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="roleType" value="Chủ xe">
+                                <span>Chủ xe</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="handover-form-panel" id="panelRenter">
+                    <div class="handover-panel-title">Thông tin giao nhận phía Người thuê</div>
+                    <div class="form-group">
+                        <label>Đơn xe đã đặt</label>
+                        <select class="input-white-bordered" id="hoOrderInput">
+                            <option value="#BK0001 — Honda Vision 2024 • Chờ Check-in">#BK0001 — Honda Vision 2024 • Chờ
+                                Check-in</option>
+                            <option value="#BK0002 — Honda AirBlade 160 2024 • Đang thuê">#BK0002 — Honda AirBlade 160
+                                2024 • Đang thuê</option>
+                        </select>
+                    </div>
+
+                    <div class="grid-2 mt-12">
+                        <div class="form-group">
+                            <label>Số Odometer hiện tại *</label>
+                            <input type="number" class="input-white-bordered" id="hoOdoInput" value="8420">
+                        </div>
+                        <div class="form-group">
+                            <label>Mức xăng / Pin *</label>
+                            <input type="number" class="input-white-bordered" id="hoFuelInput" value="90">
+                        </div>
+                    </div>
+
+                    <div class="form-group mt-12">
+                        <label>Ảnh chụp phía Khách</label>
+                        <input type="text" class="input-white-bordered" id="hoImgInput"
+                            value="Chọn tệp — anh_nhan_xe_vision.jpg">
+                    </div>
+
+                    <div class="form-group mt-12">
+                        <label>Ghi chú của Khách thuê</label>
+                        <input type="text" class="input-white-bordered" id="hoNoteInput"
+                            value="Đã nhận đủ 02 mũ bảo hiểm, áo mưa, xe hoạt động tốt.">
+                    </div>
+                </div>
+
+                <div class="handover-form-panel hidden" id="panelOwner">
+                    <div class="handover-panel-title">Thông tin giao nhận phía Chủ xe</div>
+                    <div class="form-group">
+                        <label>Đơn xe đang cho thuê</label>
+                        <select class="input-white-bordered" id="hoOwnerOrderInput">
+                            <option value="#BK0001 — Honda Vision 2024 • Chờ Chủ xe xác nhận">#BK0001 — Honda Vision
+                                2024 • Chờ Chủ xe xác nhận</option>
+                            <option value="#BK0002 — Honda AirBlade 160 2024 • Đang bàn giao">#BK0002 — Honda AirBlade
+                                160 2024 • Đang bàn giao</option>
+                        </select>
+                    </div>
+
+                    <div class="grid-2 mt-12">
+                        <div class="form-group">
+                            <label>Số Odometer chủ xe ghi nhận *</label>
+                            <input type="number" class="input-white-bordered" id="hoOwnerOdoInput" value="8420">
+                        </div>
+                        <div class="form-group">
+                            <label>Mức xăng / Pin chủ xe kiểm tra *</label>
+                            <input type="number" class="input-white-bordered" id="hoOwnerFuelInput" value="90">
+                        </div>
+                    </div>
+
+                    <div class="form-group mt-12">
+                        <label>Ảnh chụp phía Chủ xe</label>
+                        <input type="text" class="input-white-bordered" id="hoOwnerImgInput"
+                            value="Chọn tệp — anh_chuxe_ban_giao.jpg">
+                    </div>
+
+                    <div class="form-group mt-12">
+                        <label>Ghi chú của Chủ xe</label>
+                        <input type="text" class="input-white-bordered" id="hoOwnerNoteInput"
+                            value="Xe mới rửa sạch sẽ, đủ 02 mũ bảo hiểm và giấy tờ xe photo.">
+                    </div>
+                </div>
+
+                <div class="handover-actions mt-16">
+                    <button class="btn-primary-pill" id="btnExecHandover">So sánh &amp; Thực thi Giao nhận</button>
+                    <button class="btn-secondary-pill" id="btnToggleIncident">Báo cáo sự cố / Hư hỏng</button>
+                </div>
+
+                <div class="incident-box mt-16" id="incidentBox">
+                    <div class="incident-title">Báo cáo sự cố / Hư hỏng phát sinh</div>
+                    <div class="incident-grid">
+                        <div class="form-group">
+                            <label>Mô tả chi tiết vị trí hư hỏng</label>
+                            <input type="text" class="input-white-plain" id="incidentDescInput"
+                                placeholder="VD: Trầy ốp sườn phải / Gãy gương chiếu hậu">
+                        </div>
+                        <div class="form-group">
+                            <label>Chi phí đền bù dự kiến</label>
+                            <input type="number" class="input-white-plain" id="incidentCostInput" value="150000">
+                        </div>
+                        <button class="btn-danger-white" id="btnSendIncident">Gửi Báo cáo sự cố</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid-2-bottom">
+                <div class="card">
+                    <h2 class="section-title">Kho lưu trữ Hình ảnh Giao nhận</h2>
+                    <p class="section-sub">Hình ảnh Check-in / Check-out được lưu trữ trên hệ thống và tự động xóa sau 4
+                        ngày.</p>
+                    <div class="storage-list" id="storageList">
+                        <div class="storage-card">
+                            <div class="storage-thumb">Ảnh mẫu Honda Vision</div>
+                            <div class="storage-filename">anh_nhan_xe_vision.jpg</div>
+                            <div class="storage-meta">Từ: Khách thuê • #BK0001</div>
+                            <span class="badge-warn-sm">Xóa sau 3 ngày</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stack-col">
+                    <div class="card">
+                        <h2 class="section-title">Lịch sử Biên bản Check-in / Check-out đã khớp</h2>
+                        <div class="table-head-5">
+                            <span>Loại</span>
+                            <span>Xe &amp; Đơn</span>
+                            <span>Odo khớp</span>
+                            <span>Xăng/Pin</span>
+                            <span>Ghi chú</span>
+                        </div>
+                        <div id="handoverHistoryList">
+                            <div class="table-row-5">
+                                <span><span class="badge-info-sm">Check-in</span></span>
+                                <strong>#BK0001 • Vision 2024</strong>
+                                <span>8.420 km</span>
+                                <span>90%</span>
+                                <span class="text-muted">Đủ 2 mũ, nguyên vẹn</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h2 class="section-title">Đánh giá sao sau khi Check-out trả xe</h2>
+                        <div class="form-group">
+                            <label>Chọn mức độ hài lòng</label>
+                            <div class="star-row" id="starRow">
+                                <button type="button" class="star-btn" data-star="1">1 ★</button>
+                                <button type="button" class="star-btn" data-star="2">2 ★</button>
+                                <button type="button" class="star-btn" data-star="3">3 ★</button>
+                                <button type="button" class="star-btn" data-star="4">4 ★</button>
+                                <button type="button" class="star-btn active" data-star="5">5 ★</button>
+                            </div>
+                        </div>
+                        <div class="form-group mt-12">
+                            <label>Nhận xét chất lượng xe máy &amp; dịch vụ</label>
+                            <input type="text" class="input-soft" id="reviewTextInput"
+                                value="Xe tay ga chạy êm, tiết kiệm xăng, có sẵn 2 nón bảo hiểm sạch sẽ.">
+                        </div>
+                        <button class="btn-primary-pill mt-12" id="btnSendReview">Gửi đánh giá</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="tab-panel" id="tab3">
+            <div class="card">
+                <h2 class="section-title">Quản lý Phiên tài khoản</h2>
+                <div class="session-bar hidden" id="sessionBarLoggedIn">
+                    <div class="session-status">
+                        <strong>Trạng thái hiện tại:</strong>
+                        <span class="text-green-bold" id="sessionUserText">Trương Công Hào — Khách thuê</span>
+                    </div>
+                    <div class="session-btns">
+                        <button class="btn-secondary-pill" id="btnChangePass">Đổi mật khẩu</button>
+                        <button class="btn-logout-pill" id="btnLogout">Đăng xuất</button>
+                    </div>
+                </div>
+
+                <div class="session-bar" id="sessionBarLoggedOut">
+                    <div class="session-status">
+                        <strong>Trạng thái hiện tại:</strong>
+                        <span class="text-muted-bold">Chưa đăng nhập</span>
+                    </div>
+                    <div class="session-btns">
+                        <button class="btn-primary-pill" id="btnGoLoginFromTab3">Đăng nhập</button>
+                        <button class="btn-disabled-pill" disabled>Đổi mật khẩu</button>
+                        <button class="btn-disabled-pill" disabled>Đăng xuất</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid-2-bottom">
+                <div class="card">
+                    <h2 class="section-title">Xác thực Thông tin eKYC</h2>
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>Họ và tên *</label>
+                            <input type="text" class="input-soft" value="Trương Công Hào">
+                        </div>
+                        <div class="form-group">
+                            <label>Số CCCD *</label>
+                            <input type="text" class="input-soft" value="089206001234">
+                        </div>
+                    </div>
+
+                    <div class="grid-2 mt-12">
+                        <div class="form-group">
+                            <label>Số điện thoại *</label>
+                            <input type="text" class="input-soft" value="0909123456">
+                        </div>
+                        <div class="form-group">
+                            <label>Email *</label>
+                            <input type="email" class="input-soft" value="truongconghao@email.com">
+                        </div>
+                    </div>
+
+                    <div class="form-group mt-12">
+                        <label>Hình ảnh CCCD / Chân dung *</label>
+                        <div class="file-bar hidden" id="ekycFileLoggedIn">Chọn tệp — cccd_truongconghao.jpg</div>
+                        <div class="file-bar" id="ekycFileLoggedOut">
+                            <button type="button" class="native-file-btn">Chọn tệp</button>
+                            <span>Không có tệp nào được chọn</span>
+                        </div>
+                    </div>
+
+                    <div class="ekyc-footer mt-16">
+                        <div class="ekyc-state-left">
+                            <span class="muted-label">Trạng thái hồ sơ:</span>
+                            <span class="badge-success">Đã duyệt</span>
+                        </div>
+                        <button class="btn-primary-pill" id="btnUpdateEkyc">Cập nhật &amp; Gửi duyệt</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2 class="section-title">Ví điện tử nội bộ &amp; Hoàn cọc</h2>
+                    <div class="wallet-balance-box">
+                        <span class="wallet-label">SỐ DƯ KHẢ DỤNG HIỆN TẠI</span>
+                        <strong class="wallet-amount" id="walletBalanceText">2.500.000<u>đ</u></strong>
+                    </div>
+
+                    <div class="form-group mt-12">
+                        <label>Số tiền giao dịch</label>
+                        <input type="number" class="input-soft" id="walletAmountInput" value="500000">
+                    </div>
+
+                    <div class="grid-2 mt-12">
+                        <button class="btn-primary-full" id="btnDeposit">Nạp tiền</button>
+                        <button class="btn-secondary-full" id="btnWithdraw">Rút tiền</button>
+                    </div>
+
+                    <h3 class="sub-heading mt-16">Lịch sử giao dịch &amp; Hoàn cọc</h3>
+                    <div class="wallet-table-head">
+                        <span>Mã GD</span>
+                        <span>Nội dung</span>
+                        <span>Biến động</span>
+                        <span>Trạng thái</span>
+                    </div>
+                    <div id="walletTxList">
+                        <div class="wallet-table-row">
+                            <strong>#TX101</strong>
+                            <span>Hoàn cọc tự động đơn #BK0000</span>
+                            <strong class="text-green">+300.000đ</strong>
+                            <span><span class="badge-success">Hoàn tất</span></span>
+                        </div>
+                        <div class="wallet-table-row">
+                            <strong>#TX100</strong>
+                            <span>Nạp tiền qua ngân hàng</span>
+                            <strong class="text-green">+2.200.000đ</strong>
+                            <span><span class="badge-success">Hoàn tất</span></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="tab-panel" id="tab4">
+            <div class="grid-2-bottom">
+                <div class="card">
+                    <h2 class="section-title">Đăng ký Ký gửi xe máy của bạn</h2>
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>Hãng xe máy</label>
+                            <input type="text" class="input-soft" id="ownBrand" value="Honda">
+                        </div>
+                        <div class="form-group">
+                            <label>Tên mẫu xe &amp; Đời xe</label>
+                            <input type="text" class="input-soft" id="ownModel" placeholder="VD: Honda SH 160i 2024">
+                        </div>
+                    </div>
+
+                    <div class="grid-3 mt-12">
+                        <div class="form-group">
+                            <label>Loại xe</label>
+                            <input type="text" class="input-soft" id="ownType" value="Xe tay ga">
+                        </div>
+                        <div class="form-group">
+                            <label>Phân khối</label>
+                            <input type="text" class="input-soft" id="ownCc" value="110cc">
+                        </div>
+                        <div class="form-group">
+                            <label>Nhiên liệu</label>
+                            <input type="text" class="input-soft" id="ownFuel" value="Xăng">
+                        </div>
+                    </div>
+
+                    <div class="grid-3 mt-12">
+                        <div class="form-group">
+                            <label>Giá thuê theo giờ</label>
+                            <input type="number" class="input-soft" value="30000">
+                        </div>
+                        <div class="form-group">
+                            <label>Giá thuê theo ngày</label>
+                            <input type="number" class="input-soft" value="180000">
+                        </div>
+                        <div class="form-group">
+                            <label>Biển số kiểm soát</label>
+                            <input type="text" class="input-soft" value="59-P2 688.88">
+                        </div>
+                    </div>
+
+                    <button class="btn-primary-full mt-16" id="btnSubmitConsign">Gửi hồ sơ ký gửi xe lên Admin</button>
+                </div>
+
+                <div class="card">
+                    <h2 class="section-title">Quản lý lịch xe trống &amp; Doanh thu của bạn</h2>
+                    <div class="grid-2">
+                        <div class="stat-box">
+                            <span class="stat-label">Tổng chuyến hoàn tất tháng 11</span>
+                            <strong class="stat-val-dark">36 chuyến</strong>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-label">Doanh thu ròng chủ xe</span>
+                            <strong class="stat-val-green">6.450.000<u>đ</u></strong>
+                        </div>
+                    </div>
+
+                    <h3 class="sub-heading mt-16">Danh sách xe máy thuộc sở hữu của bạn</h3>
+                    <div class="owner-table-head">
+                        <span>Tên xe máy</span>
+                        <span>Khung ngày</span>
+                        <span>Trạng thái lịch</span>
+                        <span>Đổi trạng thái</span>
+                    </div>
+                    <div id="ownerBikeList">
+                        <div class="owner-table-row">
+                            <strong>Honda Vision 2024</strong>
+                            <span>04/11 - 06/11</span>
+                            <span><span class="badge-success">Đang trống</span></span>
+                            <button class="btn-secondary-sm toggle-schedule-btn">Khóa lịch</button>
+                        </div>
+                        <div class="owner-table-row">
+                            <strong>Honda AirBlade 160 2024</strong>
+                            <span>04/11 - 05/11</span>
+                            <span><span class="badge-warn-sm">Đang cho thuê</span></span>
+                            <button class="btn-secondary-sm toggle-schedule-btn">Mở trống</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="tab-panel" id="tab5">
+            <div class="card">
+                <h2 class="section-title">Duyệt Xe Máy, eKYC &amp; Xử lý tranh chấp</h2>
+                <div class="admin-approve-head">
+                    <span>Phân loại</span>
+                    <span>Nội dung chi tiết</span>
+                    <span>Trạng thái</span>
+                    <span>Hành động</span>
+                </div>
+
+                <div class="admin-approve-row">
+                    <strong>Duyệt xe ký gửi</strong>
+                    <span>Yamaha Grande 2024 • Xe tay ga • 125cc • Xăng • 25K/giờ • 150K/ngày</span>
+                    <span><span class="badge-warn-sm" id="consignBadge">Chờ duyệt</span></span>
+                    <button class="btn-primary-sm" id="btnApproveConsign">Duyệt lên sàn</button>
+                </div>
+
+                <div class="admin-approve-row">
+                    <strong>Duyệt eKYC người dùng</strong>
+                    <span>Trương Công Hào • CCCD: 089206001234 • SĐT: 0909123456 • Email: truongconghao@email.com</span>
+                    <span><span class="badge-success">Đã xác thực</span></span>
+                    <button class="btn-disabled-sm" disabled>Đã duyệt eKYC</button>
+                </div>
+
+                <div class="admin-approve-row">
+                    <strong>Xử lý tranh chấp &amp; Hoàn cọc</strong>
+                    <span>Đơn #BK0001 • Kiểm tra biên bản Check-out trả xe hợp lệ, không phát sinh phạt</span>
+                    <span><span class="badge-info-sm" id="disputeBadge">Chờ quyết toán</span></span>
+                    <button class="btn-secondary-sm" id="btnRefundDeposit">Hoàn cọc 300.000đ về Ví</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="voucher-header-bar">
+                    <h2 class="section-title mb-0">Quản lý Voucher khuyến mãi</h2>
+                    <div class="voucher-header-actions">
+                        <button class="btn-grey-pill" id="btnToggleVoucherEdit">Chỉnh sửa</button>
+                        <button class="btn-primary-pill" id="btnOpenVoucherModal">Tạo mới voucher</button>
+                    </div>
+                </div>
+
+                <div class="voucher-table-head">
+                    <span>Mã Voucher</span>
+                    <span>Số lần dùng</span>
+                    <span>Mức giảm giá</span>
+                    <span>Trạng thái</span>
+                    <span>Hạn sử dụng</span>
+                </div>
+
+                <div id="voucherListContainer"></div>
+            </div>
+
+            <div class="card">
+                <h2 class="section-title">Quản lý tài khoản</h2>
+                <div class="account-table-head">
+                    <span>ID</span>
+                    <span>Tên người dùng</span>
+                    <span>Số điện thoại</span>
+                    <span>Email</span>
+                    <span>Mật khẩu</span>
+                    <span>Trạng thái tài khoản</span>
+                </div>
+
+                <div id="accountListContainer"></div>
+            </div>
+        </section>
+
+        <section class="tab-panel" id="tab6">
+            <div class="login-wrapper">
+                <div class="login-card">
+                    <div class="login-header">
+                        <svg class="login-user-icon" viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="10" fill="#7c7c7c" />
+                            <circle cx="12" cy="9" r="3.2" fill="#fff" />
+                            <path d="M6.5 18.2C7.8 15.8 9.7 14.6 12 14.6C14.3 14.6 16.2 15.8 17.5 18.2" stroke="#fff"
+                                stroke-width="2" stroke-linecap="round" />
+                        </svg>
+                        <h2>Đăng nhập hệ thống</h2>
+                    </div>
+
+                    <div class="login-form">
+                        <div class="login-row">
+                            <label>Tên đăng nhập</label>
+                            <input type="text" class="login-input focus-ring" id="loginUsername" value="Haotruong11111">
+                        </div>
+
+                        <div class="login-row">
+                            <label>Mật khẩu</label>
+                            <input type="password" class="login-input" id="loginPassword" value="12345678">
+                        </div>
+
+                        <button class="btn-login-submit" id="btnSubmitLogin">Đăng nhập</button>
+
+                        <div class="login-sub-actions">
+                            <button type="button" class="btn-login-link" id="btnRegister">Đăng ký</button>
+                            <button type="button" class="btn-login-link" id="btnForgotPassword">Quên mật khẩu?</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div class="modal-backdrop hidden" id="voucherModal">
+        <div class="modal-card">
+            <h3 class="modal-title">Tạo voucher mới</h3>
+
+            <div class="modal-form-row">
+                <label>Mã giảm giá mới</label>
+                <input type="text" class="modal-input focus-ring" id="newVoucherCode">
+            </div>
+
+            <div class="modal-form-row">
+                <label>Số lần dùng</label>
+                <input type="number" class="modal-input" id="newVoucherUses" value="100">
+            </div>
+
+            <div class="modal-form-row">
+                <label>Phần trăm giảm giá</label>
+                <div class="percent-selector" id="percentSelector">
+                    <button type="button" class="pct-btn" data-pct="5%">5%</button>
+                    <button type="button" class="pct-btn active" data-pct="10%">10%</button>
+                    <button type="button" class="pct-btn" data-pct="20%">20%</button>
+                    <button type="button" class="pct-btn" data-pct="25%">25%</button>
+                    <button type="button" class="pct-btn" data-pct="30%">30%</button>
+                    <button type="button" class="pct-btn" data-pct="50%">50%</button>
+                    <button type="button" class="pct-btn" data-pct="75%">75%</button>
+                    <button type="button" class="pct-btn" data-pct="80%">80%</button>
+                </div>
+            </div>
+
+            <div class="modal-form-row">
+                <label>Giới hạn điều kiện</label>
+                <div class="condition-input-wrap">
+                    <span class="cond-prefix">Giá trị đơn hàng trên</span>
+                    <input type="text" class="cond-input" id="newVoucherCond">
+                    <span class="cond-suffix">đ</span>
+                </div>
+            </div>
+
+            <div class="modal-form-row">
+                <label>Ngày hết hạn</label>
+                <input type="text" class="modal-input" id="newVoucherExp" placeholder="29/01/2027">
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn-modal-cancel" id="btnCloseVoucherModal">Hủy</button>
+                <button type="button" class="btn-modal-save" id="btnSaveVoucher">Lưu</button>
             </div>
         </div>
-
-        <div id="admin" class="section">
-            <div class="card">
-                <div class="section-bar">
-                    <h2>Duyệt Xe Máy, eKYC & Xử lý tranh chấp</h2>
-                </div>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Phân loại</th>
-                            <th>Nội dung chi tiết</th>
-                            <th>Trạng thái</th>
-                            <th>Hành động</th>
-                        </tr>
-                    </thead>
-                    <tbody id="adminApprovalTable">
-                        <tr>
-                            <td><strong>Duyệt xe ký gửi</strong></td>
-                            <td>Yamaha Grande 2024 • Xe tay ga • 125cc • Xăng • 25K/giờ • 150K/ngày</td>
-                            <td><span class="badge badge-orange">Chờ duyệt</span></td>
-                            <td><button class="btn btn-primary"
-                                    onclick="approvePendingCar('Yamaha', 'Yamaha Grande 2024', 'Xe tay ga', '125cc', 'Xăng', 25000, 150000, this)">Duyệt
-                                    lên sàn</button></td>
-                        </tr>
-                        <tr id="adminKycRow">
-                            <td><strong>Duyệt eKYC người dùng</strong></td>
-                            <td id="adminKycDetailCell">Trương Công Hào • CCCD: 089206001234 • SĐT: 0909123456 • Email:
-                                truongconghao@email.com</td>
-                            <td><span class="badge badge-green" id="adminKycRowBadge">Đã xác thực</span></td>
-                            <td><button class="btn btn-primary" id="adminKycBtn" onclick="adminVerifyKyc()" disabled>Đã
-                                    duyệt eKYC</button></td>
-                        </tr>
-                        <tr>
-                            <td><strong>Xử lý tranh chấp & Hoàn cọc</strong></td>
-                            <td>Đơn #BK0001 • Kiểm tra biên bản Check-out trả xe hợp lệ, không phát sinh phạt</td>
-                            <td><span class="badge badge-blue">Chờ quyết toán</span></td>
-                            <td><button class="btn btn-secondary" onclick="adminRefundDeposit(this)">Hoàn cọc 300.000₫
-                                    về Ví</button></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="card">
-                <div class="section-bar">
-                    <h2>Quản lý Voucher khuyến mãi</h2>
-                </div>
-                <div class="grid-3" style="margin-bottom: 14px;">
-                    <div>
-                        <label>Mã Voucher mới</label>
-                        <input type="text" id="newPromoCode" placeholder="VD: CUOITUAN20">
-                    </div>
-                    <div>
-                        <label>Phần trăm giảm</label>
-                        <input type="number" id="newPromoPercent" value="20">
-                    </div>
-                    <div style="display: flex; align-items: flex-end;">
-                        <button class="btn btn-primary" style="width: 100%;" onclick="addPromoCode()">Tạo Voucher
-                            mới</button>
-                    </div>
-                </div>
-
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Mã Voucher</th>
-                            <th>Mức giảm giá</th>
-                            <th>Trạng thái</th>
-                        </tr>
-                    </thead>
-                    <tbody id="promoTableBody"></tbody>
-                </table>
-            </div>
-        </div>
-
     </div>
 
     <script src="thuexe.js"></script>

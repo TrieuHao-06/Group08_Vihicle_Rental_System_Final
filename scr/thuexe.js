@@ -1,1156 +1,843 @@
-var vehicles = [
+var bikesData = [
     {
         id: 1,
         brand: "Honda",
         name: "Honda Vision 2024",
-        seats: "Xe tay ga",
-        trans: "110cc",
+        type: "Xe tay ga",
+        cc: "110cc",
         fuel: "Xăng",
-        owner: "Trương Công Hào",
-        discount: "Giảm 10%",
-        prices: { "Theo giờ": 25000, "Theo ngày": 140000 }
+        hourPrice: 25000,
+        dayPrice: 140000
     },
     {
         id: 2,
         brand: "Honda",
         name: "Honda AirBlade 160 2024",
-        seats: "Xe tay ga",
-        trans: "155cc - 160cc",
+        type: "Xe tay ga",
+        cc: "155cc - 160cc",
         fuel: "Xăng",
-        owner: "Trương Công Hào",
-        discount: "Giảm 15%",
-        prices: { "Theo giờ": 35000, "Theo ngày": 180000 }
+        hourPrice: 35000,
+        dayPrice: 180000
     },
     {
         id: 3,
         brand: "Yamaha",
         name: "Yamaha Exciter 155 VVA",
-        seats: "Xe côn tay",
-        trans: "155cc - 160cc",
+        type: "Xe côn tay",
+        cc: "155cc - 160cc",
         fuel: "Xăng",
-        owner: "Nguyễn Minh Tuấn",
-        discount: "Xe mới",
-        prices: { "Theo giờ": 40000, "Theo ngày": 200000 }
+        hourPrice: 40000,
+        dayPrice: 200000
     },
     {
         id: 4,
         brand: "VinFast",
         name: "VinFast Evo200 2024",
-        seats: "Xe máy điện",
-        trans: "Pin LFP",
+        type: "Xe máy điện",
+        cc: "Pin LFP",
         fuel: "Điện",
-        owner: "Nguyễn Minh Tuấn",
-        discount: "Giảm 8%",
-        prices: { "Theo giờ": 22000, "Theo ngày": 130000 }
+        hourPrice: 22000,
+        dayPrice: 130000
     },
     {
         id: 5,
         brand: "Honda",
         name: "Honda Wave Alpha 2023",
-        seats: "Xe số",
-        trans: "110cc",
+        type: "Xe số",
+        cc: "110cc",
         fuel: "Xăng",
-        owner: "Trương Công Hào",
-        discount: "Tiết kiệm",
-        prices: { "Theo giờ": 18000, "Theo ngày": 100000 }
+        hourPrice: 18000,
+        dayPrice: 100000
     },
     {
         id: 6,
         brand: "Piaggio",
         name: "Vespa Sprint S 125",
-        seats: "Xe tay ga",
-        trans: "125cc",
+        type: "Xe tay ga",
+        cc: "125cc",
         fuel: "Xăng",
-        owner: "Lê Hoàng Nam",
-        discount: "Cao cấp",
-        prices: { "Theo giờ": 55000, "Theo ngày": 300000 }
+        hourPrice: 55000,
+        dayPrice: 300000
     }
 ]
 
-var promoCodes = {
-    "BONBON10": 10,
-    "BONBON50": 50
-};
+var vouchersData = [
+    { code: "CONBO01", uses: 127, discount: "Giảm 10%", status: "Đang hoạt động", type: "active", exp: "29/01/2027" },
+    { code: "CONHEO01", uses: 272, discount: "Giảm 30%", status: "Gần hết", type: "warn", exp: "19/01/2027" },
+    { code: "CONCHO01", uses: 300, discount: "Giảm 15%", status: "Hết hạn", type: "expired", exp: "14/11/2026" }
+]
 
-var bookings = [
-    {
-        code: "#BK0001",
-        vehicleId: 1,
-        vehicleName: "Honda Vision 2024",
-        renterName: "Trương Công Hào",
-        ownerName: "Trương Công Hào",
-        status: "BOOKED"
-    }
-];
+var accountsData = [
+    { id: "00011783", username: "HaoTruong", phone: "0866******", email: "v*********@gmail.com", pass: "**************", statusIndex: 0 },
+    { id: "00006067", username: "ᴛʀúᴍ ᴄắɴ ᴛʀộᴍ", phone: "0382******", email: "q*********@hotmail.com", pass: "**************", statusIndex: 0 },
+    { id: "00015278", username: "Donal J.Trump", phone: "0999******", email: "v*********@gmail.com", pass: "**************", statusIndex: 1 },
+    { id: "00013089", username: "John Ternus", phone: "0382******", email: "q*********@hotmail.com", pass: "**************", statusIndex: 0 },
+    { id: "00011581", username: "ɴʜɪღᴄôɴɢღᴛúᴀ", phone: "0866******", email: "v*********@outlook.com", pass: "**************", statusIndex: 2 },
+    { id: "00004007", username: "Quỳnh✿P O✿Yêu", phone: "0382******", email: "k*********@crypto.com", pass: "**************", statusIndex: 3 }
+]
 
-var FOUR_DAYS_MS = 4 * 24 * 60 * 60 * 1000;
-var systemPhotos = [
-    {
-        id: 1,
-        uploaderRole: "Khách thuê",
-        bookingCode: "#BK0001",
-        fileName: "anh_nhan_xe_vision.jpg",
-        dataUrl: "data:image/svg+xml;utf8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="300" height="180"><rect width="100%" height="100%" fill="#EFF6FF"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#2563EB" font-family="sans-serif" font-size="14" font-weight="bold">Ảnh mẫu Honda Vision</text></svg>'),
-        createdAt: Date.now() - (1 * 24 * 60 * 60 * 1000),
-        expiresAt: Date.now() + (3 * 24 * 60 * 60 * 1000)
-    }
-];
+var accountStates = [
+    { label: "Bình thường", cls: "acct-normal" },
+    { label: "Bị khóa 15 ngày", cls: "acct-lock15" },
+    { label: "Bị khóa 30 ngày", cls: "acct-lock30" },
+    { label: "Bị khóa vĩnh viễn", cls: "acct-ban" }
+]
 
-var selectedCar = vehicles[0]
-var currentPlan = "Theo ngày"
+var selectedBikeId = 1
+var rentMode = "day"
 var walletBalance = 2500000
-var isKycVerified = true
-var selectedRating = 5
-
+var currentBookingTotal = 426000
+var isVoucherEditMode = false
+var selectedModalPct = "10%"
 var isLoggedIn = false
 var currentUserName = "Trương Công Hào"
-var currentRole = "RENTER"
-var demTam = 0
-var bienKhongDung = ""
+var currentUserRole = "Khách thuê"
+var tempBien = 0
+var demLanBam = 0
 
-function formatMoney(num) {
-    var kq = num.toLocaleString("vi-VN") + "₫"
+function formatVND(num) {
+    var kq = num.toLocaleString("vi-VN") + "đ"
     return kq
 }
 
-function shortMoney(num) {
-    if (num >= 1000000) {
-        var m = (num / 1000000).toFixed(1)
-        m = m.replace(".0", "")
-        return m + "M"
-    } else {
-        var k = Math.round(num / 1000)
-        return k + "K"
+function timXeTheoId(id) {
+    var i = 0
+    for (i = 0; i < bikesData.length; i++) {
+        if (bikesData[i].id == id) {
+            return bikesData[i]
+        }
     }
+    return bikesData[0]
 }
 
-function populateVoucherComboBox() {
-    var select = document.getElementById("promoCode")
-    if (select == null) {
-        return
+function switchTab(targetId) {
+    var panels = document.querySelectorAll(".tab-panel")
+    var i = 0
+    for (i = 0; i < panels.length; i++) {
+        panels[i].classList.remove("active")
     }
-    var currentVal = select.value
-    if (currentVal == "" || currentVal == null) {
-        currentVal = "BONBON10"
-    }
-    select.innerHTML = '<option value="NONE">-- Không sử dụng Voucher --</option>'
-    var keys = Object.keys(promoCodes)
-    for (var i = 0; i < keys.length; i++) {
-        var code = keys[i]
-        var opt = document.createElement("option")
-        opt.value = code
-        opt.innerText = code + " — Giảm " + promoCodes[code] + "%"
-        select.appendChild(opt)
-    }
-    if (promoCodes[currentVal]) {
-        select.value = currentVal
-    }
-}
-
-function renderVehicles() {
-    var brand = document.getElementById("filterBrand").value
-    var seats = document.getElementById("filterSeats").value
-    var trans = document.getElementById("filterTrans").value
-    var fuel = document.getElementById("filterFuel").value
-    var listEl = document.getElementById("vehicleList")
-    listEl.innerHTML = ""
-
-    var filtered = []
-    for (var i = 0; i < vehicles.length; i++) {
-        var car = vehicles[i]
-        var ok1 = (brand == "ALL" || car.brand == brand)
-        var ok2 = (seats == "ALL" || car.seats == seats)
-        var ok3 = (trans == "ALL" || car.trans == trans)
-        var ok4 = (fuel == "ALL" || car.fuel == fuel)
-        if (ok1 && ok2 && ok3 && ok4) {
-            filtered.push(car)
-        }
+    var panel = document.getElementById(targetId)
+    if (panel != null) {
+        panel.classList.add("active")
     }
 
-    if (filtered.length == 0) {
-        listEl.innerHTML = '<p class="sub-text">Không có mẫu xe máy nào khớp với bộ lọc hiện tại.</p>'
-        return
-    }
-
-    for (var j = 0; j < filtered.length; j++) {
-        var xe = filtered[j]
-        var isCurrent = false
-        if (selectedCar != null && selectedCar.id == xe.id) {
-            isCurrent = true
-        }
-
-        var btnClass = "btn-primary"
-        var btnText = "Chọn xe này"
-        if (isCurrent == true) {
-            btnClass = "btn-secondary"
-            btnText = "Đang chọn xe này"
-        }
-
-        var card = document.createElement("div")
-        if (isCurrent == true) {
-            card.className = "vehicle-card selected-card"
+    var navBtns = document.querySelectorAll(".nav-tab")
+    var j = 0
+    for (j = 0; j < navBtns.length; j++) {
+        if (navBtns[j].getAttribute("data-target") == targetId) {
+            navBtns[j].classList.add("active")
         } else {
-            card.className = "vehicle-card"
-        }
-
-        var html = ""
-        html = html + '<div>'
-        html = html + '<div class="vehicle-thumb">'
-        html = html + '<span class="thumb-brand-tag">' + xe.brand + '</span>'
-        html = html + '<span style="font-size:16px; font-weight:700; color:#0F172A;">' + xe.name + '</span>'
-        html = html + '</div>'
-        html = html + '<div class="vehicle-body">'
-        html = html + '<h3 style="margin:0; font-size:15px;">' + xe.name + '</h3>'
-        html = html + '<div class="spec-grid">'
-        html = html + '<span>' + xe.seats + '</span>'
-        html = html + '<span>' + xe.trans + '</span>'
-        html = html + '<span>' + xe.fuel + '</span>'
-        html = html + '</div>'
-        html = html + '<div class="price-box">'
-        html = html + '<div>'
-        html = html + '<span class="sub-text" style="font-size:11px; display:block;">Theo giờ</span>'
-        html = html + '<div class="price-tag">' + formatMoney(xe.prices["Theo giờ"]) + '<small style="font-size:11px; font-weight:600;">/h</small></div>'
-        html = html + '</div>'
-        html = html + '<div style="text-align:right;">'
-        html = html + '<span class="sub-text" style="font-size:11px; display:block;">Theo ngày</span>'
-        html = html + '<strong style="font-size:14px; color:#0F172A;">' + formatMoney(xe.prices["Theo ngày"]) + '/ngày</strong>'
-        html = html + '</div>'
-        html = html + '</div>'
-        html = html + '<button class="btn ' + btnClass + '" style="width:100%; margin-top:14px;" onclick="chooseCar(' + xe.id + ')">' + btnText + '</button>'
-        html = html + '</div>'
-        html = html + '</div>'
-
-        card.innerHTML = html
-        listEl.appendChild(card)
-    }
-}
-
-function chooseCar(carId) {
-    var found = null
-    for (var i = 0; i < vehicles.length; i++) {
-        if (vehicles[i].id == carId) {
-            found = vehicles[i]
-            break
+            navBtns[j].classList.remove("active")
         }
     }
-    if (found == null) {
-        return
-    }
-    selectedCar = found
-    console.log("chon xe", selectedCar.name)
-    renderVehicles()
-    updateCarDetailView()
-    updateBookingSummary()
+    console.log("chuyen sang tab: " + targetId)
 }
 
-function updateSelectedLocation() {
-    updateCarDetailView()
-}
+function updateAuthUI() {
+    var btnLogin = document.getElementById("btnTopLogin")
+    var btnAcc = document.getElementById("btnTopAccount")
+    var dropdown = document.getElementById("userDropdown")
+    var roleLbl = document.getElementById("dropdownRoleLabel")
+    var barIn = document.getElementById("sessionBarLoggedIn")
+    var barOut = document.getElementById("sessionBarLoggedOut")
+    var fileIn = document.getElementById("ekycFileLoggedIn")
+    var fileOut = document.getElementById("ekycFileLoggedOut")
+    var userTxt = document.getElementById("sessionUserText")
 
-function updateCarDetailView() {
-    var loc = document.getElementById("searchLocation").value
-    document.getElementById("selectedCarName").innerText = selectedCar.name
-    document.getElementById("selectedCarSpecs").innerText = selectedCar.brand + " • " + selectedCar.seats + " • " + selectedCar.trans + " • " + selectedCar.fuel + " • " + loc
-
-    document.getElementById("priceHourLabel").innerText = shortMoney(selectedCar.prices["Theo giờ"]) + " / giờ"
-    document.getElementById("priceDayLabel").innerText = shortMoney(selectedCar.prices["Theo ngày"]) + " / ngày"
-}
-
-function selectPlan(planKey) {
-    currentPlan = planKey
-    var allPlans = document.querySelectorAll(".plan-option")
-    for (var i = 0; i < allPlans.length; i++) {
-        allPlans[i].classList.remove("selected")
-    }
-    var qtyLabel = document.getElementById("durationQtyLabel")
-    var qtyInput = document.getElementById("rentalDurationQty")
-
-    if (planKey == "Theo giờ") {
-        document.getElementById("planHour").classList.add("selected")
-        qtyLabel.innerText = "Số giờ thuê"
-        if (parseInt(qtyInput.value) == 1) {
-            qtyInput.value = 4
-        }
+    if (isLoggedIn == true) {
+        btnAcc.classList.remove("hidden")
+        btnLogin.textContent = currentUserName + " ▾"
+        roleLbl.textContent = "Vai trò: " + currentUserRole
+        barIn.classList.remove("hidden")
+        barOut.classList.add("hidden")
+        fileIn.classList.remove("hidden")
+        fileOut.classList.add("hidden")
+        userTxt.textContent = currentUserName + " — " + currentUserRole
     } else {
-        document.getElementById("planDay").classList.add("selected")
-        qtyLabel.innerText = "Số ngày thuê"
-        if (parseInt(qtyInput.value) == 4) {
-            qtyInput.value = 1
-        }
-    }
-    updateBookingSummary()
-}
-
-function toggleDeliveryKmInput() {
-    var method = document.getElementById("deliveryMethod").value
-    var kmBox = document.getElementById("deliveryKmBox")
-    if (method == "DELIVERY") {
-        kmBox.style.display = "block"
-    } else {
-        kmBox.style.display = "none"
+        btnAcc.classList.add("hidden")
+        btnLogin.textContent = "Đăng nhập"
+        dropdown.classList.add("hidden")
+        barIn.classList.add("hidden")
+        barOut.classList.remove("hidden")
+        fileIn.classList.add("hidden")
+        fileOut.classList.remove("hidden")
     }
 }
 
-function updateBookingSummary() {
-    var qty = parseInt(document.getElementById("rentalDurationQty").value)
-    if (isNaN(qty) || qty < 1) {
-        qty = 1
-    }
-    var unitPrice = selectedCar.prices[currentPlan]
-    var rentPrice = unitPrice * qty
-
-    var deliveryMethod = document.getElementById("deliveryMethod").value
-    var km = parseFloat(document.getElementById("deliveryDistanceKm").value)
-    if (isNaN(km) || km < 0) {
-        km = 0
-    }
-    var deliveryFee = 0
-    var formulaText = "Tự lấy tại điểm"
-
-    if (deliveryMethod == "DELIVERY") {
-        deliveryFee = Math.round(km * 4000 + 10000)
-        formulaText = km + " km × 4.000₫ + 10.000₫ phí"
-    }
-
-    var code = document.getElementById("promoCode").value
-    var percent = promoCodes[code]
-    if (!percent) {
-        percent = 0
-    }
-    var discount = Math.round((rentPrice * percent) / 100)
-    var deposit = 300000
-    var total = rentPrice + deliveryFee - discount + deposit
-
-    var promoNotice = document.getElementById("promoNotice")
-    if (percent > 0) {
-        promoNotice.innerText = "Đã áp dụng mã " + code + " — Giảm " + percent + "%"
-        promoNotice.style.color = "#059669"
-    } else {
-        promoNotice.innerText = "Không áp dụng mã giảm giá."
-        promoNotice.style.color = "#64748B"
-    }
-
-    var unitLabel = "ngày"
-    if (currentPlan == "Theo giờ") {
-        unitLabel = "giờ"
-    }
-    document.getElementById("planLabel").innerText = currentPlan + " × " + qty + " " + unitLabel
-    document.getElementById("rentPriceText").innerText = formatMoney(rentPrice)
-    document.getElementById("deliveryFormulaText").innerText = formulaText
-    document.getElementById("deliveryFeeText").innerText = formatMoney(deliveryFee)
-    document.getElementById("discountText").innerText = "-" + formatMoney(discount)
-    document.getElementById("totalPayText").innerText = formatMoney(total)
-}
-
-function confirmPayment() {
-    var resultEl = document.getElementById("paymentResult")
-    if (isLoggedIn == false) {
-        resultEl.innerText = "Vui lòng nhấn nút Đăng nhập trên góc phải trước khi đặt xe."
-        resultEl.style.color = "#DC2626"
-        openLoginModal()
-        return
-    }
-
-    if (isKycVerified == false) {
-        resultEl.innerText = "Cảnh báo: Hồ sơ eKYC của bạn đang chờ Admin xác thực trước khi đặt xe."
-        resultEl.style.color = "#D97706"
-        return
-    }
-
-    var qty = parseInt(document.getElementById("rentalDurationQty").value)
-    if (isNaN(qty) || qty < 1) {
-        qty = 1
-    }
-    var rentPrice = selectedCar.prices[currentPlan] * qty
-    var deliveryMethod = document.getElementById("deliveryMethod").value
-    var km = parseFloat(document.getElementById("deliveryDistanceKm").value)
-    if (isNaN(km) || km < 0) {
-        km = 0
-    }
-    var deliveryFee = 0
-    if (deliveryMethod == "DELIVERY") {
-        deliveryFee = Math.round(km * 4000 + 10000)
-    }
-    var code = document.getElementById("promoCode").value
-    var percent = promoCodes[code] || 0
-    var giamGia = Math.round((rentPrice * percent) / 100)
-    var total = rentPrice + deliveryFee - giamGia + 300000
-
-    if (walletBalance < total) {
-        resultEl.innerText = "Số dư Ví nội bộ không đủ. Vui lòng vào tab Tài khoản & Ví để nạp thêm."
-        resultEl.style.color = "#DC2626"
-        return
-    }
-
-    walletBalance = walletBalance - total
-    updateWalletUI()
-
-    var soDon = bookings.length + 1
-    var newBookingCode = "#BK000" + soDon
-    bookings.unshift({
-        code: newBookingCode,
-        vehicleId: selectedCar.id,
-        vehicleName: selectedCar.name,
-        renterName: currentUserName,
-        ownerName: selectedCar.owner,
-        status: "BOOKED"
+var allNavTabs = document.querySelectorAll(".nav-tab")
+for (var n = 0; n < allNavTabs.length; n++) {
+    allNavTabs[n].addEventListener("click", function () {
+        var target = this.getAttribute("data-target")
+        switchTab(target)
     })
-
-    document.getElementById("bookingCodeLabel").innerText = newBookingCode
-    addTransactionRow("Thanh toán đơn " + newBookingCode + " — " + selectedCar.name, -total)
-    renderHandoverSelectors()
-
-    resultEl.innerText = "Thanh toán thành công " + formatMoney(total) + "! Đơn " + newBookingCode + " sẵn sàng Check-in."
-    resultEl.style.color = "#059669"
 }
 
-function renderHandoverSelectors() {
-    var renterSelect = document.getElementById("renterBookingSelect")
-    var ownerSelect = document.getElementById("ownerVehicleSelect")
-    if (renterSelect == null || ownerSelect == null) {
-        return
-    }
+document.getElementById("brandLogo").addEventListener("click", function () {
+    switchTab("tab1")
+})
 
-    var renterBookings = []
-    for (var i = 0; i < bookings.length; i++) {
-        if (bookings[i].renterName == currentUserName || currentRole == "ADMIN") {
-            renterBookings.push(bookings[i])
-        }
-    }
-
-    renterSelect.innerHTML = ""
-    if (renterBookings.length == 0) {
-        renterSelect.innerHTML = '<option value="">-- Chưa có đơn đặt xe --</option>'
+document.getElementById("btnTopLogin").addEventListener("click", function (e) {
+    e.stopPropagation()
+    if (isLoggedIn == false) {
+        switchTab("tab6")
     } else {
-        for (var j = 0; j < renterBookings.length; j++) {
-            var b = renterBookings[j]
-            var stateLabel = "Đã Check-out"
-            if (b.status == "BOOKED") {
-                stateLabel = "Chờ Check-in"
-            } else if (b.status == "CHECKED_IN") {
-                stateLabel = "Đã Check-in"
-            }
-            var opt = document.createElement("option")
-            opt.value = b.code
-            opt.innerText = b.code + " — " + b.vehicleName + " • " + stateLabel
-            renterSelect.appendChild(opt)
-        }
-    }
-
-    var ownerVehicles = []
-    for (var k = 0; k < vehicles.length; k++) {
-        if (vehicles[k].owner == currentUserName || currentRole == "ADMIN") {
-            ownerVehicles.push(vehicles[k])
-        }
-    }
-
-    ownerSelect.innerHTML = ""
-    if (ownerVehicles.length == 0) {
-        ownerSelect.innerHTML = '<option value="">-- Chưa có xe ký gửi --</option>'
-    } else {
-        for (var m = 0; m < ownerVehicles.length; m++) {
-            var v = ownerVehicles[m]
-            var opt2 = document.createElement("option")
-            opt2.value = v.id
-            opt2.innerText = "Xe #" + v.id + " — " + v.name + " • Chủ xe: " + v.owner
-            ownerSelect.appendChild(opt2)
-        }
-    }
-
-    updateHandoverModeUI()
-}
-
-function switchHandoverParty(party) {
-    var renterBox = document.getElementById("renterPartyBox")
-    var ownerBox = document.getElementById("ownerPartyBox")
-    if (renterBox == null || ownerBox == null) {
-        return
-    }
-
-    if (party == "OWNER") {
-        renterBox.style.display = "none"
-        ownerBox.style.display = "block"
-    } else {
-        renterBox.style.display = "block"
-        ownerBox.style.display = "none"
-    }
-}
-
-function getSelectedHandoverType() {
-    var radios = document.getElementsByName("handoverType")
-    for (var i = 0; i < radios.length; i++) {
-        if (radios[i].checked == true) {
-            return radios[i].value
-        }
-    }
-    return "CHECKIN"
-}
-
-function setSelectedHandoverType(val) {
-    var radios = document.getElementsByName("handoverType")
-    for (var i = 0; i < radios.length; i++) {
-        if (radios[i].value == val) {
-            radios[i].checked = true
-        }
-    }
-}
-
-function updateHandoverModeUI() {
-    var activeBooking = bookings[0]
-    var badge = document.getElementById("currentTripStateBadge")
-    if (activeBooking != null && badge != null) {
-        if (activeBooking.status == "BOOKED") {
-            badge.innerText = activeBooking.code + ": Chờ Check-in"
-            badge.className = "badge badge-orange"
-        } else if (activeBooking.status == "CHECKED_IN") {
-            badge.innerText = activeBooking.code + ": Đã Check-in"
-            badge.className = "badge badge-blue"
+        var dd = document.getElementById("userDropdown")
+        if (dd.classList.contains("hidden")) {
+            dd.classList.remove("hidden")
         } else {
-            badge.innerText = activeBooking.code + ": Đã Check-out"
-            badge.className = "badge badge-green"
-        }
-    }
-}
-
-function submitHandover() {
-    var msgEl = document.getElementById("handoverMsg")
-    if (isLoggedIn == false) {
-        msgEl.innerText = "Lỗi: Vui lòng đăng nhập trước khi thực hiện Check-in / Check-out."
-        msgEl.style.color = "#DC2626"
-        return
-    }
-
-    var type = getSelectedHandoverType()
-    var bookingCode = document.getElementById("renterBookingSelect").value
-    var ownerVehicleId = parseInt(document.getElementById("ownerVehicleSelect").value)
-    if (isNaN(ownerVehicleId)) {
-        ownerVehicleId = 0
-    }
-
-    var booking = null
-    for (var i = 0; i < bookings.length; i++) {
-        if (bookings[i].code == bookingCode) {
-            booking = bookings[i]
-            break
-        }
-    }
-
-    if (booking == null) {
-        msgEl.innerText = "Lỗi phân quyền: Không tìm thấy đơn đặt xe hợp lệ của Khách thuê."
-        msgEl.style.color = "#DC2626"
-        return
-    }
-
-    if (booking.vehicleId != ownerVehicleId) {
-        msgEl.innerText = 'Không khớp xe: Đơn ' + booking.code + ' của Khách đặt xe "' + booking.vehicleName + '", nhưng phía Chủ xe đang chọn xe khác!'
-        msgEl.style.color = "#DC2626"
-        return
-    }
-
-    if (type == "CHECKIN" && booking.status != "BOOKED") {
-        msgEl.innerText = "Lỗi quy trình: Đơn " + booking.code + " đã Check-in lấy xe rồi, không thể Check-in lại!"
-        msgEl.style.color = "#D97706"
-        return
-    }
-
-    if (type == "CHECKOUT" && booking.status != "CHECKED_IN") {
-        msgEl.innerText = "Chặn thao tác: Khách phải thực hiện Check-in nhận xe thành công trước khi Check-out trả xe!"
-        msgEl.style.color = "#DC2626"
-        return
-    }
-
-    var renterOdo = parseInt(document.getElementById("renterOdoInput").value)
-    var ownerOdo = parseInt(document.getElementById("ownerOdoInput").value)
-    var renterFuel = parseInt(document.getElementById("renterFuelInput").value)
-    var ownerFuel = parseInt(document.getElementById("ownerFuelInput").value)
-    var renterNote = document.getElementById("renterNote").value.trim()
-    var ownerNote = document.getElementById("ownerNote").value.trim()
-
-    if (isNaN(renterOdo) || isNaN(ownerOdo) || isNaN(renterFuel) || isNaN(ownerFuel)) {
-        msgEl.innerText = "Vui lòng nhập đầy đủ số Odometer và Mức xăng/Pin ở cả 2 phía."
-        msgEl.style.color = "#DC2626"
-        return
-    }
-
-    if (renterOdo != ownerOdo || renterFuel != ownerFuel) {
-        msgEl.innerText = "Dữ liệu 2 bên không trùng khớp: Khách khai báo " + renterOdo + " km, " + renterFuel + "% ≠ Chủ xe khai báo " + ownerOdo + " km, " + ownerFuel + "%."
-        msgEl.style.color = "#DC2626"
-        return
-    }
-
-    var actionLabel = "Check-out"
-    var badgeClass = "badge-green"
-    if (type == "CHECKIN") {
-        actionLabel = "Check-in"
-        badgeClass = "badge-blue"
-    }
-
-    if (type == "CHECKIN") {
-        booking.status = "CHECKED_IN"
-        setSelectedHandoverType("CHECKOUT")
-    } else {
-        booking.status = "CHECKED_OUT"
-    }
-
-    var tbody = document.getElementById("handoverHistoryTable")
-    var tr = document.createElement("tr")
-    var rowHtml = ""
-    rowHtml = rowHtml + '<td><span class="badge ' + badgeClass + '">' + actionLabel + '</span></td>'
-    rowHtml = rowHtml + '<td><strong>' + booking.code + '</strong> • ' + booking.vehicleName + '</td>'
-    rowHtml = rowHtml + '<td>' + renterOdo.toLocaleString("vi-VN") + ' km</td>'
-    rowHtml = rowHtml + '<td>' + renterFuel + '%</td>'
-    rowHtml = rowHtml + '<td>Khách: "' + renterNote + '" | Chủ: "' + ownerNote + '"</td>'
-    tr.innerHTML = rowHtml
-    tbody.prepend(tr)
-
-    renderHandoverSelectors()
-    msgEl.innerText = "✔ Đối chiếu dữ liệu 2 bên trùng khớp 100%! Đã thực thi " + actionLabel + " cho đơn " + booking.code + " lúc " + new Date().toLocaleTimeString("vi-VN") + "."
-    msgEl.style.color = "#059669"
-}
-
-function purgeExpiredPhotos() {
-    var now = Date.now()
-    var danhSachMoi = []
-    for (var i = 0; i < systemPhotos.length; i++) {
-        if (systemPhotos[i].expiresAt > now) {
-            danhSachMoi.push(systemPhotos[i])
-        }
-    }
-    systemPhotos = danhSachMoi
-}
-
-function handlePhotoUpload(inputEl, uploaderRole) {
-    if (!inputEl.files || inputEl.files.length == 0) {
-        return
-    }
-    purgeExpiredPhotos()
-
-    var bookingCode = document.getElementById("renterBookingSelect").value
-    if (bookingCode == "") {
-        bookingCode = "#BK0001"
-    }
-    for (var i = 0; i < inputEl.files.length; i++) {
-        (function (file) {
-            var reader = new FileReader()
-            reader.onload = function (e) {
-                var now = Date.now()
-                systemPhotos.unshift({
-                    id: now + Math.random(),
-                    uploaderRole: uploaderRole,
-                    bookingCode: bookingCode,
-                    fileName: file.name,
-                    dataUrl: e.target.result,
-                    createdAt: now,
-                    expiresAt: now + FOUR_DAYS_MS
-                })
-                renderSavedPhotos()
-            }
-            reader.readAsDataURL(file)
-        })(inputEl.files[i])
-    }
-}
-
-function renderSavedPhotos() {
-    purgeExpiredPhotos()
-    var gallery = document.getElementById("savedPhotosGallery")
-    if (gallery == null) {
-        return
-    }
-    gallery.innerHTML = ""
-
-    if (systemPhotos.length == 0) {
-        gallery.innerHTML = '<p class="sub-text">Chưa có hình ảnh nào hoặc ảnh quá 4 ngày đã tự động xóa.</p>'
-        return
-    }
-
-    for (var i = 0; i < systemPhotos.length; i++) {
-        var p = systemPhotos[i]
-        var remainingDays = Math.ceil((p.expiresAt - Date.now()) / (24 * 60 * 60 * 1000))
-        if (remainingDays < 1) {
-            remainingDays = 1
-        }
-        var div = document.createElement("div")
-        div.className = "photo-item"
-        div.innerHTML = '<img src="' + p.dataUrl + '" alt="' + p.fileName + '">' +
-            '<div style="font-weight:700; color:#0F172A; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + p.fileName + '</div>' +
-            '<div class="sub-text" style="font-size:11px;">Từ: <strong>' + p.uploaderRole + '</strong> • ' + p.bookingCode + '</div>' +
-            '<div style="margin-top:4px;"><span class="badge badge-orange">Xóa sau ' + remainingDays + ' ngày</span></div>'
-        gallery.appendChild(div)
-    }
-}
-
-function toggleIncidentBox() {
-    var box = document.getElementById("incidentBox")
-    if (box.style.display == "none") {
-        box.style.display = "block"
-    } else {
-        box.style.display = "none"
-    }
-}
-
-function reportIncident() {
-    var desc = document.getElementById("incidentDesc").value.trim()
-    var cost = parseInt(document.getElementById("incidentCost").value)
-    if (isNaN(cost)) {
-        cost = 0
-    }
-    if (desc == "") {
-        return
-    }
-
-    var adminTable = document.getElementById("adminApprovalTable")
-    var tr = document.createElement("tr")
-    tr.innerHTML = '<td><strong>Sự cố / Hư hỏng</strong></td>' +
-        '<td>Đơn #BK0001 • ' + desc + ' • Khấu trừ: ' + formatMoney(cost) + '</td>' +
-        '<td><span class="badge badge-red">Tranh chấp</span></td>' +
-        '<td><button class="btn btn-primary" onclick="resolveDisputeRow(this)">Xác nhận xử lý</button></td>'
-    adminTable.prepend(tr)
-    document.getElementById("incidentMsg").innerText = "Đã chuyển hồ sơ sự cố sang tab Công cụ quản lý của Admin."
-}
-
-function selectStar(stars, btn) {
-    selectedRating = stars
-    var allBtn = document.querySelectorAll(".star-btn")
-    for (var i = 0; i < allBtn.length; i++) {
-        allBtn[i].classList.remove("active")
-    }
-    btn.classList.add("active")
-}
-
-function submitReview() {
-    var comment = document.getElementById("reviewComment").value
-    document.getElementById("reviewMsg").innerText = 'Đã ghi nhận đánh giá ' + selectedRating + ' sao: "' + comment + '"'
-}
-
-function openLoginModal() {
-    document.getElementById("modalTitle").innerText = "Đăng nhập hệ thống"
-    document.getElementById("loginFormBox").style.display = "block"
-    document.getElementById("changePassFormBox").style.display = "none"
-    document.getElementById("authModal").style.display = "flex"
-}
-
-function openChangePasswordModal() {
-    if (isLoggedIn == false) {
-        openLoginModal()
-        return
-    }
-    document.getElementById("modalTitle").innerText = "Đổi mật khẩu tài khoản"
-    document.getElementById("loginFormBox").style.display = "none"
-    document.getElementById("changePassFormBox").style.display = "block"
-    document.getElementById("authModal").style.display = "flex"
-}
-
-function closeAuthModal() {
-    document.getElementById("authModal").style.display = "none"
-}
-
-function confirmLogin() {
-    var nameInput = document.getElementById("loginUsernameInput").value.trim()
-    if (nameInput == "") {
-        nameInput = "Trương Công Hào"
-    }
-    var roleSelect = document.getElementById("loginRoleSelect").value
-    currentUserName = nameInput
-    currentRole = roleSelect
-    isLoggedIn = true
-    console.log("dang nhap ok", currentUserName)
-
-    closeAuthModal()
-    syncAuthHeaderAndNav()
-    renderHandoverSelectors()
-
-    var notice = document.getElementById("authActionNotice")
-    if (notice != null) {
-        notice.innerText = 'Đã đăng nhập thành công với tên "' + currentUserName + '".'
-    }
-}
-
-function confirmChangePassword() {
-    var newPass = document.getElementById("newPassInput").value
-    var confirmPass = document.getElementById("confirmPassInput").value
-    var notice = document.getElementById("authActionNotice")
-
-    if (newPass == "" || newPass != confirmPass) {
-        alert("Mật khẩu mới và xác nhận mật khẩu không khớp!")
-        return
-    }
-    closeAuthModal()
-    if (notice != null) {
-        notice.innerText = "Đã đổi mật khẩu thành công lúc " + new Date().toLocaleTimeString("vi-VN") + "."
-    }
-}
-
-function changeUserRole(newRole) {
-    currentRole = newRole
-    syncAuthHeaderAndNav()
-    renderHandoverSelectors()
-}
-
-function handleHeaderAuthClick() {
-    if (isLoggedIn == false) {
-        openLoginModal()
-        return
-    }
-    var dropdown = document.getElementById("userDropdown")
-    if (dropdown.style.display == "block") {
-        dropdown.style.display = "none"
-    } else {
-        dropdown.style.display = "block"
-    }
-}
-
-document.addEventListener("click", function (event) {
-    var wrap = document.getElementById("userMenuWrap")
-    var dropdown = document.getElementById("userDropdown")
-    if (wrap != null && dropdown != null) {
-        if (!wrap.contains(event.target)) {
-            dropdown.style.display = "none"
+            dd.classList.add("hidden")
         }
     }
 })
 
-function syncAuthHeaderAndNav() {
-    var loginBtn = document.getElementById("headerLoginBtn")
-    var accountBtn = document.getElementById("headerAccountBtn")
-    var userDropdown = document.getElementById("userDropdown")
-    var userRoleLabel = document.getElementById("userRoleLabel")
-    var roleSwitcher = document.getElementById("roleSwitcher")
-    var navAdminTab = document.getElementById("navAdminTab")
-    var stateText = document.getElementById("authAccountState")
-    var btnOpenLoginInWallet = document.getElementById("btnOpenLoginInWallet")
-    var btnChangePassword = document.getElementById("btnChangePassword")
-    var btnLogout = document.getElementById("btnLogout")
-
-    if (isLoggedIn == false) {
-        loginBtn.innerText = "Đăng nhập"
-        loginBtn.style.display = "inline-flex"
-        accountBtn.style.display = "none"
-        userDropdown.style.display = "none"
-        navAdminTab.style.display = "none"
-
-        stateText.innerText = "Chưa đăng nhập"
-        stateText.style.color = "#64748B"
-        btnOpenLoginInWallet.style.display = "inline-block"
-        btnChangePassword.disabled = true
-        btnLogout.disabled = true
-
-        if (document.getElementById("admin").classList.contains("active")) {
-            switchTab("renter", document.querySelector(".nav-btn[data-tab='renter']"))
+var roleItems = document.querySelectorAll(".user-dropdown-item[data-role]")
+for (var r = 0; r < roleItems.length; r++) {
+    roleItems[r].addEventListener("click", function () {
+        var newRole = this.getAttribute("data-role")
+        currentUserRole = newRole
+        updateAuthUI()
+        document.getElementById("userDropdown").classList.add("hidden")
+        console.log("doi vai tro: " + newRole)
+        if (newRole == "Chủ xe") {
+            switchTab("tab4")
+        } else if (newRole == "Quản trị viên") {
+            switchTab("tab5")
+        } else {
+            switchTab("tab1")
         }
-        return
+    })
+}
+
+document.getElementById("btnDropdownLogout").addEventListener("click", function () {
+    isLoggedIn = false
+    updateAuthUI()
+    document.getElementById("userDropdown").classList.add("hidden")
+    console.log("da dang xuat")
+})
+
+document.addEventListener("click", function (e) {
+    var wrap = document.getElementById("userMenuWrap")
+    var dd = document.getElementById("userDropdown")
+    if (wrap != null && dd != null) {
+        if (!wrap.contains(e.target)) {
+            dd.classList.add("hidden")
+        }
+    }
+})
+
+var btnTopAccount = document.getElementById("btnTopAccount")
+if (btnTopAccount != null) {
+    btnTopAccount.addEventListener("click", function () {
+        switchTab("tab3")
+    })
+}
+
+var btnTopAdmin = document.getElementById("btnTopAdmin")
+if (btnTopAdmin != null) {
+    btnTopAdmin.addEventListener("click", function () {
+        switchTab("tab5")
+    })
+}
+
+function renderBikes() {
+    var brandVal = document.getElementById("filterBrand").value
+    var typeVal = document.getElementById("filterType").value
+    var ccVal = document.getElementById("filterCc").value
+    var fuelVal = document.getElementById("filterFuel").value
+
+    var filtered = []
+    for (var i = 0; i < bikesData.length; i++) {
+        var b = bikesData[i]
+        var okBrand = false
+        if (brandVal == "all" || b.brand == brandVal) {
+            okBrand = true
+        }
+        var okType = false
+        if (typeVal == "all" || b.type == typeVal) {
+            okType = true
+        }
+        var okCc = false
+        if (ccVal == "all" || b.cc == ccVal) {
+            okCc = true
+        }
+        var okFuel = false
+        if (fuelVal == "all" || b.fuel == fuelVal) {
+            okFuel = true
+        }
+        if (okBrand && okType && okCc && okFuel) {
+            filtered.push(b)
+        }
     }
 
-    loginBtn.innerText = currentUserName
-    loginBtn.style.display = "inline-flex"
-    accountBtn.style.display = "inline-flex"
-    roleSwitcher.value = currentRole
+    var grid = document.getElementById("bikeGrid")
+    var htmlStr = ""
+    for (var j = 0; j < filtered.length; j++) {
+        var xe = filtered[j]
+        var btnCls = "btn-select-bike"
+        var btnText = "Chọn xe này"
+        if (xe.id == selectedBikeId) {
+            btnCls = "btn-select-bike selected"
+            btnText = "Đang chọn xe này"
+        }
 
-    btnOpenLoginInWallet.style.display = "none"
-    btnChangePassword.disabled = false
-    btnLogout.disabled = false
+        htmlStr = htmlStr + '<div class="bike-card">'
+        htmlStr = htmlStr + '<div class="bike-banner">'
+        htmlStr = htmlStr + '<div class="bike-banner-top">'
+        htmlStr = htmlStr + '<span class="badge-brand">' + xe.brand + '</span>'
+        htmlStr = htmlStr + '</div>'
+        htmlStr = htmlStr + '<div class="bike-banner-center">'
+        htmlStr = htmlStr + '<div class="bike-banner-title">' + xe.name + '</div>'
+        htmlStr = htmlStr + '</div>'
+        htmlStr = htmlStr + '</div>'
+        htmlStr = htmlStr + '<div class="bike-card-title">' + xe.name + '</div>'
+        htmlStr = htmlStr + '<div class="bike-specs-pill">'
+        htmlStr = htmlStr + '<span>' + xe.type + '</span>'
+        htmlStr = htmlStr + '<span>' + xe.cc + '</span>'
+        htmlStr = htmlStr + '<span>' + xe.fuel + '</span>'
+        htmlStr = htmlStr + '</div>'
+        htmlStr = htmlStr + '<div class="bike-price-row">'
+        htmlStr = htmlStr + '<div class="price-col">'
+        htmlStr = htmlStr + '<span class="price-caption">Theo giờ</span>'
+        htmlStr = htmlStr + '<span class="price-hour">' + xe.hourPrice.toLocaleString("vi-VN") + '<u>đ</u>/h</span>'
+        htmlStr = htmlStr + '</div>'
+        htmlStr = htmlStr + '<div class="price-col right">'
+        htmlStr = htmlStr + '<span class="price-caption">Theo ngày</span>'
+        htmlStr = htmlStr + '<span class="price-day">' + xe.dayPrice.toLocaleString("vi-VN") + '<u>đ</u>/ngày</span>'
+        htmlStr = htmlStr + '</div>'
+        htmlStr = htmlStr + '</div>'
+        htmlStr = htmlStr + '<button class="' + btnCls + '" data-id="' + xe.id + '">' + btnText + '</button>'
+        htmlStr = htmlStr + '</div>'
+    }
 
-    if (currentRole == "ADMIN") {
-        userRoleLabel.innerText = "Vai trò: Quản trị viên"
-        navAdminTab.style.display = "inline-block"
-        stateText.innerText = currentUserName + " — Quản trị viên"
-        stateText.style.color = "#DC2626"
+    grid.innerHTML = htmlStr
+
+    var selBtns = grid.querySelectorAll(".btn-select-bike")
+    for (var k = 0; k < selBtns.length; k++) {
+        selBtns[k].addEventListener("click", function () {
+            selectedBikeId = Number(this.getAttribute("data-id"))
+            console.log("chon xe id: " + selectedBikeId)
+            renderBikes()
+            updateBookingSummary()
+        })
+    }
+}
+
+function updateBookingSummary() {
+    var bike = timXeTheoId(selectedBikeId)
+    document.getElementById("detailBikeName").textContent = bike.name
+    document.getElementById("detailBikeSpecs").textContent = bike.brand + " • " + bike.type + " • " + bike.cc + " • " + bike.fuel + " • Quận 1, TP.HCM"
+
+    document.getElementById("pkgHourText").textContent = (bike.hourPrice / 1000) + "K / giờ"
+    document.getElementById("pkgDayText").textContent = (bike.dayPrice / 1000) + "K / ngày"
+
+    var rawDur = Number(document.getElementById("rentDuration").value)
+    var duration = 1
+    if (rawDur > 1) {
+        duration = rawDur
+    }
+    var voucherPct = Number(document.getElementById("voucherSelect").value)
+    if (isNaN(voucherPct)) {
+        voucherPct = 0
+    }
+    var shipFee = Number(document.getElementById("pickupMethod").value)
+    if (isNaN(shipFee)) {
+        shipFee = 0
+    }
+
+    var unitPrice = bike.hourPrice
+    var unitName = "Theo giờ"
+    var unitSuffix = "giờ"
+    var durTitle = "Số giờ thuê"
+    if (rentMode == "day") {
+        unitPrice = bike.dayPrice
+        unitName = "Theo ngày"
+        unitSuffix = "ngày"
+        durTitle = "Số ngày thuê"
+    }
+
+    var baseCost = unitPrice * duration
+    var discount = Math.round((baseCost * voucherPct) / 100)
+    var deposit = 300000
+    var total = baseCost + shipFee - discount + deposit
+    currentBookingTotal = total
+
+    document.getElementById("durationLabel").textContent = durTitle
+    document.getElementById("sumBaseLabel").textContent = "Gói cước thuê: " + unitName + " × " + duration + " " + unitSuffix
+    document.getElementById("sumBaseVal").textContent = formatVND(baseCost)
+
+    if (shipFee == 0) {
+        document.getElementById("sumShipLabel").textContent = "Phí giao xe: Tự lấy tại điểm"
     } else {
-        var subRoleText = "Khách thuê"
-        if (currentRole == "OWNER") {
-            subRoleText = "Chủ xe"
-        }
-        userRoleLabel.innerText = "Vai trò: " + subRoleText
-        navAdminTab.style.display = "none"
-        stateText.innerText = currentUserName + " — " + subRoleText
-        stateText.style.color = "#059669"
-
-        if (document.getElementById("admin").classList.contains("active")) {
-            switchTab("renter", document.querySelector(".nav-btn[data-tab='renter']"))
-        }
+        document.getElementById("sumShipLabel").textContent = "Phí giao xe: Giao tận nơi"
     }
+    document.getElementById("sumShipVal").textContent = formatVND(shipFee)
+    document.getElementById("sumDiscountVal").textContent = "-" + formatVND(discount)
+    document.getElementById("sumTotalVal").textContent = formatVND(total)
 }
 
-function handleAuthAction(action) {
-    if (action == "LOGOUT") {
-        isLoggedIn = false
-        document.getElementById("userDropdown").style.display = "none"
-        syncAuthHeaderAndNav()
-        renderHandoverSelectors()
-        var notice = document.getElementById("authActionNotice")
-        if (notice != null) {
-            notice.innerText = "Đã đăng xuất khỏi hệ thống."
-        }
-    }
+var filterIds = ["filterBrand", "filterType", "filterCc", "filterFuel"]
+for (var f = 0; f < filterIds.length; f++) {
+    document.getElementById(filterIds[f]).addEventListener("change", renderBikes)
 }
 
-function submitKycDocument() {
-    var name = document.getElementById("kycName").value.trim()
-    var cccd = document.getElementById("kycCccd").value.trim()
-    var phone = document.getElementById("kycPhone").value.trim()
-    var email = document.getElementById("kycEmail").value.trim()
+document.getElementById("pkgHourBtn").addEventListener("click", function () {
+    rentMode = "hour"
+    document.getElementById("pkgHourBtn").classList.add("active")
+    document.getElementById("pkgDayBtn").classList.remove("active")
+    updateBookingSummary()
+})
 
-    if (name == "" || cccd == "" || phone == "" || email == "") {
+document.getElementById("pkgDayBtn").addEventListener("click", function () {
+    rentMode = "day"
+    document.getElementById("pkgDayBtn").classList.add("active")
+    document.getElementById("pkgHourBtn").classList.remove("active")
+    updateBookingSummary()
+})
+
+var sumInputIds = ["rentDuration", "voucherSelect", "pickupMethod"]
+for (var s = 0; s < sumInputIds.length; s++) {
+    document.getElementById(sumInputIds[s]).addEventListener("input", updateBookingSummary)
+    document.getElementById(sumInputIds[s]).addEventListener("change", updateBookingSummary)
+}
+
+document.getElementById("btnBookNow").addEventListener("click", function () {
+    demLanBam = demLanBam + 1
+    if (walletBalance < currentBookingTotal) {
+        alert("Số dư trong tài khoản cá nhân (" + formatVND(walletBalance) + ") không đủ để thanh toán " + formatVND(currentBookingTotal) + "! Vui lòng nạp thêm tiền vào tài khoản.")
         return
     }
 
-    isKycVerified = false
-    var kycBadge = document.getElementById("kycStatusBadge")
-    var adminBadge = document.getElementById("adminKycRowBadge")
-    var adminBtn = document.getElementById("adminKycBtn")
-    var adminDetail = document.getElementById("adminKycDetailCell")
+    walletBalance = walletBalance - currentBookingTotal
+    updateWalletUI()
 
-    if (adminDetail != null) {
-        adminDetail.innerText = name + " • CCCD: " + cccd + " • SĐT: " + phone + " • Email: " + email
+    var bike = timXeTheoId(selectedBikeId)
+
+    var txList = document.getElementById("walletTxList")
+    if (txList != null) {
+        var row = document.createElement("div")
+        row.className = "wallet-table-row"
+        var maGd = Math.floor(102 + Math.random() * 890)
+        row.innerHTML = '<strong>#TX' + maGd + '</strong>' +
+            '<span>Thanh toán thuê xe ' + bike.name + '</span>' +
+            '<strong style="color: #ef4444;">-' + formatVND(currentBookingTotal) + '</strong>' +
+            '<span><span class="badge-success">Hoàn tất</span></span>'
+        txList.prepend(row)
     }
 
-    kycBadge.innerText = "Chờ Admin xác thực"
-    kycBadge.className = "badge badge-orange"
+    var renterSel = document.getElementById("hoOrderInput")
+    if (renterSel != null && renterSel.options.length > 0) {
+        var txt1 = "#BK0001 — " + bike.name + " • Chờ Check-in"
+        renterSel.options[0].value = txt1
+        renterSel.options[0].text = txt1
+        renterSel.selectedIndex = 0
+    }
+    var ownerSel = document.getElementById("hoOwnerOrderInput")
+    if (ownerSel != null && ownerSel.options.length > 0) {
+        var txt2 = "#BK0001 — " + bike.name + " • Chờ Chủ xe xác nhận"
+        ownerSel.options[0].value = txt2
+        ownerSel.options[0].text = txt2
+        ownerSel.selectedIndex = 0
+    }
 
-    adminBadge.innerText = "Chờ duyệt"
-    adminBadge.className = "badge badge-orange"
-    adminBtn.disabled = false
-    adminBtn.innerText = "Phê duyệt eKYC"
+    switchTab("tab2")
+})
+
+function updateHandoverPanels() {
+    var roleRadios = document.querySelectorAll('input[name="roleType"]')
+    var chosenRole = "Khách thuê"
+    for (var i = 0; i < roleRadios.length; i++) {
+        if (roleRadios[i].checked == true) {
+            chosenRole = roleRadios[i].value
+        }
+    }
+    var pRenter = document.getElementById("panelRenter")
+    var pOwner = document.getElementById("panelOwner")
+    if (chosenRole == "Chủ xe") {
+        pRenter.classList.add("hidden")
+        pOwner.classList.remove("hidden")
+    } else {
+        pRenter.classList.remove("hidden")
+        pOwner.classList.add("hidden")
+    }
+    console.log("chon ben giao nhan: " + chosenRole)
 }
 
-function adminVerifyKyc() {
-    isKycVerified = true
-    document.getElementById("kycStatusBadge").innerText = "Đã được Admin duyệt"
-    document.getElementById("kycStatusBadge").className = "badge badge-green"
+var allRoleRadios = document.querySelectorAll('input[name="roleType"]')
+for (var rr = 0; rr < allRoleRadios.length; rr++) {
+    allRoleRadios[rr].addEventListener("change", updateHandoverPanels)
+}
 
-    document.getElementById("adminKycRowBadge").innerText = "Đã xác thực"
-    document.getElementById("adminKycRowBadge").className = "badge badge-green"
+document.getElementById("btnExecHandover").addEventListener("click", function () {
+    var txRadio = document.querySelector('input[name="txType"]:checked')
+    var roleRadio = document.querySelector('input[name="roleType"]:checked')
+    var txType = "Check-in"
+    if (txRadio != null) {
+        txType = txRadio.value
+    }
+    var roleVal = "Khách thuê"
+    if (roleRadio != null) {
+        roleVal = roleRadio.value
+    }
 
-    var adminBtn = document.getElementById("adminKycBtn")
-    adminBtn.disabled = true
-    adminBtn.innerText = "Đã duyệt eKYC"
+    var odo = 8420
+    var fuel = "90"
+    var note = "Đủ 2 mũ, nguyên vẹn"
+    var imgName = "anh_giao_nhan.jpg"
+
+    if (roleVal == "Chủ xe") {
+        odo = Number(document.getElementById("hoOwnerOdoInput").value) || 8420
+        fuel = document.getElementById("hoOwnerFuelInput").value || "90"
+        note = document.getElementById("hoOwnerNoteInput").value || "Chủ xe đã xác nhận"
+        imgName = document.getElementById("hoOwnerImgInput").value || "anh_chuxe.jpg"
+    } else {
+        odo = Number(document.getElementById("hoOdoInput").value) || 8420
+        fuel = document.getElementById("hoFuelInput").value || "90"
+        note = document.getElementById("hoNoteInput").value || "Đủ 2 mũ, nguyên vẹn"
+        imgName = document.getElementById("hoImgInput").value || "anh_khach.jpg"
+    }
+
+    var list = document.getElementById("handoverHistoryList")
+    var row = document.createElement("div")
+    row.className = "table-row-5"
+    row.innerHTML = '<span><span class="badge-info-sm">' + txType + '</span></span>' +
+        '<strong>#BK0001 • ' + roleVal + '</strong>' +
+        '<span>' + odo.toLocaleString("vi-VN") + ' km</span>' +
+        '<span>' + fuel + '%</span>' +
+        '<span class="text-muted">' + note + '</span>'
+    list.prepend(row)
+
+    var storage = document.getElementById("storageList")
+    if (storage != null) {
+        var cleanName = imgName.replace("Chọn tệp — ", "")
+        var card = document.createElement("div")
+        card.className = "storage-card"
+        card.innerHTML = '<div class="storage-thumb">Ảnh ' + txType + '</div>' +
+            '<div class="storage-filename">' + cleanName + '</div>' +
+            '<div class="storage-meta">Từ: ' + roleVal + ' • #BK0001</div>' +
+            '<span class="badge-warn-sm">Xóa sau 4 ngày</span>'
+        storage.prepend(card)
+    }
+})
+
+document.getElementById("btnToggleIncident").addEventListener("click", function () {
+    var box = document.getElementById("incidentBox")
+    if (box.classList.contains("hidden")) {
+        box.classList.remove("hidden")
+    } else {
+        box.classList.add("hidden")
+    }
+})
+
+var btnSendIncident = document.getElementById("btnSendIncident")
+if (btnSendIncident != null) {
+    btnSendIncident.addEventListener("click", function () {
+        alert("Đã gửi báo cáo sự cố thành công lên hệ thống!")
+    })
+}
+
+var starBtns = document.querySelectorAll("#starRow .star-btn")
+for (var st = 0; st < starBtns.length; st++) {
+    starBtns[st].addEventListener("click", function () {
+        for (var x = 0; x < starBtns.length; x++) {
+            starBtns[x].classList.remove("active")
+        }
+        this.classList.add("active")
+    })
+}
+
+var btnSendReview = document.getElementById("btnSendReview")
+if (btnSendReview != null) {
+    btnSendReview.addEventListener("click", function () {
+        alert("Cảm ơn bạn đã gửi đánh giá!")
+    })
+}
+
+document.getElementById("btnLogout").addEventListener("click", function () {
+    isLoggedIn = false
+    updateAuthUI()
+})
+
+document.getElementById("btnGoLoginFromTab3").addEventListener("click", function () {
+    switchTab("tab6")
+})
+
+document.getElementById("btnSubmitLogin").addEventListener("click", function () {
+    var rawUser = document.getElementById("loginUsername").value
+    var username = rawUser.trim()
+    if (username == "") {
+        username = "Trương Công Hào"
+    }
+
+    isLoggedIn = true
+    currentUserName = username
+
+    var lowerUser = username.toLowerCase()
+    if (lowerUser == "admin" || lowerUser.indexOf("admin") != -1) {
+        currentUserRole = "Quản trị viên"
+        updateAuthUI()
+        switchTab("tab5")
+    } else if (lowerUser.indexOf("owner") != -1 || lowerUser.indexOf("chuxe") != -1 || lowerUser.indexOf("chủ xe") != -1) {
+        currentUserRole = "Chủ xe"
+        updateAuthUI()
+        switchTab("tab4")
+    } else {
+        currentUserRole = "Khách thuê"
+        updateAuthUI()
+        switchTab("tab3")
+    }
+    console.log("dang nhap thanh cong: " + currentUserName)
+})
+
+var btnRegister = document.getElementById("btnRegister")
+if (btnRegister != null) {
+    btnRegister.addEventListener("click", function () {
+        alert("Chức năng Đăng ký tài khoản: Hệ thống đang mở đăng ký thử nghiệm, vui lòng liên hệ bộ phận hỗ trợ hoặc đăng nhập với tài khoản có sẵn!")
+    })
+}
+
+var btnForgotPassword = document.getElementById("btnForgotPassword")
+if (btnForgotPassword != null) {
+    btnForgotPassword.addEventListener("click", function () {
+        alert("Chức năng Quên mật khẩu: Vui lòng kiểm tra email hoặc liên hệ Quản trị viên để được cấp lại mật khẩu!")
+    })
 }
 
 function updateWalletUI() {
-    document.getElementById("walletBalance").innerText = formatMoney(walletBalance)
-    var walletOption = document.querySelector("#paymentGateway option[value='WALLET']")
-    if (walletOption != null) {
-        walletOption.innerText = "Ví nội bộ — " + formatMoney(walletBalance)
+    var balanceEl = document.getElementById("walletBalanceText")
+    if (balanceEl != null) {
+        balanceEl.innerHTML = walletBalance.toLocaleString("vi-VN") + "<u>đ</u>"
+    }
+    var payOpt = document.getElementById("payMethodWalletOpt")
+    if (payOpt != null) {
+        payOpt.textContent = "Tiền trong tài khoản cá nhân — " + formatVND(walletBalance)
     }
 }
 
-function addTransactionRow(label, signedAmount) {
-    var tbody = document.getElementById("txTable")
-    var tr = document.createElement("tr")
-    var color = "#0F172A"
-    var prefix = "-"
-    if (signedAmount >= 0) {
-        color = "#059669"
-        prefix = "+"
-    }
-    var maGd = Math.floor(Math.random() * 899 + 100)
-    tr.innerHTML = '<td><strong>#TX' + maGd + '</strong></td>' +
-        '<td>' + label + '</td>' +
-        '<td style="color:' + color + '; font-weight:700;">' + prefix + formatMoney(Math.abs(signedAmount)) + '</td>' +
-        '<td><span class="badge badge-green">Hoàn tất</span></td>'
-    tbody.prepend(tr)
-}
-
-function openQrDevelopingPage(amount) {
-    var qrText = "Chức năng còn đang phát triển"
-    var qrApiUrl = "https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=" + encodeURIComponent(qrText)
-    var qrWin = window.open("", "_blank")
-    if (!qrWin) {
-        alert("Chức năng còn đang phát triển (Vui lòng cho phép mở tab mới để xem mã QR).")
+document.getElementById("btnDeposit").addEventListener("click", function () {
+    var amt = Number(document.getElementById("walletAmountInput").value) || 0
+    if (amt <= 0) {
         return
     }
-    var trangQr = '<!DOCTYPE html><html lang="vi"><head><meta charset="UTF-8"><title>Cổng Nạp Tiền QR — RENT A BIKE</title>' +
-        '<style>' +
-        'body { margin: 0; font-family: "SF Pro Text", "SF Pro Icons", "Helvetica Neue", Helvetica, Arial, sans-serif; font-weight: 400; letter-spacing: -0.022em; background: #F1F5F9; color: #0F172A; display: flex; align-items: center; justify-content: center; min-height: 100vh; }' +
-        '.qr-card { background: rgba(255, 255, 255, 0.9); border: none; border-radius: 24px; padding: 36px; max-width: 420px; width: 100%; text-align: center; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06); }' +
-        '.badge { display: inline-block; background: #FFFBEB; color: #D97706; font-size: 12px; font-weight: 700; padding: 6px 14px; border-radius: 9999px; margin-bottom: 16px; }' +
-        'h2 { font-size: 18px; margin: 0 0 8px; }' +
-        'p { font-size: 13px; color: #64748B; margin: 0 0 22px; }' +
-        '.qr-box { display: inline-block; padding: 18px; border: none; border-radius: 20px; background: #FFFFFF; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04); margin-bottom: 18px; }' +
-        '.qr-msg { font-size: 14px; font-weight: 700; color: #0F7AE5; background: #F8FAFC; padding: 12px 16px; border-radius: 12px; margin-bottom: 18px; }' +
-        'button { background: #0F7AE5; color: #FFFFFF; border: none; padding: 12px 24px; border-radius: 9999px; font-weight: 600; cursor: pointer; }' +
-        '</style></head><body>' +
-        '<div class="qr-card">' +
-        '<span class="badge">CỔNG THANH TOÁN QR</span>' +
-        '<h2>Quét mã QR để nạp ' + amount.toLocaleString("vi-VN") + '₫</h2>' +
-        '<p>Sử dụng ứng dụng Ngân hàng hoặc Ví điện tử để quét mã QR bên dưới:</p>' +
-        '<div class="qr-box"><img src="' + qrApiUrl + '" width="220" height="220" alt="QR Code"></div>' +
-        '<div class="qr-msg">Nội dung mã QR: "' + qrText + '"</div>' +
-        '<button onclick="window.close()">Đóng trang này</button>' +
-        '</div></body></html>'
-    qrWin.document.write(trangQr)
-    qrWin.document.close()
-}
+    walletBalance = walletBalance + amt
+    updateWalletUI()
 
-function processWallet(type) {
-    var amount = parseInt(document.getElementById("walletAmount").value)
-    if (isNaN(amount)) {
-        amount = 500000
-    }
-    if (amount < 10000) {
-        amount = 10000
-    }
+    var txList = document.getElementById("walletTxList")
+    var row = document.createElement("div")
+    row.className = "wallet-table-row"
+    var codeNum = Math.floor(102 + Math.random() * 890)
+    row.innerHTML = '<strong>#TX' + codeNum + '</strong>' +
+        '<span>Nạp tiền vào ví nội bộ</span>' +
+        '<strong class="text-green">+' + formatVND(amt) + '</strong>' +
+        '<span><span class="badge-success">Hoàn tất</span></span>'
+    txList.prepend(row)
+})
 
-    if (type == "DEPOSIT") {
-        walletBalance = walletBalance + amount
-        addTransactionRow("Nạp tiền qua QR", amount)
-        updateWalletUI()
-        openQrDevelopingPage(amount)
-    } else {
-        if (amount > walletBalance) {
-            addTransactionRow("Yêu cầu rút tiền vượt số dư", 0)
-            alert("Số dư khả dụng nhỏ hơn số tiền muốn rút!")
-            return
-        }
-        walletBalance = walletBalance - amount
-        addTransactionRow("Rút tiền về ngân hàng", -amount)
-        updateWalletUI()
-    }
-}
-
-function submitConsignVehicle() {
-    var brand = document.getElementById("newCarBrand").value
-    var model = document.getElementById("newCarModel").value.trim()
-    var seats = document.getElementById("newCarSeats").value
-    var trans = document.getElementById("newCarTrans").value
-    var fuel = document.getElementById("newCarFuel").value
-    var priceHour = parseInt(document.getElementById("newCarPriceHour").value)
-    if (isNaN(priceHour)) {
-        priceHour = 30000
-    }
-    var priceDay = parseInt(document.getElementById("newCarPriceDay").value)
-    if (isNaN(priceDay)) {
-        priceDay = 180000
-    }
-
-    if (model == "") {
+document.getElementById("btnWithdraw").addEventListener("click", function () {
+    var amt = Number(document.getElementById("walletAmountInput").value) || 0
+    if (amt <= 0 || amt > walletBalance) {
         return
     }
+    walletBalance = walletBalance - amt
+    updateWalletUI()
 
-    var tbody = document.getElementById("adminApprovalTable")
-    var tr = document.createElement("tr")
-    tr.innerHTML = '<td><strong>Duyệt xe ký gửi</strong></td>' +
-        '<td>' + model + ' • ' + seats + ' • ' + trans + ' • ' + fuel + ' • ' + shortMoney(priceHour) + '/giờ • ' + shortMoney(priceDay) + '/ngày</td>' +
-        '<td><span class="badge badge-orange">Chờ duyệt</span></td>' +
-        '<td><button class="btn btn-primary" onclick="approvePendingCar(\'' + brand + '\', \'' + model + '\', \'' + seats + '\', \'' + trans + '\', \'' + fuel + '\', ' + priceHour + ', ' + priceDay + ', this)">Duyệt lên sàn</button></td>'
-    tbody.prepend(tr)
-    document.getElementById("newCarModel").value = ""
-    document.getElementById("consignMsg").innerText = "Đã gửi thông tin xe máy xuống tab Công cụ quản lý của Admin chờ duyệt."
-}
+    var txList = document.getElementById("walletTxList")
+    var row = document.createElement("div")
+    row.className = "wallet-table-row"
+    var codeNum = Math.floor(102 + Math.random() * 890)
+    row.innerHTML = '<strong>#TX' + codeNum + '</strong>' +
+        '<span>Rút tiền về tài khoản ngân hàng</span>' +
+        '<strong>-' + formatVND(amt) + '</strong>' +
+        '<span><span class="badge-success">Hoàn tất</span></span>'
+    txList.prepend(row)
+})
 
-function approvePendingCar(brand, name, seats, trans, fuel, priceHour, priceDay, btn) {
-    vehicles.push({
-        id: vehicles.length + 1,
-        brand: brand,
-        name: name,
-        seats: seats,
-        trans: trans,
-        fuel: fuel,
-        owner: currentUserName,
-        discount: "Mới lên sàn",
-        prices: {
-            "Theo giờ": priceHour,
-            "Theo ngày": priceDay
+function bindScheduleToggle(btn) {
+    btn.addEventListener("click", function () {
+        var row = this.closest(".owner-table-row")
+        var badge = row.querySelector("span span")
+        if (badge.textContent == "Đang trống") {
+            badge.textContent = "Đang cho thuê"
+            badge.className = "badge-warn-sm"
+            this.textContent = "Mở trống"
+        } else {
+            badge.textContent = "Đang trống"
+            badge.className = "badge-success"
+            this.textContent = "Khóa lịch"
         }
     })
-    renderVehicles()
-    renderHandoverSelectors()
-
-    var row = btn.closest("tr")
-    row.children[2].innerHTML = '<span class="badge badge-green">Đã lên sàn</span>'
-    btn.disabled = true
-    btn.innerText = "Đã duyệt"
 }
 
-function adminRefundDeposit(btn) {
-    walletBalance = walletBalance + 300000
-    updateWalletUI()
-    addTransactionRow("Hoàn cọc đơn #BK0001 từ Admin", 300000)
-
-    var row = btn.closest("tr")
-    row.children[2].innerHTML = '<span class="badge badge-green">Đã hoàn cọc</span>'
-    btn.disabled = true
-    btn.innerText = "Đã hoàn 300K"
+var toggleBtns = document.querySelectorAll(".toggle-schedule-btn")
+for (var t = 0; t < toggleBtns.length; t++) {
+    bindScheduleToggle(toggleBtns[t])
 }
 
-function resolveDisputeRow(btn) {
-    var row = btn.closest("tr")
-    row.children[2].innerHTML = '<span class="badge badge-green">Đã xử lý</span>'
-    btn.disabled = true
-    btn.innerText = "Xong"
+var btnSubmitConsign = document.getElementById("btnSubmitConsign")
+if (btnSubmitConsign != null) {
+    btnSubmitConsign.addEventListener("click", function () {
+        var modelVal = document.getElementById("ownModel").value.trim()
+        if (modelVal == "") {
+            modelVal = document.getElementById("ownBrand").value + " 2024"
+        }
+        var ownerList = document.getElementById("ownerBikeList")
+        var newRow = document.createElement("div")
+        newRow.className = "owner-table-row"
+        newRow.innerHTML = '<strong>' + modelVal + '</strong>' +
+            '<span>06/11 - 10/11</span>' +
+            '<span><span class="badge-success">Đang trống</span></span>' +
+            '<button class="btn-secondary-sm toggle-schedule-btn">Khóa lịch</button>'
+        ownerList.prepend(newRow)
+        var newBtn = newRow.querySelector(".toggle-schedule-btn")
+        bindScheduleToggle(newBtn)
+        alert("Đã gửi hồ sơ ký gửi xe " + modelVal + " lên Admin!")
+    })
 }
 
-function toggleScheduleStatus(btn) {
-    var row = btn.closest("tr")
-    var badgeCell = row.children[2]
-    if (badgeCell.innerText.indexOf("Đang trống") != -1) {
-        badgeCell.innerHTML = '<span class="badge badge-red">Đã khóa lịch</span>'
-        btn.innerText = "Mở trống"
+document.getElementById("btnApproveConsign").addEventListener("click", function () {
+    var badge = document.getElementById("consignBadge")
+    badge.textContent = "Đã duyệt"
+    badge.className = "badge-success"
+    this.textContent = "Đã lên sàn"
+    this.className = "btn-disabled-sm"
+    this.disabled = true
+})
+
+document.getElementById("btnRefundDeposit").addEventListener("click", function () {
+    var badge = document.getElementById("disputeBadge")
+    badge.textContent = "Đã hoàn cọc"
+    badge.className = "badge-success"
+    this.textContent = "Đã hoàn tất"
+    this.className = "btn-disabled-sm"
+    this.disabled = true
+})
+
+function renderVouchers() {
+    var container = document.getElementById("voucherListContainer")
+    var out = ""
+    for (var i = 0; i < vouchersData.length; i++) {
+        var v = vouchersData[i]
+        var pillCls = "pill-status-expired"
+        if (v.type == "active") {
+            pillCls = "pill-status-active"
+        } else if (v.type == "warn") {
+            pillCls = "pill-status-warn"
+        }
+
+        var delHtml = ""
+        if (isVoucherEditMode == true) {
+            delHtml = '<button class="btn-delete-circle" data-idx="' + i + '">X</button>'
+        }
+
+        out = out + '<div class="voucher-row">'
+        out = out + '<strong>' + v.code + '</strong>'
+        out = out + '<span>' + v.uses + '</span>'
+        out = out + '<span>' + v.discount + '</span>'
+        out = out + '<span><span class="' + pillCls + '">' + v.status + '</span></span>'
+        out = out + '<span>' + v.exp + '</span>'
+        out = out + '<span>' + delHtml + '</span>'
+        out = out + '</div>'
+    }
+    container.innerHTML = out
+
+    var delBtns = container.querySelectorAll(".btn-delete-circle")
+    for (var d = 0; d < delBtns.length; d++) {
+        delBtns[d].addEventListener("click", function () {
+            var idx = Number(this.getAttribute("data-idx"))
+            vouchersData.splice(idx, 1)
+            renderVouchers()
+        })
+    }
+}
+
+document.getElementById("btnToggleVoucherEdit").addEventListener("click", function () {
+    if (isVoucherEditMode == true) {
+        isVoucherEditMode = false
     } else {
-        badgeCell.innerHTML = '<span class="badge badge-green">Đang trống</span>'
-        btn.innerText = "Khóa lịch"
+        isVoucherEditMode = true
+    }
+    renderVouchers()
+})
+
+document.getElementById("btnOpenVoucherModal").addEventListener("click", function () {
+    document.getElementById("voucherModal").classList.remove("hidden")
+})
+
+document.getElementById("btnCloseVoucherModal").addEventListener("click", function () {
+    document.getElementById("voucherModal").classList.add("hidden")
+})
+
+var pctBtns = document.querySelectorAll("#percentSelector .pct-btn")
+for (var p = 0; p < pctBtns.length; p++) {
+    pctBtns[p].addEventListener("click", function () {
+        for (var q = 0; q < pctBtns.length; q++) {
+            pctBtns[q].classList.remove("active")
+        }
+        this.classList.add("active")
+        selectedModalPct = this.getAttribute("data-pct")
+    })
+}
+
+document.getElementById("btnSaveVoucher").addEventListener("click", function () {
+    var code = document.getElementById("newVoucherCode").value.trim()
+    if (code == "") {
+        code = "CONBO02"
+    }
+    var uses = Number(document.getElementById("newVoucherUses").value)
+    if (isNaN(uses) || uses <= 0) {
+        uses = 100
+    }
+    var exp = document.getElementById("newVoucherExp").value.trim()
+    if (exp == "") {
+        exp = "29/01/2027"
+    }
+
+    vouchersData.unshift({
+        code: code.toUpperCase(),
+        uses: uses,
+        discount: "Giảm " + selectedModalPct,
+        status: "Đang hoạt động",
+        type: "active",
+        exp: exp
+    })
+
+    renderVouchers()
+    document.getElementById("voucherModal").classList.add("hidden")
+    document.getElementById("newVoucherCode").value = ""
+})
+
+function renderAccounts() {
+    var container = document.getElementById("accountListContainer")
+    var str = ""
+    for (var i = 0; i < accountsData.length; i++) {
+        var acc = accountsData[i]
+        var st = accountStates[acc.statusIndex]
+        str = str + '<div class="account-row">'
+        str = str + '<strong>' + acc.id + '</strong>'
+        str = str + '<span>' + acc.username + '</span>'
+        str = str + '<span>' + acc.phone + '</span>'
+        str = str + '<span>' + acc.email + '</span>'
+        str = str + '<span>' + acc.pass + '</span>'
+        str = str + '<span><button class="acct-pill ' + st.cls + '" data-idx="' + i + '">' + st.label + '</button></span>'
+        str = str + '</div>'
+    }
+    container.innerHTML = str
+
+    var acctBtns = container.querySelectorAll(".acct-pill")
+    for (var a = 0; a < acctBtns.length; a++) {
+        acctBtns[a].addEventListener("click", function () {
+            var idx = Number(this.getAttribute("data-idx"))
+            accountsData[idx].statusIndex = (accountsData[idx].statusIndex + 1) % accountStates.length
+            renderAccounts()
+        })
     }
 }
 
-function renderPromoTable() {
-    var tbody = document.getElementById("promoTableBody")
-    if (tbody == null) {
-        return
-    }
-    tbody.innerHTML = ""
-    var keys = Object.keys(promoCodes)
-    for (var i = 0; i < keys.length; i++) {
-        var code = keys[i]
-        var tr = document.createElement("tr")
-        tr.innerHTML = '<td><strong>' + code + '</strong></td>' +
-            '<td>Giảm ' + promoCodes[code] + '%</td>' +
-            '<td><span class="badge badge-green">Đang hoạt động</span></td>'
-        tbody.appendChild(tr)
-    }
-    populateVoucherComboBox()
-}
-
-function addPromoCode() {
-    var code = document.getElementById("newPromoCode").value.trim().toUpperCase()
-    var percent = parseInt(document.getElementById("newPromoPercent").value)
-    if (isNaN(percent)) {
-        percent = 0
-    }
-    if (code == "" || percent <= 0 || percent > 90) {
-        return
-    }
-
-    promoCodes[code] = percent
-    renderPromoTable()
-    updateBookingSummary()
-    document.getElementById("newPromoCode").value = ""
-}
-
-function switchTab(tabId, btn) {
-    var allSec = document.querySelectorAll(".section")
-    for (var i = 0; i < allSec.length; i++) {
-        allSec[i].classList.remove("active")
-    }
-    document.getElementById(tabId).classList.add("active")
-
-    var allNav = document.querySelectorAll(".nav-btn")
-    for (var j = 0; j < allNav.length; j++) {
-        allNav[j].classList.remove("active")
-    }
-    if (btn != null) {
-        btn.classList.add("active")
-    }
-}
-
-function quickSwitchTab(tabId) {
-    var targetBtn = document.querySelector(".nav-btn[data-tab='" + tabId + "']")
-    switchTab(tabId, targetBtn)
-}
-
-populateVoucherComboBox()
-renderVehicles()
-updateCarDetailView()
+tempBien = 1
+updateAuthUI()
+updateHandoverPanels()
+renderBikes()
 updateBookingSummary()
-renderPromoTable()
-syncAuthHeaderAndNav()
-renderHandoverSelectors()
-renderSavedPhotos()
+updateWalletUI()
+renderVouchers()
+renderAccounts()
+console.log("khoi tao xong web thue xe may")
