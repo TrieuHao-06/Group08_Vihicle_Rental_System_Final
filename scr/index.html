@@ -265,7 +265,14 @@
 
                     <div class="form-group mt-12">
                         <label>Ảnh chụp phía Khách</label>
-                        <input type="text" class="input-white-bordered" id="hoImgInput" value="Chọn tệp — anh_nhan_xe_vision.jpg">
+                        <div class="handover-image-upload">
+                            <input type="file" id="hoImgFile" accept="image/*" hidden>
+                            <label class="handover-file-label" for="hoImgFile">
+                                <span id="hoImgFileName">Chọn ảnh chụp giao nhận</span>
+                                <span class="handover-file-btn">Chọn tệp</span>
+                            </label>
+                            <img id="hoImgPreview" class="handover-image-preview hidden" alt="Ảnh giao nhận phía khách">
+                        </div>
                     </div>
 
                     <div class="form-group mt-12">
@@ -294,7 +301,14 @@
 
                     <div class="form-group mt-12">
                         <label>Ảnh chụp phía Chủ xe</label>
-                        <input type="text" class="input-white-bordered" id="hoOwnerImgInput" value="Chọn tệp — anh_chuxe_ban_giao.jpg">
+                        <div class="handover-image-upload">
+                            <input type="file" id="hoOwnerImgFile" accept="image/*" hidden>
+                            <label class="handover-file-label" for="hoOwnerImgFile">
+                                <span id="hoOwnerImgFileName">Chọn ảnh chụp giao nhận</span>
+                                <span class="handover-file-btn">Chọn tệp</span>
+                            </label>
+                            <img id="hoOwnerImgPreview" class="handover-image-preview hidden" alt="Ảnh giao nhận phía chủ xe">
+                        </div>
                     </div>
 
                     <div class="form-group mt-12">
@@ -787,6 +801,19 @@
             <div class="modal-actions">
                 <button type="button" class="btn-modal-cancel" id="btnCloseVoucherModal">Hủy</button>
                 <button type="button" class="btn-modal-save" id="btnSaveVoucher">Lưu</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL NẠP TIỀN QR -->
+    <div class="modal-backdrop hidden" id="qrDepositModal">
+        <div class="modal-card qr-modal-card">
+            <h3 class="modal-title" id="qrModalTitle">Quét mã QR để nạp tiền</h3>
+            <img src="qr.jpg" class="qr-modal-image" alt="Mã QR nạp tiền">
+            <p class="qr-modal-hint">Chuyển khoản đúng số tiền đã nhập, sau đó nhấn xác nhận.</p>
+            <div class="modal-actions">
+                <button type="button" class="btn-modal-cancel" id="btnCloseQrModal">Đóng</button>
+                <button type="button" class="btn-modal-save" id="btnConfirmDeposit">Xác nhận đã chuyển</button>
             </div>
         </div>
     </div>

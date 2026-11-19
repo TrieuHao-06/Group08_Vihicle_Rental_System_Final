@@ -109,10 +109,48 @@ var currentUserName = "Trương Công Hào"
 var currentUserRole = "Khách thuê"
 var tempBien = 0
 var demLanBam = 0
+var renterUploadedName = ""
+var renterImgDataUrl = ""
+var ownerUploadedName = ""
+var ownerImgDataUrl = ""
+var pendingDepositAmount = 0
 
 function formatVND(num) {
     return num.toLocaleString("vi-VN") + "đ"
 }
+
+function setupHandoverImage(inputId, nameId, previewId, role) {
+    var input = document.getElementById(inputId)
+    var nameEl = document.getElementById(nameId)
+    var preview = document.getElementById(previewId)
+    if (!input) return
+
+    input.addEventListener("change", function () {
+        var file = input.files && input.files[0]
+        if (!file) return
+        if (nameEl) nameEl.textContent = file.name
+
+        var reader = new FileReader()
+        reader.onload = function (event) {
+            var dataUrl = event.target.result
+            if (role === "renter") {
+                renterUploadedName = file.name
+                renterImgDataUrl = dataUrl
+            } else {
+                ownerUploadedName = file.name
+                ownerImgDataUrl = dataUrl
+            }
+            if (preview) {
+                preview.src = dataUrl
+                preview.classList.remove("hidden")
+            }
+        }
+        reader.readAsDataURL(file)
+    })
+}
+
+setupHandoverImage("hoImgFile", "hoImgFileName", "hoImgPreview", "renter")
+setupHandoverImage("hoOwnerImgFile", "hoOwnerImgFileName", "hoOwnerImgPreview", "owner")
 
 function timXeTheoId(id) {
     if (id == null) return null
@@ -713,13 +751,16 @@ for (var rr = 0; rr < allRoleRadios.length; rr++) {
     allRoleRadios[rr].addEventListener("change", updateHandoverPanels)
 }
 
-function addPhotoToStorage(txType, roleVal, orderLabel, imgName) {
+function addPhotoToStorage(txType, roleVal, orderLabel, imgName, imgUrl) {
     var storage = document.getElementById("storageList")
     if (storage != null && imgName) {
         var cleanName = imgName.replace("Chọn tệp — ", "").trim()
         var card = document.createElement("div")
         card.className = "storage-card"
-        card.innerHTML = '<div class="storage-thumb">Ảnh ' + txType + '</div>' +
+        var thumbHtml = imgUrl
+            ? '<img src="' + imgUrl + '" class="storage-thumb-img" alt="Ảnh giao nhận">'
+            : '<div class="storage-thumb">Ảnh ' + txType + '</div>'
+        card.innerHTML = thumbHtml +
             '<div class="storage-filename">' + cleanName + '</div>' +
             '<div class="storage-meta">Từ: ' + roleVal + ' • ' + orderLabel + '</div>' +
             '<span class="badge-warn-sm">Xóa sau 3 ngày</span>'
@@ -756,12 +797,12 @@ document.getElementById("btnExecHandover").addEventListener("click", function ()
     var rOdo = parseNum(document.getElementById("hoOdoInput").value, 8420)
     var rFuel = parseNum(document.getElementById("hoFuelInput").value, 90)
     var rNote = document.getElementById("hoNoteInput").value.trim() || "Khách nhận đủ mũ, xe tốt"
-    var rImg = document.getElementById("hoImgInput").value.trim() || "anh_nhan_xe.jpg"
+    var rImg = renterUploadedName || "anh_nhan_xe.jpg"
 
     var oOdo = parseNum(document.getElementById("hoOwnerOdoInput").value, 8420)
     var oFuel = parseNum(document.getElementById("hoOwnerFuelInput").value, 90)
     var oNote = document.getElementById("hoOwnerNoteInput").value.trim() || "Chủ xe đã xác nhận"
-    var oImg = document.getElementById("hoOwnerImgInput").value.trim() || "anh_chuxe.jpg"
+    var oImg = ownerUploadedName || "anh_chuxe.jpg"
 
     if (!handoverSessions[sessionKey]) {
         handoverSessions[sessionKey] = { renter: null, owner: null, bikeName: bikeName, orderCode: orderCode }
@@ -772,10 +813,10 @@ document.getElementById("btnExecHandover").addEventListener("click", function ()
 
     if (roleVal === "Khách thuê") {
         handoverSessions[sessionKey].renter = { odo: rOdo, fuel: rFuel, note: rNote, img: rImg, time: nowTime }
-        addPhotoToStorage(txType, "Khách thuê", labelDisplay, rImg)
+        addPhotoToStorage(txType, "Khách thuê", labelDisplay, rImg, renterImgDataUrl)
     } else {
         handoverSessions[sessionKey].owner = { odo: oOdo, fuel: oFuel, note: oNote, img: oImg, time: nowTime }
-        addPhotoToStorage(txType, "Chủ xe", labelDisplay, oImg)
+        addPhotoToStorage(txType, "Chủ xe", labelDisplay, oImg, ownerImgDataUrl)
     }
 
     var rSub = handoverSessions[sessionKey].renter
@@ -952,6 +993,17 @@ function updateWalletUI() {
 document.getElementById("btnDeposit").addEventListener("click", function () {
     var amt = Number(document.getElementById("walletAmountInput").value) || 0
     if (amt <= 0) return
+    pendingDepositAmount = amt
+
+    var qrTitle = document.getElementById("qrModalTitle")
+    if (qrTitle) qrTitle.textContent = "Quét mã QR để nạp " + formatVND(amt)
+    document.getElementById("qrDepositModal").classList.remove("hidden")
+})
+
+document.getElementById("btnConfirmDeposit").addEventListener("click", function () {
+    var amt = pendingDepositAmount
+    if (amt <= 0) return
+
     walletBalance += amt
     updateWalletUI()
 
@@ -961,6 +1013,22 @@ document.getElementById("btnDeposit").addEventListener("click", function () {
     var codeNum = Math.floor(102 + Math.random() * 890)
     row.innerHTML = '<strong>#TX' + codeNum + '</strong><span>Nạp tiền vào ví nội bộ</span><strong class="text-green">+' + formatVND(amt) + '</strong><span><span class="badge-success">Hoàn tất</span></span>'
     txList.prepend(row)
+
+    pendingDepositAmount = 0
+    document.getElementById("qrDepositModal").classList.add("hidden")
+})
+
+document.getElementById("btnCloseQrModal").addEventListener("click", function () {
+    pendingDepositAmount = 0
+    document.getElementById("qrDepositModal").classList.add("hidden")
+})
+
+var qrModalBackdrop = document.getElementById("qrDepositModal")
+if (qrModalBackdrop != null) qrModalBackdrop.addEventListener("click", function (event) {
+    if (event.target === qrModalBackdrop) {
+        pendingDepositAmount = 0
+        qrModalBackdrop.classList.add("hidden")
+    }
 })
 
 document.getElementById("btnWithdraw").addEventListener("click", function () {
