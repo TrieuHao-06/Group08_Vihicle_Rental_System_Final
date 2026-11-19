@@ -137,30 +137,70 @@ function updateAuthUI() {
     var btnLogin = document.getElementById("btnTopLogin")
     var btnAcc = document.getElementById("btnTopAccount")
     var dropdown = document.getElementById("userDropdown")
+    var userLbl = document.getElementById("dropdownUserLabel")
     var roleLbl = document.getElementById("dropdownRoleLabel")
     var barIn = document.getElementById("sessionBarLoggedIn")
     var barOut = document.getElementById("sessionBarLoggedOut")
     var fileIn = document.getElementById("ekycFileLoggedIn")
     var fileOut = document.getElementById("ekycFileLoggedOut")
     var userTxt = document.getElementById("sessionUserText")
+    var ekycName = document.getElementById("ekycFullName")
 
     if (isLoggedIn == true) {
-        btnAcc.classList.remove("hidden")
-        btnLogin.textContent = currentUserName + " ▾"
-        roleLbl.textContent = "Vai trò: " + currentUserRole
-        barIn.classList.remove("hidden")
-        barOut.classList.add("hidden")
-        fileIn.classList.remove("hidden")
-        fileOut.classList.add("hidden")
-        userTxt.textContent = currentUserName + " — " + currentUserRole
+        if (btnAcc != null) {
+            btnAcc.classList.remove("hidden")
+        }
+        if (btnLogin != null) {
+            btnLogin.textContent = "Tài khoản"
+            btnLogin.setAttribute("aria-label", "Vào trang tài khoản của " + currentUserName)
+        }
+        if (userLbl != null) {
+            userLbl.textContent = "Tài khoản: " + currentUserName
+        }
+        if (roleLbl != null) {
+            roleLbl.textContent = "Vai trò: " + currentUserRole
+        }
+        if (barIn != null) {
+            barIn.classList.remove("hidden")
+        }
+        if (barOut != null) {
+            barOut.classList.add("hidden")
+        }
+        if (fileIn != null) {
+            fileIn.classList.remove("hidden")
+        }
+        if (fileOut != null) {
+            fileOut.classList.add("hidden")
+        }
+        if (userTxt != null) {
+            userTxt.textContent = currentUserName
+        }
+        if (ekycName != null) {
+            ekycName.value = currentUserName
+        }
     } else {
-        btnAcc.classList.add("hidden")
-        btnLogin.textContent = "Đăng nhập"
-        dropdown.classList.add("hidden")
-        barIn.classList.add("hidden")
-        barOut.classList.remove("hidden")
-        fileIn.classList.add("hidden")
-        fileOut.classList.remove("hidden")
+        if (btnAcc != null) {
+            btnAcc.classList.add("hidden")
+        }
+        if (btnLogin != null) {
+            btnLogin.textContent = "Đăng nhập"
+            btnLogin.setAttribute("aria-label", "Mở trang đăng nhập")
+        }
+        if (dropdown != null) {
+            dropdown.classList.add("hidden")
+        }
+        if (barIn != null) {
+            barIn.classList.add("hidden")
+        }
+        if (barOut != null) {
+            barOut.classList.remove("hidden")
+        }
+        if (fileIn != null) {
+            fileIn.classList.add("hidden")
+        }
+        if (fileOut != null) {
+            fileOut.classList.remove("hidden")
+        }
     }
 }
 
@@ -182,28 +222,23 @@ document.getElementById("btnTopLogin").addEventListener("click", function (e) {
         switchTab("tab6")
     } else {
         var dd = document.getElementById("userDropdown")
-        if (dd.classList.contains("hidden")) {
-            dd.classList.remove("hidden")
-        } else {
-            dd.classList.add("hidden")
+        if (dd != null) {
+            if (dd.classList.contains("hidden")) {
+                dd.classList.remove("hidden")
+            } else {
+                dd.classList.add("hidden")
+            }
         }
     }
 })
 
-var roleItems = document.querySelectorAll(".user-dropdown-item[data-role]")
-for (var r = 0; r < roleItems.length; r++) {
-    roleItems[r].addEventListener("click", function () {
-        var newRole = this.getAttribute("data-role")
-        currentUserRole = newRole
-        updateAuthUI()
-        document.getElementById("userDropdown").classList.add("hidden")
-        console.log("doi vai tro: " + newRole)
-        if (newRole == "Chủ xe") {
-            switchTab("tab4")
-        } else if (newRole == "Quản trị viên") {
-            switchTab("tab5")
-        } else {
-            switchTab("tab1")
+var btnDropdownToAccount = document.getElementById("btnDropdownToAccount")
+if (btnDropdownToAccount != null) {
+    btnDropdownToAccount.addEventListener("click", function () {
+        switchTab("tab3")
+        var dd = document.getElementById("userDropdown")
+        if (dd != null) {
+            dd.classList.add("hidden")
         }
     })
 }
@@ -211,7 +246,10 @@ for (var r = 0; r < roleItems.length; r++) {
 document.getElementById("btnDropdownLogout").addEventListener("click", function () {
     isLoggedIn = false
     updateAuthUI()
-    document.getElementById("userDropdown").classList.add("hidden")
+    var dd = document.getElementById("userDropdown")
+    if (dd != null) {
+        dd.classList.add("hidden")
+    }
     console.log("da dang xuat")
 })
 
@@ -561,32 +599,45 @@ document.getElementById("btnGoLoginFromTab3").addEventListener("click", function
     switchTab("tab6")
 })
 
-document.getElementById("btnSubmitLogin").addEventListener("click", function () {
-    var rawUser = document.getElementById("loginUsername").value
-    var username = rawUser.trim()
-    if (username == "") {
-        username = "Trương Công Hào"
-    }
+var btnSubmitLogin = document.getElementById("btnSubmitLogin")
+if (btnSubmitLogin != null) {
+    btnSubmitLogin.addEventListener("click", function () {
+        var rawUser = document.getElementById("loginUsername").value
+        var username = rawUser.trim()
+        if (username == "") {
+            username = "Trương Công Hào"
+        }
 
-    isLoggedIn = true
-    currentUserName = username
+        isLoggedIn = true
+        currentUserName = username
 
-    var lowerUser = username.toLowerCase()
-    if (lowerUser == "admin" || lowerUser.indexOf("admin") != -1) {
-        currentUserRole = "Quản trị viên"
-        updateAuthUI()
-        switchTab("tab5")
-    } else if (lowerUser.indexOf("owner") != -1 || lowerUser.indexOf("chuxe") != -1 || lowerUser.indexOf("chủ xe") != -1) {
-        currentUserRole = "Chủ xe"
-        updateAuthUI()
-        switchTab("tab4")
-    } else {
-        currentUserRole = "Khách thuê"
         updateAuthUI()
         switchTab("tab3")
-    }
-    console.log("dang nhap thanh cong: " + currentUserName)
-})
+        console.log("dang nhap thanh cong: " + currentUserName)
+    })
+}
+
+var loginPassInput = document.getElementById("loginPassword")
+if (loginPassInput != null) {
+    loginPassInput.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") {
+            if (btnSubmitLogin != null) {
+                btnSubmitLogin.click()
+            }
+        }
+    })
+}
+
+var loginUserInput = document.getElementById("loginUsername")
+if (loginUserInput != null) {
+    loginUserInput.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") {
+            if (btnSubmitLogin != null) {
+                btnSubmitLogin.click()
+            }
+        }
+    })
+}
 
 var btnRegister = document.getElementById("btnRegister")
 if (btnRegister != null) {
