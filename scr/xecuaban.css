@@ -1,0 +1,172 @@
+/* ==========================================================
+   TAB "XE CỦA BẠN" (Chủ xe) — phần của Hồng Trung
+   Chỉ dùng class tiền tố ov- / req- / wd- để không đụng CSS của người khác.
+   Các class chung (card, input-soft, badge-*, btn-*-sm...) lấy từ thuexe.css
+   ========================================================== */
+
+.ov-count {
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    margin-left: 6px;
+}
+
+/* ---- Thông báo dưới form ---- */
+.ov-msg {
+    font-size: 12px;
+    font-weight: 600;
+    min-height: 18px;
+    margin-top: 12px;
+}
+
+.ov-msg.err {
+    color: #dc2626;
+}
+
+.ov-msg.ok {
+    color: #059669;
+}
+
+.ov-hint {
+    font-size: 11px;
+    color: #64748b;
+}
+
+.ov-form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.ov-form-actions .btn-primary-full {
+    flex: 1;
+}
+
+.ov-form-actions .btn-secondary-full {
+    width: auto;
+    padding: 13px 22px;
+}
+
+input[type="file"].input-soft {
+    padding: 8px 12px;
+}
+
+/* ---- Bảng danh sách xe ---- */
+.ov-table-head,
+.ov-table-row {
+    display: grid;
+    grid-template-columns: 1.7fr 1.1fr 1.2fr 1fr 1fr 1.3fr;
+    gap: 8px;
+    align-items: center;
+}
+
+.ov-table-head {
+    padding: 6px 14px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #64748b;
+}
+
+.ov-table-row {
+    background: #f4f6f9;
+    border-radius: 12px;
+    padding: 12px 14px;
+    font-size: 12px;
+    margin-bottom: 8px;
+}
+
+.ov-sub {
+    display: block;
+    font-size: 11px;
+    color: #64748b;
+    font-weight: 500;
+    margin-top: 2px;
+}
+
+.ov-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.ov-empty {
+    text-align: center;
+    padding: 22px;
+    font-size: 12px;
+    color: #94a3b8;
+    background: #f8fafc;
+    border-radius: 12px;
+}
+
+/* ---- Bảng yêu cầu đặt xe ---- */
+.req-table-head,
+.req-table-row {
+    display: grid;
+    grid-template-columns: 0.7fr 1.5fr 1.2fr 1.5fr 1fr 1.4fr;
+    gap: 8px;
+    align-items: center;
+}
+
+.req-table-head {
+    padding: 6px 14px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #64748b;
+}
+
+.req-table-row {
+    background: #f4f6f9;
+    border-radius: 12px;
+    padding: 12px 14px;
+    font-size: 12px;
+    margin-bottom: 8px;
+}
+
+/* ---- Lịch sử rút tiền ---- */
+.wd-row {
+    background: #f4f6f9;
+    border-radius: 12px;
+    padding: 10px 14px;
+    display: grid;
+    grid-template-columns: 0.7fr 1.8fr 1fr 1fr;
+    gap: 8px;
+    align-items: center;
+    font-size: 12px;
+    margin-bottom: 8px;
+}
+
+/* ---- Badge bổ sung (thuexe.css chưa có) ---- */
+.badge-danger-sm {
+    background: #fee2e2;
+    color: #dc2626;
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 999px;
+    display: inline-block;
+}
+
+.badge-grey-sm {
+    background: #e5e7eb;
+    color: #475569;
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 999px;
+    display: inline-block;
+}
+
+.btn-danger-sm {
+    background: #fee2e2;
+    color: #dc2626;
+    border: none;
+    border-radius: 8px;
+    padding: 7px 14px;
+    font-size: 11.5px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.btn-disabled-sm {
+    cursor: not-allowed;
+}
