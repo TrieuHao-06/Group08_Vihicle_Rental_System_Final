@@ -466,8 +466,14 @@ body {
     flex-direction: column;
 }
 
+.price-col.center {
+    text-align: center;
+    align-items: center;
+}
+
 .price-col.right {
     text-align: right;
+    align-items: flex-end;
 }
 
 .price-caption {
@@ -481,6 +487,15 @@ body {
     font-weight: 600;
     letter-spacing: -0.003em;
     color: #007aff;
+}
+
+.price-area {
+    font-family: "SF Pro Display", "SF Pro Icons", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 13.5px;
+    font-weight: 600;
+    letter-spacing: -0.003em;
+    color: #0f172a;
+    white-space: nowrap;
 }
 
 .price-day {

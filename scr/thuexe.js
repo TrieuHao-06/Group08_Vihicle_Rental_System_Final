@@ -7,7 +7,8 @@ var bikesData = [
         cc: "110cc",
         fuel: "Xăng",
         hourPrice: 25000,
-        dayPrice: 140000
+        dayPrice: 140000,
+        area: "Quận 1"
     },
     {
         id: 2,
@@ -17,7 +18,8 @@ var bikesData = [
         cc: "155cc - 160cc",
         fuel: "Xăng",
         hourPrice: 35000,
-        dayPrice: 180000
+        dayPrice: 180000,
+        area: "Quận 3"
     },
     {
         id: 3,
@@ -27,7 +29,8 @@ var bikesData = [
         cc: "155cc - 160cc",
         fuel: "Xăng",
         hourPrice: 40000,
-        dayPrice: 200000
+        dayPrice: 200000,
+        area: "Quận Bình Thạnh"
     },
     {
         id: 4,
@@ -37,7 +40,8 @@ var bikesData = [
         cc: "Pin LFP",
         fuel: "Điện",
         hourPrice: 22000,
-        dayPrice: 130000
+        dayPrice: 130000,
+        area: "TP. Thủ Đức"
     },
     {
         id: 5,
@@ -47,7 +51,8 @@ var bikesData = [
         cc: "110cc",
         fuel: "Xăng",
         hourPrice: 18000,
-        dayPrice: 100000
+        dayPrice: 100000,
+        area: "Quận 5"
     },
     {
         id: 6,
@@ -57,7 +62,8 @@ var bikesData = [
         cc: "125cc",
         fuel: "Xăng",
         hourPrice: 55000,
-        dayPrice: 300000
+        dayPrice: 300000,
+        area: "Quận 7"
     }
 ]
 
@@ -83,7 +89,7 @@ var accountStates = [
     { label: "Bị khóa vĩnh viễn", cls: "acct-ban" }
 ]
 
-var selectedBikeId = 1
+var selectedBikeId = null
 var rentMode = "day"
 var walletBalance = 2500000
 var currentBookingTotal = 426000
@@ -101,13 +107,43 @@ function formatVND(num) {
 }
 
 function timXeTheoId(id) {
+    if (id == null) {
+        return null
+    }
     var i = 0
     for (i = 0; i < bikesData.length; i++) {
         if (bikesData[i].id == id) {
             return bikesData[i]
         }
     }
-    return bikesData[0]
+    return null
+}
+
+function getPickupAreaList() {
+    var select = document.getElementById("pickup-area")
+    var list = []
+    if (select != null) {
+        var opts = select.options
+        for (var i = 0; i < opts.length; i++) {
+            var val = opts[i].value
+            var text = opts[i].textContent.trim()
+            if (val !== "toan_bo" && text !== "Tất cả khu vực") {
+                list.push(text)
+            }
+        }
+    }
+    if (list.length === 0) {
+        list = ["Quận 1", "Quận 3", "Quận 4", "Quận 5", "Quận 7", "Quận Phú Nhuận", "Quận Bình Thạnh", "Quận Gò Vấp", "TP. Thủ Đức"]
+    }
+    return list
+}
+
+function initBikeAreas() {
+    var areas = getPickupAreaList()
+    var shuffled = areas.slice().sort(function () { return 0.5 - Math.random() })
+    for (var i = 0; i < bikesData.length; i++) {
+        bikesData[i].area = shuffled[i % shuffled.length]
+    }
 }
 
 function switchTab(targetId) {
@@ -283,6 +319,16 @@ function renderBikes() {
     var ccVal = document.getElementById("filterCc").value
     var fuelVal = document.getElementById("filterFuel").value
 
+    var areaSelect = document.getElementById("pickup-area")
+    var areaVal = "toan_bo"
+    var areaText = ""
+    if (areaSelect != null) {
+        areaVal = areaSelect.value
+        if (areaSelect.selectedIndex >= 0) {
+            areaText = areaSelect.options[areaSelect.selectedIndex].textContent.trim()
+        }
+    }
+
     var filtered = []
     for (var i = 0; i < bikesData.length; i++) {
         var b = bikesData[i]
@@ -302,13 +348,20 @@ function renderBikes() {
         if (fuelVal == "all" || b.fuel == fuelVal) {
             okFuel = true
         }
-        if (okBrand && okType && okCc && okFuel) {
+        var okArea = false
+        if (areaVal == "toan_bo" || b.area == areaText) {
+            okArea = true
+        }
+        if (okBrand && okType && okCc && okFuel && okArea) {
             filtered.push(b)
         }
     }
 
     var grid = document.getElementById("bikeGrid")
     var htmlStr = ""
+    if (filtered.length === 0) {
+        htmlStr = '<div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #64748b; font-size: 13.5px;">Không tìm thấy xe phù hợp tại khu vực này. Vui lòng chọn khu vực khác hoặc Tất cả khu vực.</div>'
+    }
     for (var j = 0; j < filtered.length; j++) {
         var xe = filtered[j]
         var btnCls = "btn-select-bike"
@@ -318,7 +371,7 @@ function renderBikes() {
             btnText = "Đang chọn xe này"
         }
 
-        htmlStr = htmlStr + '<div class="bike-card">'
+        htmlStr = htmlStr + '<div class="bike-card" data-id="' + xe.id + '" style="cursor: pointer;">'
         htmlStr = htmlStr + '<div class="bike-banner">'
         htmlStr = htmlStr + '<div class="bike-banner-top">'
         htmlStr = htmlStr + '<span class="badge-brand">' + xe.brand + '</span>'
@@ -338,6 +391,10 @@ function renderBikes() {
         htmlStr = htmlStr + '<span class="price-caption">Theo giờ</span>'
         htmlStr = htmlStr + '<span class="price-hour">' + xe.hourPrice.toLocaleString("vi-VN") + '<u>đ</u>/h</span>'
         htmlStr = htmlStr + '</div>'
+        htmlStr = htmlStr + '<div class="price-col center">'
+        htmlStr = htmlStr + '<span class="price-caption">Khu vực</span>'
+        htmlStr = htmlStr + '<span class="price-area">' + (xe.area || "Quận 1") + '</span>'
+        htmlStr = htmlStr + '</div>'
         htmlStr = htmlStr + '<div class="price-col right">'
         htmlStr = htmlStr + '<span class="price-caption">Theo ngày</span>'
         htmlStr = htmlStr + '<span class="price-day">' + xe.dayPrice.toLocaleString("vi-VN") + '<u>đ</u>/ngày</span>'
@@ -349,21 +406,40 @@ function renderBikes() {
 
     grid.innerHTML = htmlStr
 
-    var selBtns = grid.querySelectorAll(".btn-select-bike")
-    for (var k = 0; k < selBtns.length; k++) {
-        selBtns[k].addEventListener("click", function () {
+    var cards = grid.querySelectorAll(".bike-card")
+    for (var k = 0; k < cards.length; k++) {
+        cards[k].addEventListener("click", function () {
             selectedBikeId = Number(this.getAttribute("data-id"))
             console.log("chon xe id: " + selectedBikeId)
             renderBikes()
             updateBookingSummary()
+            var detailSec = document.getElementById("bookingDetailSection")
+            if (detailSec != null) {
+                detailSec.scrollIntoView({ behavior: "smooth", block: "start" })
+            }
         })
     }
 }
 
 function updateBookingSummary() {
+    var detailSec = document.getElementById("bookingDetailSection")
+    if (selectedBikeId == null) {
+        if (detailSec != null) {
+            detailSec.classList.add("hidden")
+        }
+        return
+    }
+
+    if (detailSec != null) {
+        detailSec.classList.remove("hidden")
+    }
+
     var bike = timXeTheoId(selectedBikeId)
+    if (!bike) return
+
     document.getElementById("detailBikeName").textContent = bike.name
-    document.getElementById("detailBikeSpecs").textContent = bike.brand + " • " + bike.type + " • " + bike.cc + " • " + bike.fuel + " • Quận 1, TP.HCM"
+    var bikeArea = bike.area || "Quận 1"
+    document.getElementById("detailBikeSpecs").textContent = bike.brand + " • " + bike.type + " • " + bike.cc + " • " + bike.fuel + " • " + bikeArea + ", TP.HCM"
 
     document.getElementById("pkgHourText").textContent = (bike.hourPrice / 1000) + "K / giờ"
     document.getElementById("pkgDayText").textContent = (bike.dayPrice / 1000) + "K / ngày"
@@ -413,9 +489,12 @@ function updateBookingSummary() {
     document.getElementById("sumTotalVal").textContent = formatVND(total)
 }
 
-var filterIds = ["filterBrand", "filterType", "filterCc", "filterFuel"]
+var filterIds = ["filterBrand", "filterType", "filterCc", "filterFuel", "pickup-area"]
 for (var f = 0; f < filterIds.length; f++) {
-    document.getElementById(filterIds[f]).addEventListener("change", renderBikes)
+    var elem = document.getElementById(filterIds[f])
+    if (elem != null) {
+        elem.addEventListener("change", renderBikes)
+    }
 }
 
 document.getElementById("pkgHourBtn").addEventListener("click", function () {
@@ -439,6 +518,10 @@ for (var s = 0; s < sumInputIds.length; s++) {
 }
 
 document.getElementById("btnBookNow").addEventListener("click", function () {
+    if (selectedBikeId == null) {
+        alert("Vui lòng chọn một xe máy trước khi thanh toán!")
+        return
+    }
     demLanBam = demLanBam + 1
     if (walletBalance < currentBookingTotal) {
         alert("Số dư trong tài khoản cá nhân (" + formatVND(walletBalance) + ") không đủ để thanh toán " + formatVND(currentBookingTotal) + "! Vui lòng nạp thêm tiền vào tài khoản.")
@@ -884,6 +967,7 @@ function renderAccounts() {
 }
 
 tempBien = 1
+initBikeAreas()
 updateAuthUI()
 updateHandoverPanels()
 renderBikes()

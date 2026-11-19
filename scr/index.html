@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="vi">
 
 <head>
@@ -50,7 +50,8 @@
                 <div class="form-group">
                     <label for="pickup-area">Khu vực nhận xe</label>
                     <select id="pickup-area" name="pickup_area" class="input-soft">
-                        <option value="quan-1" selected>Quận 1</option>
+                        <option value="toan_bo" selected>Tất cả khu vực</option>
+                        <option value="quan-1">Quận 1</option>
                         <option value="quan-3">Quận 3</option>
                         <option value="quan-4">Quận 4</option>
                         <option value="quan-5">Quận 5</option>
@@ -120,7 +121,7 @@
             <div class="bike-grid" id="bikeGrid"></div>
         </div>
 
-            <div class="grid-2-bottom">
+            <div class="grid-2-bottom hidden" id="bookingDetailSection">
                 <div class="card">
                     <h2 class="section-title">Chi tiết xe máy &amp; Chọn gói thuê</h2>
                     <div class="selected-bike-banner">
