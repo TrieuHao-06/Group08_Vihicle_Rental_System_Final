@@ -8,7 +8,8 @@ var bikesData = [
         fuel: "Xăng",
         hourPrice: 25000,
         dayPrice: 140000,
-        area: "Quận 1"
+        area: "Quận 1",
+        owner: "Trương Công Hào"
     },
     {
         id: 2,
@@ -19,7 +20,8 @@ var bikesData = [
         fuel: "Xăng",
         hourPrice: 35000,
         dayPrice: 180000,
-        area: "Quận 3"
+        area: "Quận 3",
+        owner: "Trương Công Hào"
     },
     {
         id: 3,
@@ -30,7 +32,8 @@ var bikesData = [
         fuel: "Xăng",
         hourPrice: 40000,
         dayPrice: 200000,
-        area: "Quận Bình Thạnh"
+        area: "Quận Bình Thạnh",
+        owner: "Nguyễn Minh Tuấn"
     },
     {
         id: 4,
@@ -41,7 +44,8 @@ var bikesData = [
         fuel: "Điện",
         hourPrice: 22000,
         dayPrice: 130000,
-        area: "TP. Thủ Đức"
+        area: "TP. Thủ Đức",
+        owner: "Nguyễn Minh Tuấn"
     },
     {
         id: 5,
@@ -52,7 +56,8 @@ var bikesData = [
         fuel: "Xăng",
         hourPrice: 18000,
         dayPrice: 100000,
-        area: "Quận 5"
+        area: "Quận 5",
+        owner: "Trương Công Hào"
     },
     {
         id: 6,
@@ -63,9 +68,13 @@ var bikesData = [
         fuel: "Xăng",
         hourPrice: 55000,
         dayPrice: 300000,
-        area: "Quận 7"
+        area: "Quận 7",
+        owner: "Lê Hoàng Nam"
     }
 ]
+
+// Danh sách "Xe đã đặt" — Bắt đầu rỗng, chỉ có dữ liệu khi khách bấm "Thanh toán & Đặt xe" ở Tab 1
+var bookedOrders = []
 
 var vouchersData = [
     { code: "CONBO01", uses: 127, discount: "Giảm 10%", status: "Đang hoạt động", type: "active", exp: "29/01/2027" },
@@ -102,19 +111,13 @@ var tempBien = 0
 var demLanBam = 0
 
 function formatVND(num) {
-    var kq = num.toLocaleString("vi-VN") + "đ"
-    return kq
+    return num.toLocaleString("vi-VN") + "đ"
 }
 
 function timXeTheoId(id) {
-    if (id == null) {
-        return null
-    }
-    var i = 0
-    for (i = 0; i < bikesData.length; i++) {
-        if (bikesData[i].id == id) {
-            return bikesData[i]
-        }
+    if (id == null) return null
+    for (var i = 0; i < bikesData.length; i++) {
+        if (bikesData[i].id == id) return bikesData[i]
     }
     return null
 }
@@ -148,8 +151,7 @@ function initBikeAreas() {
 
 function switchTab(targetId) {
     var panels = document.querySelectorAll(".tab-panel")
-    var i = 0
-    for (i = 0; i < panels.length; i++) {
+    for (var i = 0; i < panels.length; i++) {
         panels[i].classList.remove("active")
     }
     var panel = document.getElementById(targetId)
@@ -158,15 +160,21 @@ function switchTab(targetId) {
     }
 
     var navBtns = document.querySelectorAll(".nav-tab")
-    var j = 0
-    for (j = 0; j < navBtns.length; j++) {
+    for (var j = 0; j < navBtns.length; j++) {
         if (navBtns[j].getAttribute("data-target") == targetId) {
             navBtns[j].classList.add("active")
         } else {
             navBtns[j].classList.remove("active")
         }
     }
-    console.log("chuyen sang tab: " + targetId)
+
+    // Đồng bộ dữ liệu mỗi khi chuyển sang tab Giao nhận xe hoặc Xe đã đặt
+    if (targetId === "tab2") {
+        renderRenterOrders()
+        renderOwnerOrders()
+    } else if (targetId === "tab7") {
+        renderBookedBikes()
+    }
 }
 
 function updateAuthUI() {
@@ -183,60 +191,30 @@ function updateAuthUI() {
     var ekycName = document.getElementById("ekycFullName")
 
     if (isLoggedIn == true) {
-        if (btnAcc != null) {
-            btnAcc.classList.remove("hidden")
-        }
+        if (btnAcc != null) btnAcc.classList.remove("hidden")
         if (btnLogin != null) {
             btnLogin.textContent = "Tài khoản"
             btnLogin.setAttribute("aria-label", "Vào trang tài khoản của " + currentUserName)
         }
-        if (userLbl != null) {
-            userLbl.textContent = "Tài khoản: " + currentUserName
-        }
-        if (roleLbl != null) {
-            roleLbl.textContent = "Vai trò: " + currentUserRole
-        }
-        if (barIn != null) {
-            barIn.classList.remove("hidden")
-        }
-        if (barOut != null) {
-            barOut.classList.add("hidden")
-        }
-        if (fileIn != null) {
-            fileIn.classList.remove("hidden")
-        }
-        if (fileOut != null) {
-            fileOut.classList.add("hidden")
-        }
-        if (userTxt != null) {
-            userTxt.textContent = currentUserName
-        }
-        if (ekycName != null) {
-            ekycName.value = currentUserName
-        }
+        if (userLbl != null) userLbl.textContent = "Tài khoản: " + currentUserName
+        if (roleLbl != null) roleLbl.textContent = "Vai trò: " + currentUserRole
+        if (barIn != null) barIn.classList.remove("hidden")
+        if (barOut != null) barOut.classList.add("hidden")
+        if (fileIn != null) fileIn.classList.remove("hidden")
+        if (fileOut != null) fileOut.classList.add("hidden")
+        if (userTxt != null) userTxt.textContent = currentUserName
+        if (ekycName != null) ekycName.value = currentUserName
     } else {
-        if (btnAcc != null) {
-            btnAcc.classList.add("hidden")
-        }
+        if (btnAcc != null) btnAcc.classList.add("hidden")
         if (btnLogin != null) {
             btnLogin.textContent = "Đăng nhập"
             btnLogin.setAttribute("aria-label", "Mở trang đăng nhập")
         }
-        if (dropdown != null) {
-            dropdown.classList.add("hidden")
-        }
-        if (barIn != null) {
-            barIn.classList.add("hidden")
-        }
-        if (barOut != null) {
-            barOut.classList.remove("hidden")
-        }
-        if (fileIn != null) {
-            fileIn.classList.add("hidden")
-        }
-        if (fileOut != null) {
-            fileOut.classList.remove("hidden")
-        }
+        if (dropdown != null) dropdown.classList.add("hidden")
+        if (barIn != null) barIn.classList.add("hidden")
+        if (barOut != null) barOut.classList.remove("hidden")
+        if (fileIn != null) fileIn.classList.add("hidden")
+        if (fileOut != null) fileOut.classList.remove("hidden")
     }
 }
 
@@ -259,11 +237,7 @@ document.getElementById("btnTopLogin").addEventListener("click", function (e) {
     } else {
         var dd = document.getElementById("userDropdown")
         if (dd != null) {
-            if (dd.classList.contains("hidden")) {
-                dd.classList.remove("hidden")
-            } else {
-                dd.classList.add("hidden")
-            }
+            dd.classList.toggle("hidden")
         }
     }
 })
@@ -273,9 +247,7 @@ if (btnDropdownToAccount != null) {
     btnDropdownToAccount.addEventListener("click", function () {
         switchTab("tab3")
         var dd = document.getElementById("userDropdown")
-        if (dd != null) {
-            dd.classList.add("hidden")
-        }
+        if (dd != null) dd.classList.add("hidden")
     })
 }
 
@@ -283,19 +255,14 @@ document.getElementById("btnDropdownLogout").addEventListener("click", function 
     isLoggedIn = false
     updateAuthUI()
     var dd = document.getElementById("userDropdown")
-    if (dd != null) {
-        dd.classList.add("hidden")
-    }
-    console.log("da dang xuat")
+    if (dd != null) dd.classList.add("hidden")
 })
 
 document.addEventListener("click", function (e) {
     var wrap = document.getElementById("userMenuWrap")
     var dd = document.getElementById("userDropdown")
-    if (wrap != null && dd != null) {
-        if (!wrap.contains(e.target)) {
-            dd.classList.add("hidden")
-        }
+    if (wrap != null && dd != null && !wrap.contains(e.target)) {
+        dd.classList.add("hidden")
     }
 })
 
@@ -332,26 +299,12 @@ function renderBikes() {
     var filtered = []
     for (var i = 0; i < bikesData.length; i++) {
         var b = bikesData[i]
-        var okBrand = false
-        if (brandVal == "all" || b.brand == brandVal) {
-            okBrand = true
-        }
-        var okType = false
-        if (typeVal == "all" || b.type == typeVal) {
-            okType = true
-        }
-        var okCc = false
-        if (ccVal == "all" || b.cc == ccVal) {
-            okCc = true
-        }
-        var okFuel = false
-        if (fuelVal == "all" || b.fuel == fuelVal) {
-            okFuel = true
-        }
-        var okArea = false
-        if (areaVal == "toan_bo" || b.area == areaText) {
-            okArea = true
-        }
+        var okBrand = (brandVal == "all" || b.brand == brandVal)
+        var okType = (typeVal == "all" || b.type == typeVal)
+        var okCc = (ccVal == "all" || b.cc == ccVal)
+        var okFuel = (fuelVal == "all" || b.fuel == fuelVal)
+        var okArea = (areaVal == "toan_bo" || b.area == areaText)
+
         if (okBrand && okType && okCc && okFuel && okArea) {
             filtered.push(b)
         }
@@ -364,44 +317,23 @@ function renderBikes() {
     }
     for (var j = 0; j < filtered.length; j++) {
         var xe = filtered[j]
-        var btnCls = "btn-select-bike"
-        var btnText = "Chọn xe này"
-        if (xe.id == selectedBikeId) {
-            btnCls = "btn-select-bike selected"
-            btnText = "Đang chọn xe này"
-        }
+        var btnCls = (xe.id == selectedBikeId) ? "btn-select-bike selected" : "btn-select-bike"
+        var btnText = (xe.id == selectedBikeId) ? "Đang chọn xe này" : "Chọn xe này"
 
-        htmlStr = htmlStr + '<div class="bike-card" data-id="' + xe.id + '" style="cursor: pointer;">'
-        htmlStr = htmlStr + '<div class="bike-banner">'
-        htmlStr = htmlStr + '<div class="bike-banner-top">'
-        htmlStr = htmlStr + '<span class="badge-brand">' + xe.brand + '</span>'
-        htmlStr = htmlStr + '</div>'
-        htmlStr = htmlStr + '<div class="bike-banner-center">'
-        htmlStr = htmlStr + '<div class="bike-banner-title">' + xe.name + '</div>'
-        htmlStr = htmlStr + '</div>'
-        htmlStr = htmlStr + '</div>'
-        htmlStr = htmlStr + '<div class="bike-card-title">' + xe.name + '</div>'
-        htmlStr = htmlStr + '<div class="bike-specs-pill">'
-        htmlStr = htmlStr + '<span>' + xe.type + '</span>'
-        htmlStr = htmlStr + '<span>' + xe.cc + '</span>'
-        htmlStr = htmlStr + '<span>' + xe.fuel + '</span>'
-        htmlStr = htmlStr + '</div>'
-        htmlStr = htmlStr + '<div class="bike-price-row">'
-        htmlStr = htmlStr + '<div class="price-col">'
-        htmlStr = htmlStr + '<span class="price-caption">Theo giờ</span>'
-        htmlStr = htmlStr + '<span class="price-hour">' + xe.hourPrice.toLocaleString("vi-VN") + '<u>đ</u>/h</span>'
-        htmlStr = htmlStr + '</div>'
-        htmlStr = htmlStr + '<div class="price-col center">'
-        htmlStr = htmlStr + '<span class="price-caption">Khu vực</span>'
-        htmlStr = htmlStr + '<span class="price-area">' + (xe.area || "Quận 1") + '</span>'
-        htmlStr = htmlStr + '</div>'
-        htmlStr = htmlStr + '<div class="price-col right">'
-        htmlStr = htmlStr + '<span class="price-caption">Theo ngày</span>'
-        htmlStr = htmlStr + '<span class="price-day">' + xe.dayPrice.toLocaleString("vi-VN") + '<u>đ</u>/ngày</span>'
-        htmlStr = htmlStr + '</div>'
-        htmlStr = htmlStr + '</div>'
-        htmlStr = htmlStr + '<button class="' + btnCls + '" data-id="' + xe.id + '">' + btnText + '</button>'
-        htmlStr = htmlStr + '</div>'
+        htmlStr += '<div class="bike-card" data-id="' + xe.id + '" style="cursor: pointer;">'
+        htmlStr += '<div class="bike-banner">'
+        htmlStr += '<div class="bike-banner-top"><span class="badge-brand">' + xe.brand + '</span></div>'
+        htmlStr += '<div class="bike-banner-center"><div class="bike-banner-title">' + xe.name + '</div></div>'
+        htmlStr += '</div>'
+        htmlStr += '<div class="bike-card-title">' + xe.name + '</div>'
+        htmlStr += '<div class="bike-specs-pill"><span>' + xe.type + '</span><span>' + xe.cc + '</span><span>' + xe.fuel + '</span></div>'
+        htmlStr += '<div class="bike-price-row">'
+        htmlStr += '<div class="price-col"><span class="price-caption">Theo giờ</span><span class="price-hour">' + xe.hourPrice.toLocaleString("vi-VN") + '<u>đ</u>/h</span></div>'
+        htmlStr += '<div class="price-col center"><span class="price-caption">Khu vực</span><span class="price-area">' + (xe.area || "Quận 1") + '</span></div>'
+        htmlStr += '<div class="price-col right"><span class="price-caption">Theo ngày</span><span class="price-day">' + xe.dayPrice.toLocaleString("vi-VN") + '<u>đ</u>/ngày</span></div>'
+        htmlStr += '</div>'
+        htmlStr += '<button class="' + btnCls + '" data-id="' + xe.id + '">' + btnText + '</button>'
+        htmlStr += '</div>'
     }
 
     grid.innerHTML = htmlStr
@@ -410,7 +342,6 @@ function renderBikes() {
     for (var k = 0; k < cards.length; k++) {
         cards[k].addEventListener("click", function () {
             selectedBikeId = Number(this.getAttribute("data-id"))
-            console.log("chon xe id: " + selectedBikeId)
             renderBikes()
             updateBookingSummary()
             var detailSec = document.getElementById("bookingDetailSection")
@@ -424,15 +355,11 @@ function renderBikes() {
 function updateBookingSummary() {
     var detailSec = document.getElementById("bookingDetailSection")
     if (selectedBikeId == null) {
-        if (detailSec != null) {
-            detailSec.classList.add("hidden")
-        }
+        if (detailSec != null) detailSec.classList.add("hidden")
         return
     }
 
-    if (detailSec != null) {
-        detailSec.classList.remove("hidden")
-    }
+    if (detailSec != null) detailSec.classList.remove("hidden")
 
     var bike = timXeTheoId(selectedBikeId)
     if (!bike) return
@@ -445,29 +372,14 @@ function updateBookingSummary() {
     document.getElementById("pkgDayText").textContent = (bike.dayPrice / 1000) + "K / ngày"
 
     var rawDur = Number(document.getElementById("rentDuration").value)
-    var duration = 1
-    if (rawDur > 1) {
-        duration = rawDur
-    }
-    var voucherPct = Number(document.getElementById("voucherSelect").value)
-    if (isNaN(voucherPct)) {
-        voucherPct = 0
-    }
-    var shipFee = Number(document.getElementById("pickupMethod").value)
-    if (isNaN(shipFee)) {
-        shipFee = 0
-    }
+    var duration = (rawDur > 1) ? rawDur : 1
+    var voucherPct = Number(document.getElementById("voucherSelect").value) || 0
+    var shipFee = Number(document.getElementById("pickupMethod").value) || 0
 
-    var unitPrice = bike.hourPrice
-    var unitName = "Theo giờ"
-    var unitSuffix = "giờ"
-    var durTitle = "Số giờ thuê"
-    if (rentMode == "day") {
-        unitPrice = bike.dayPrice
-        unitName = "Theo ngày"
-        unitSuffix = "ngày"
-        durTitle = "Số ngày thuê"
-    }
+    var unitPrice = (rentMode == "day") ? bike.dayPrice : bike.hourPrice
+    var unitName = (rentMode == "day") ? "Theo ngày" : "Theo giờ"
+    var unitSuffix = (rentMode == "day") ? "ngày" : "giờ"
+    var durTitle = (rentMode == "day") ? "Số ngày thuê" : "Số giờ thuê"
 
     var baseCost = unitPrice * duration
     var discount = Math.round((baseCost * voucherPct) / 100)
@@ -478,12 +390,7 @@ function updateBookingSummary() {
     document.getElementById("durationLabel").textContent = durTitle
     document.getElementById("sumBaseLabel").textContent = "Gói cước thuê: " + unitName + " × " + duration + " " + unitSuffix
     document.getElementById("sumBaseVal").textContent = formatVND(baseCost)
-
-    if (shipFee == 0) {
-        document.getElementById("sumShipLabel").textContent = "Phí giao xe: Tự lấy tại điểm"
-    } else {
-        document.getElementById("sumShipLabel").textContent = "Phí giao xe: Giao tận nơi"
-    }
+    document.getElementById("sumShipLabel").textContent = (shipFee == 0) ? "Phí giao xe: Tự lấy tại điểm" : "Phí giao xe: Giao tận nơi"
     document.getElementById("sumShipVal").textContent = formatVND(shipFee)
     document.getElementById("sumDiscountVal").textContent = "-" + formatVND(discount)
     document.getElementById("sumTotalVal").textContent = formatVND(total)
@@ -492,9 +399,7 @@ function updateBookingSummary() {
 var filterIds = ["filterBrand", "filterType", "filterCc", "filterFuel", "pickup-area"]
 for (var f = 0; f < filterIds.length; f++) {
     var elem = document.getElementById(filterIds[f])
-    if (elem != null) {
-        elem.addEventListener("change", renderBikes)
-    }
+    if (elem != null) elem.addEventListener("change", renderBikes)
 }
 
 document.getElementById("pkgHourBtn").addEventListener("click", function () {
@@ -517,6 +422,54 @@ for (var s = 0; s < sumInputIds.length; s++) {
     document.getElementById(sumInputIds[s]).addEventListener("change", updateBookingSummary)
 }
 
+// RENDER TAB 7: DANH SÁCH XE ĐÃ ĐẶT
+function renderBookedBikes() {
+    var container = document.getElementById("bookedBikesContainer")
+    if (!container) return
+
+    if (bookedOrders.length === 0) {
+        container.innerHTML = '<div class="empty-booked-box">Bạn chưa đặt chiếc xe nào. Hãy sang tab <strong>Đặt xe</strong> để chọn và thanh toán xe nhé!</div>'
+        return
+    }
+
+    var html = ""
+    for (var i = 0; i < bookedOrders.length; i++) {
+        var o = bookedOrders[i]
+        var badgeCls = "badge-warn-sm"
+        if (o.status === "Đang thuê") badgeCls = "badge-info-sm"
+        else if (o.status === "Đã trả xe") badgeCls = "badge-success"
+
+        html += '<div class="booked-table-row">'
+        html += '<strong>#' + o.id + '</strong>'
+        html += '<div><strong>' + o.bikeName + '</strong><div style="font-size: 11px; color: #64748b;">Khu vực: ' + o.area + '</div></div>'
+        html += '<div><span>' + o.packageText + '</span><div style="font-size: 11px; color: #64748b;">' + o.pickupTime + ' → ' + o.returnTime + '</div></div>'
+        html += '<strong style="color: #0d74e7;">' + formatVND(o.totalPrice) + '</strong>'
+        html += '<span><span class="' + badgeCls + '">' + o.status + '</span></span>'
+        html += '<button class="btn-primary-sm go-handover-btn" data-id="' + o.id + '">Giao nhận xe</button>'
+        html += '</div>'
+    }
+    container.innerHTML = html
+
+    var btns = container.querySelectorAll(".go-handover-btn")
+    for (var b = 0; b < btns.length; b++) {
+        btns[b].addEventListener("click", function () {
+            var ordId = this.getAttribute("data-id")
+            switchTab("tab2")
+            var rSel = document.getElementById("hoOrderInput")
+            if (rSel) {
+                for (var k = 0; k < rSel.options.length; k++) {
+                    if (rSel.options[k].value.indexOf("#" + ordId) !== -1) {
+                        rSel.selectedIndex = k
+                        rSel.dispatchEvent(new Event("change"))
+                        break
+                    }
+                }
+            }
+        })
+    }
+}
+
+// XỬ LÝ NÚT THANH TOÁN & ĐẶT XE Ở TAB 1
 document.getElementById("btnBookNow").addEventListener("click", function () {
     if (selectedBikeId == null) {
         alert("Vui lòng chọn một xe máy trước khi thanh toán!")
@@ -533,6 +486,7 @@ document.getElementById("btnBookNow").addEventListener("click", function () {
 
     var bike = timXeTheoId(selectedBikeId)
 
+    // Ghi lịch sử giao dịch ví
     var txList = document.getElementById("walletTxList")
     if (txList != null) {
         var row = document.createElement("div")
@@ -545,42 +499,213 @@ document.getElementById("btnBookNow").addEventListener("click", function () {
         txList.prepend(row)
     }
 
-    var renterSel = document.getElementById("hoOrderInput")
-    if (renterSel != null && renterSel.options.length > 0) {
-        var txt1 = "#BK0001 — " + bike.name + " • Chờ Check-in"
-        renterSel.options[0].value = txt1
-        renterSel.options[0].text = txt1
-        renterSel.selectedIndex = 0
+    // Lấy thông tin gói thuê và thời gian
+    var rawDur = Number(document.getElementById("rentDuration").value)
+    var duration = (rawDur > 1) ? rawDur : 1
+    var pkgText = (rentMode === "day") ? ("Thuê theo ngày (" + duration + " ngày)") : ("Thuê theo giờ (" + duration + " giờ)")
+    var pTime = (document.getElementById("pickup-datetime").value || "2026-11-04T08:00").replace("T", " ")
+    var rTime = (document.getElementById("return-datetime").value || "2026-11-05T08:00").replace("T", " ")
+
+    // Thêm đơn mới vào mảng bookedOrders (Tab Xe đã đặt)
+    var newOrderId = "BK" + String(bookedOrders.length + 1).padStart(4, "0")
+    bookedOrders.unshift({
+        id: newOrderId,
+        bikeId: bike.id,
+        bikeName: bike.name,
+        area: bike.area || "Quận 1",
+        packageText: pkgText,
+        pickupTime: pTime,
+        returnTime: rTime,
+        totalPrice: currentBookingTotal,
+        status: "Chờ Check-in",
+        odo: 8420,
+        fuel: 90
+    })
+
+    // Cập nhật giao diện Xe đã đặt & Dropdown Giao nhận xe
+    renderBookedBikes()
+    renderRenterOrders()
+    renderOwnerOrders()
+
+    alert("✅ Đặt xe thành công! Đơn #" + newOrderId + " (" + bike.name + ") đã được lưu vào mục 'Xe đã đặt'.")
+    switchTab("tab7")
+})
+
+// ================= LOGIC GIAO NHẬN XE 2 CHIỀU =================
+var handoverSessions = {}
+
+function extractOrderCode(val) {
+    if (!val) return ""
+    var m = val.match(/#BK\d+/)
+    return m ? m[0] : ""
+}
+
+function extractBikeName(val) {
+    if (!val) return ""
+    var parts = val.split("—")
+    if (parts.length > 1) {
+        return parts[1].split("•")[0].trim()
     }
-    var ownerSel = document.getElementById("hoOwnerOrderInput")
-    if (ownerSel != null && ownerSel.options.length > 0) {
-        var txt2 = "#BK0001 — " + bike.name + " • Chờ Chủ xe xác nhận"
-        ownerSel.options[0].value = txt2
-        ownerSel.options[0].text = txt2
-        ownerSel.selectedIndex = 0
+    return val.split("•")[0].trim()
+}
+
+function parseNum(val, def) {
+    if (val === null || val === undefined) return def || 0
+    var cleaned = String(val).replace(/[^0-9.]/g, "")
+    var n = Number(cleaned)
+    return isNaN(n) ? (def || 0) : n
+}
+
+// 1. Lấy danh sách xe từ mục "Xe của bạn" (#ownerBikeList ở Tab 4)
+function getOwnerBikesFromTab4() {
+    var list = []
+    var rows = document.querySelectorAll("#ownerBikeList .owner-table-row")
+    for (var i = 0; i < rows.length; i++) {
+        var nameEl = rows[i].querySelector("strong")
+        var dateEl = rows[i].querySelectorAll("span")[0]
+        var statusEl = rows[i].querySelector("span span")
+        if (nameEl) {
+            list.push({
+                name: nameEl.textContent.trim(),
+                dateRange: dateEl ? dateEl.textContent.trim() : "",
+                status: statusEl ? statusEl.textContent.trim() : "Đang trống"
+            })
+        }
+    }
+    return list
+}
+
+// 2. Render dropdown cho NGƯỜI THUÊ — CHỈ LẤY TỪ MỤC "XE ĐÃ ĐẶT" (bookedOrders)
+function renderRenterOrders() {
+    var renterSel = document.getElementById("hoOrderInput")
+    if (!renterSel) return
+
+    if (bookedOrders.length === 0) {
+        renterSel.innerHTML = '<option value="">-- Chưa có xe nào trong mục Xe đã đặt --</option>'
+        return
     }
 
-    switchTab("tab2")
+    var html = ""
+    for (var i = 0; i < bookedOrders.length; i++) {
+        var o = bookedOrders[i]
+        var val = "#" + o.id + " — " + o.bikeName + " • " + o.status
+        html += '<option value="' + val + '" data-odo="' + o.odo + '" data-fuel="' + o.fuel + '">' + val + '</option>'
+    }
+    renterSel.innerHTML = html
+
+    var curOpt = renterSel.options[renterSel.selectedIndex]
+    if (curOpt && curOpt.getAttribute("data-odo")) {
+        document.getElementById("hoOdoInput").value = Number(curOpt.getAttribute("data-odo"))
+        document.getElementById("hoFuelInput").value = Number(curOpt.getAttribute("data-fuel"))
+    }
+    updateCompareBoxMetrics()
+}
+
+// 3. Render dropdown cho CHỦ XE — CHỈ LẤY DATA TỪ MỤC "XE CỦA BẠN" (#ownerBikeList)
+function renderOwnerOrders() {
+    var ownerSel = document.getElementById("hoOwnerOrderInput")
+    if (!ownerSel) return
+
+    var myBikes = getOwnerBikesFromTab4()
+    if (myBikes.length === 0) {
+        ownerSel.innerHTML = '<option value="">-- Bạn chưa có xe nào trong mục Xe của bạn --</option>'
+        return
+    }
+
+    var html = ""
+    for (var i = 0; i < myBikes.length; i++) {
+        var mb = myBikes[i]
+        // Kiểm tra xem xe này có đơn nào khách vừa đặt trong bookedOrders không để ghép mã đơn
+        var matchedOrder = null
+        for (var j = 0; j < bookedOrders.length; j++) {
+            if (bookedOrders[j].bikeName === mb.name) {
+                matchedOrder = bookedOrders[j]
+                break
+            }
+        }
+
+        if (matchedOrder) {
+            var valWithOrder = "#" + matchedOrder.id + " — " + mb.name + " • " + matchedOrder.status
+            html += '<option value="' + valWithOrder + '" data-odo="' + matchedOrder.odo + '" data-fuel="' + matchedOrder.fuel + '">' + valWithOrder + '</option>'
+        } else {
+            var valBikeOnly = mb.name + " • Lịch: " + mb.dateRange + " (" + mb.status + ")"
+            html += '<option value="' + valBikeOnly + '" data-odo="8420" data-fuel="90">' + valBikeOnly + '</option>'
+        }
+    }
+    ownerSel.innerHTML = html
+
+    var curOpt = ownerSel.options[ownerSel.selectedIndex]
+    if (curOpt && curOpt.getAttribute("data-odo")) {
+        document.getElementById("hoOwnerOdoInput").value = Number(curOpt.getAttribute("data-odo"))
+        document.getElementById("hoOwnerFuelInput").value = Number(curOpt.getAttribute("data-fuel"))
+    }
+    updateCompareBoxMetrics()
+}
+
+function updateCompareBoxMetrics() {
+    var rOdo = parseNum(document.getElementById("hoOdoInput").value, 8420)
+    var rFuel = parseNum(document.getElementById("hoFuelInput").value, 90)
+    var oOdo = parseNum(document.getElementById("hoOwnerOdoInput").value, 8420)
+    var oFuel = parseNum(document.getElementById("hoOwnerFuelInput").value, 90)
+
+    document.getElementById("valCompareRenterOdo").textContent = rOdo.toLocaleString("vi-VN") + " km"
+    document.getElementById("valCompareRenterFuel").textContent = rFuel + "%"
+    document.getElementById("valCompareOwnerOdo").textContent = oOdo.toLocaleString("vi-VN") + " km"
+    document.getElementById("valCompareOwnerFuel").textContent = oFuel + "%"
+}
+
+var compareInputIds = ["hoOdoInput", "hoFuelInput", "hoOwnerOdoInput", "hoOwnerFuelInput"]
+for (var ci = 0; ci < compareInputIds.length; ci++) {
+    var cElem = document.getElementById(compareInputIds[ci])
+    if (cElem) {
+        cElem.addEventListener("input", updateCompareBoxMetrics)
+        cElem.addEventListener("change", updateCompareBoxMetrics)
+    }
+}
+
+document.getElementById("hoOrderInput").addEventListener("change", function () {
+    var opt = this.options[this.selectedIndex]
+    if (opt && opt.getAttribute("data-odo")) {
+        document.getElementById("hoOdoInput").value = Number(opt.getAttribute("data-odo"))
+        document.getElementById("hoFuelInput").value = Number(opt.getAttribute("data-fuel"))
+        updateCompareBoxMetrics()
+    }
+})
+
+document.getElementById("hoOwnerOrderInput").addEventListener("change", function () {
+    var opt = this.options[this.selectedIndex]
+    if (opt && opt.getAttribute("data-odo")) {
+        document.getElementById("hoOwnerOdoInput").value = Number(opt.getAttribute("data-odo"))
+        document.getElementById("hoOwnerFuelInput").value = Number(opt.getAttribute("data-fuel"))
+        updateCompareBoxMetrics()
+    }
 })
 
 function updateHandoverPanels() {
     var roleRadios = document.querySelectorAll('input[name="roleType"]')
     var chosenRole = "Khách thuê"
     for (var i = 0; i < roleRadios.length; i++) {
-        if (roleRadios[i].checked == true) {
-            chosenRole = roleRadios[i].value
-        }
+        if (roleRadios[i].checked == true) chosenRole = roleRadios[i].value
     }
     var pRenter = document.getElementById("panelRenter")
     var pOwner = document.getElementById("panelOwner")
+    var colRenter = document.getElementById("colCompareRenter")
+    var colOwner = document.getElementById("colCompareOwner")
+
     if (chosenRole == "Chủ xe") {
         pRenter.classList.add("hidden")
         pOwner.classList.remove("hidden")
+        colRenter.classList.remove("active-role")
+        colOwner.classList.add("active-role")
+        renderOwnerOrders()
     } else {
         pRenter.classList.remove("hidden")
         pOwner.classList.add("hidden")
+        colRenter.classList.add("active-role")
+        colOwner.classList.remove("active-role")
+        renderRenterOrders()
     }
-    console.log("chon ben giao nhan: " + chosenRole)
+    updateCompareBoxMetrics()
 }
 
 var allRoleRadios = document.querySelectorAll('input[name="roleType"]')
@@ -588,65 +713,163 @@ for (var rr = 0; rr < allRoleRadios.length; rr++) {
     allRoleRadios[rr].addEventListener("change", updateHandoverPanels)
 }
 
-document.getElementById("btnExecHandover").addEventListener("click", function () {
-    var txRadio = document.querySelector('input[name="txType"]:checked')
-    var roleRadio = document.querySelector('input[name="roleType"]:checked')
-    var txType = "Check-in"
-    if (txRadio != null) {
-        txType = txRadio.value
-    }
-    var roleVal = "Khách thuê"
-    if (roleRadio != null) {
-        roleVal = roleRadio.value
-    }
-
-    var odo = 8420
-    var fuel = "90"
-    var note = "Đủ 2 mũ, nguyên vẹn"
-    var imgName = "anh_giao_nhan.jpg"
-
-    if (roleVal == "Chủ xe") {
-        odo = Number(document.getElementById("hoOwnerOdoInput").value) || 8420
-        fuel = document.getElementById("hoOwnerFuelInput").value || "90"
-        note = document.getElementById("hoOwnerNoteInput").value || "Chủ xe đã xác nhận"
-        imgName = document.getElementById("hoOwnerImgInput").value || "anh_chuxe.jpg"
-    } else {
-        odo = Number(document.getElementById("hoOdoInput").value) || 8420
-        fuel = document.getElementById("hoFuelInput").value || "90"
-        note = document.getElementById("hoNoteInput").value || "Đủ 2 mũ, nguyên vẹn"
-        imgName = document.getElementById("hoImgInput").value || "anh_khach.jpg"
-    }
-
-    var list = document.getElementById("handoverHistoryList")
-    var row = document.createElement("div")
-    row.className = "table-row-5"
-    row.innerHTML = '<span><span class="badge-info-sm">' + txType + '</span></span>' +
-        '<strong>#BK0001 • ' + roleVal + '</strong>' +
-        '<span>' + odo.toLocaleString("vi-VN") + ' km</span>' +
-        '<span>' + fuel + '%</span>' +
-        '<span class="text-muted">' + note + '</span>'
-    list.prepend(row)
-
+function addPhotoToStorage(txType, roleVal, orderLabel, imgName) {
     var storage = document.getElementById("storageList")
-    if (storage != null) {
-        var cleanName = imgName.replace("Chọn tệp — ", "")
+    if (storage != null && imgName) {
+        var cleanName = imgName.replace("Chọn tệp — ", "").trim()
         var card = document.createElement("div")
         card.className = "storage-card"
         card.innerHTML = '<div class="storage-thumb">Ảnh ' + txType + '</div>' +
             '<div class="storage-filename">' + cleanName + '</div>' +
-            '<div class="storage-meta">Từ: ' + roleVal + ' • #BK0001</div>' +
-            '<span class="badge-warn-sm">Xóa sau 4 ngày</span>'
+            '<div class="storage-meta">Từ: ' + roleVal + ' • ' + orderLabel + '</div>' +
+            '<span class="badge-warn-sm">Xóa sau 3 ngày</span>'
         storage.prepend(card)
+    }
+}
+
+document.getElementById("btnExecHandover").addEventListener("click", function () {
+    var txRadio = document.querySelector('input[name="txType"]:checked')
+    var roleRadio = document.querySelector('input[name="roleType"]:checked')
+    var txType = txRadio ? txRadio.value : "Check-in"
+    var roleVal = roleRadio ? roleRadio.value : "Khách thuê"
+
+    var orderInputVal = ""
+    if (roleVal === "Chủ xe") {
+        orderInputVal = document.getElementById("hoOwnerOrderInput").value
+        if (!orderInputVal) {
+            alert("⚠️ Bạn chưa có xe nào trong danh mục 'Xe của bạn' để thực hiện giao nhận!")
+            return
+        }
+    } else {
+        orderInputVal = document.getElementById("hoOrderInput").value
+        if (!orderInputVal) {
+            alert("⚠️ Bạn chưa đặt xe nào! Vui lòng vào mục 'Đặt xe' để đặt xe trước khi thực hiện giao nhận.")
+            return
+        }
+    }
+
+    var orderCode = extractOrderCode(orderInputVal)
+    var bikeName = extractBikeName(orderInputVal)
+    // Dùng tên xe làm khóa đối chiếu chung nếu chủ xe chọn xe chưa gắn mã #BK
+    var sessionKey = (orderCode ? orderCode : bikeName) + "_" + txType
+
+    var rOdo = parseNum(document.getElementById("hoOdoInput").value, 8420)
+    var rFuel = parseNum(document.getElementById("hoFuelInput").value, 90)
+    var rNote = document.getElementById("hoNoteInput").value.trim() || "Khách nhận đủ mũ, xe tốt"
+    var rImg = document.getElementById("hoImgInput").value.trim() || "anh_nhan_xe.jpg"
+
+    var oOdo = parseNum(document.getElementById("hoOwnerOdoInput").value, 8420)
+    var oFuel = parseNum(document.getElementById("hoOwnerFuelInput").value, 90)
+    var oNote = document.getElementById("hoOwnerNoteInput").value.trim() || "Chủ xe đã xác nhận"
+    var oImg = document.getElementById("hoOwnerImgInput").value.trim() || "anh_chuxe.jpg"
+
+    if (!handoverSessions[sessionKey]) {
+        handoverSessions[sessionKey] = { renter: null, owner: null, bikeName: bikeName, orderCode: orderCode }
+    }
+
+    var nowTime = new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })
+    var labelDisplay = orderCode ? (orderCode + " (" + bikeName + ")") : bikeName
+
+    if (roleVal === "Khách thuê") {
+        handoverSessions[sessionKey].renter = { odo: rOdo, fuel: rFuel, note: rNote, img: rImg, time: nowTime }
+        addPhotoToStorage(txType, "Khách thuê", labelDisplay, rImg)
+    } else {
+        handoverSessions[sessionKey].owner = { odo: oOdo, fuel: oFuel, note: oNote, img: oImg, time: nowTime }
+        addPhotoToStorage(txType, "Chủ xe", labelDisplay, oImg)
+    }
+
+    var rSub = handoverSessions[sessionKey].renter
+    var oSub = handoverSessions[sessionKey].owner
+
+    var elBadgeStatus = document.getElementById("compareBadgeStatus")
+    var elBanner = document.getElementById("compareResultBanner")
+    var elBadgeRenter = document.getElementById("badgeRenterStatus")
+    var elBadgeOwner = document.getElementById("badgeOwnerStatus")
+    var elStatusRenter = document.getElementById("statusCompareRenter")
+    var elStatusOwner = document.getElementById("statusCompareOwner")
+    var colRenter = document.getElementById("colCompareRenter")
+    var colOwner = document.getElementById("colCompareOwner")
+
+    // Mới có 1 bên gửi
+    if (!rSub || !oSub) {
+        if (rSub && !oSub) {
+            elBadgeRenter.textContent = "Đã gửi"; elBadgeRenter.className = "badge-success"
+            elStatusRenter.textContent = "Đã gửi lúc " + rSub.time + " (Odo: " + rSub.odo.toLocaleString("vi-VN") + " km | Xăng: " + rSub.fuel + "%)"
+            colRenter.className = "compare-col submitted"
+            elBadgeOwner.textContent = "Chưa gửi"; elBadgeOwner.className = "badge-warn-sm"
+            elStatusOwner.textContent = "Đang chờ Chủ xe gửi biên bản..."
+            elBadgeStatus.textContent = "⏳ Chờ Chủ xe"; elBadgeStatus.className = "compare-badge waiting"
+            elBanner.className = "compare-result-banner waiting"
+            elBanner.innerHTML = "⏳ <strong>Đã tiếp nhận biên bản " + txType + " từ Khách thuê.</strong> Vui lòng chuyển sang vai trò <strong>'Chủ xe'</strong> để gửi thông số đối chiếu 2 chiều."
+            alert("📤 ĐÃ GHI NHẬN BIÊN BẢN TỪ KHÁCH THUÊ!\n• Xe: " + labelDisplay + "\n• Odo: " + rSub.odo + " km | Xăng: " + rSub.fuel + "%\n👉 Vui lòng chuyển sang vai trò 'Chủ xe' để đối chiếu.")
+        } else {
+            elBadgeOwner.textContent = "Đã gửi"; elBadgeOwner.className = "badge-success"
+            elStatusOwner.textContent = "Đã gửi lúc " + oSub.time + " (Odo: " + oSub.odo.toLocaleString("vi-VN") + " km | Xăng: " + oSub.fuel + "%)"
+            colOwner.className = "compare-col submitted"
+            elBadgeRenter.textContent = "Chưa gửi"; elBadgeRenter.className = "badge-warn-sm"
+            elStatusRenter.textContent = "Đang chờ Khách thuê gửi biên bản..."
+            elBadgeStatus.textContent = "⏳ Chờ Khách thuê"; elBadgeStatus.className = "compare-badge waiting"
+            elBanner.className = "compare-result-banner waiting"
+            elBanner.innerHTML = "⏳ <strong>Đã tiếp nhận biên bản " + txType + " từ Chủ xe.</strong> Vui lòng chuyển sang vai trò <strong>'Người thuê'</strong> để gửi thông số đối chiếu 2 chiều."
+            alert("📤 ĐÃ GHI NHẬN BIÊN BẢN TỪ CHỦ XE!\n• Xe: " + labelDisplay + "\n• Odo: " + oSub.odo + " km | Xăng: " + oSub.fuel + "%\n👉 Vui lòng chuyển sang vai trò 'Người thuê' để đối chiếu.")
+        }
+        return
+    }
+
+    // Cả 2 bên đã gửi -> So sánh
+    var isOdoMatch = (rSub.odo === oSub.odo)
+    var isFuelMatch = (rSub.fuel === oSub.fuel)
+
+    if (isOdoMatch && isFuelMatch) {
+        colRenter.className = "compare-col matched"
+        colOwner.className = "compare-col matched"
+        elBadgeRenter.textContent = "✓ Đã khớp"; elBadgeRenter.className = "badge-success"
+        elBadgeOwner.textContent = "✓ Đã khớp"; elBadgeOwner.className = "badge-success"
+        elStatusRenter.textContent = "Đã khớp (Odo: " + rSub.odo.toLocaleString("vi-VN") + " km | Xăng: " + rSub.fuel + "%)"
+        elStatusOwner.textContent = "Đã khớp (Odo: " + oSub.odo.toLocaleString("vi-VN") + " km | Xăng: " + oSub.fuel + "%)"
+        elBadgeStatus.textContent = "✅ Hoàn tất thành công"; elBadgeStatus.className = "compare-badge matched"
+        elBanner.className = "compare-result-banner success"
+        elBanner.innerHTML = "🎉 <strong>ĐỐI CHIẾU THÀNH CÔNG — HOÀN TẤT " + txType.toUpperCase() + "!</strong> Cả 2 bên tương đồng về Odometer (" + rSub.odo.toLocaleString("vi-VN") + " km) và Nhiên liệu (" + rSub.fuel + "%)."
+
+        var list = document.getElementById("handoverHistoryList")
+        if (list) {
+            var row = document.createElement("div")
+            row.className = "table-row-5"
+            row.innerHTML = '<span><span class="badge-success">' + txType + '</span></span>' +
+                '<strong>' + labelDisplay + '</strong>' +
+                '<span>' + rSub.odo.toLocaleString("vi-VN") + ' km</span>' +
+                '<span>' + rSub.fuel + '%</span>' +
+                '<span class="text-muted">✓ Đã khớp 2 chiều (' + rSub.time + ')</span>'
+            list.prepend(row)
+        }
+
+        // Cập nhật trạng thái trong bookedOrders (Tab Xe đã đặt)
+        for (var op = 0; op < bookedOrders.length; op++) {
+            if (bookedOrders[op].bikeName === bikeName || ("#" + bookedOrders[op].id) === orderCode) {
+                bookedOrders[op].status = (txType === "Check-in") ? "Đang thuê" : "Đã trả xe"
+                break
+            }
+        }
+        renderBookedBikes()
+        renderRenterOrders()
+        renderOwnerOrders()
+
+        alert("🎉 ĐỐI CHIẾU THÀNH CÔNG — HOÀN TẤT " + txType.toUpperCase() + "!\nXe: " + labelDisplay + "\nOdo & Nhiên liệu trùng khớp 100%.")
+        handoverSessions[sessionKey] = null
+    } else {
+        colRenter.className = "compare-col mismatched"
+        colOwner.className = "compare-col mismatched"
+        elBadgeRenter.textContent = "Chưa khớp"; elBadgeRenter.className = "badge-warn-sm"
+        elBadgeOwner.textContent = "Chưa khớp"; elBadgeOwner.className = "badge-warn-sm"
+        elBadgeStatus.textContent = "❌ Không tương đồng"; elBadgeStatus.className = "compare-badge mismatched"
+        elBanner.className = "compare-result-banner error"
+        elBanner.innerHTML = "❌ <strong>CHƯA THỂ HOÀN TẤT " + txType.toUpperCase() + "!</strong> Thông số Odometer hoặc Nhiên liệu giữa Khách thuê và Chủ xe đang bị lệch."
+        alert("❌ ĐỐI CHIẾU THẤT BẠI! Thông số Odometer hoặc Nhiên liệu giữa Khách thuê và Chủ xe không tương đồng.")
     }
 })
 
 document.getElementById("btnToggleIncident").addEventListener("click", function () {
-    var box = document.getElementById("incidentBox")
-    if (box.classList.contains("hidden")) {
-        box.classList.remove("hidden")
-    } else {
-        box.classList.add("hidden")
-    }
+    document.getElementById("incidentBox").classList.toggle("hidden")
 })
 
 var btnSendIncident = document.getElementById("btnSendIncident")
@@ -659,9 +882,7 @@ if (btnSendIncident != null) {
 var starBtns = document.querySelectorAll("#starRow .star-btn")
 for (var st = 0; st < starBtns.length; st++) {
     starBtns[st].addEventListener("click", function () {
-        for (var x = 0; x < starBtns.length; x++) {
-            starBtns[x].classList.remove("active")
-        }
+        for (var x = 0; x < starBtns.length; x++) starBtns[x].classList.remove("active")
         this.classList.add("active")
     })
 }
@@ -685,103 +906,74 @@ document.getElementById("btnGoLoginFromTab3").addEventListener("click", function
 var btnSubmitLogin = document.getElementById("btnSubmitLogin")
 if (btnSubmitLogin != null) {
     btnSubmitLogin.addEventListener("click", function () {
-        var rawUser = document.getElementById("loginUsername").value
-        var username = rawUser.trim()
-        if (username == "") {
-            username = "Trương Công Hào"
-        }
-
+        var username = document.getElementById("loginUsername").value.trim() || "Trương Công Hào"
         isLoggedIn = true
         currentUserName = username
-
         updateAuthUI()
         switchTab("tab3")
-        console.log("dang nhap thanh cong: " + currentUserName)
     })
 }
 
 var loginPassInput = document.getElementById("loginPassword")
 if (loginPassInput != null) {
     loginPassInput.addEventListener("keydown", function (e) {
-        if (e.key === "Enter") {
-            if (btnSubmitLogin != null) {
-                btnSubmitLogin.click()
-            }
-        }
+        if (e.key === "Enter" && btnSubmitLogin != null) btnSubmitLogin.click()
     })
 }
 
 var loginUserInput = document.getElementById("loginUsername")
 if (loginUserInput != null) {
     loginUserInput.addEventListener("keydown", function (e) {
-        if (e.key === "Enter") {
-            if (btnSubmitLogin != null) {
-                btnSubmitLogin.click()
-            }
-        }
+        if (e.key === "Enter" && btnSubmitLogin != null) btnSubmitLogin.click()
     })
 }
 
 var btnRegister = document.getElementById("btnRegister")
 if (btnRegister != null) {
     btnRegister.addEventListener("click", function () {
-        alert("Chức năng Đăng ký tài khoản: Hệ thống đang mở đăng ký thử nghiệm, vui lòng liên hệ bộ phận hỗ trợ hoặc đăng nhập với tài khoản có sẵn!")
+        alert("Chức năng Đăng ký tài khoản: Hệ thống đang mở đăng ký thử nghiệm!")
     })
 }
 
 var btnForgotPassword = document.getElementById("btnForgotPassword")
 if (btnForgotPassword != null) {
     btnForgotPassword.addEventListener("click", function () {
-        alert("Chức năng Quên mật khẩu: Vui lòng kiểm tra email hoặc liên hệ Quản trị viên để được cấp lại mật khẩu!")
+        alert("Chức năng Quên mật khẩu: Vui lòng liên hệ Quản trị viên để được cấp lại mật khẩu!")
     })
 }
 
 function updateWalletUI() {
     var balanceEl = document.getElementById("walletBalanceText")
-    if (balanceEl != null) {
-        balanceEl.innerHTML = walletBalance.toLocaleString("vi-VN") + "<u>đ</u>"
-    }
+    if (balanceEl != null) balanceEl.innerHTML = walletBalance.toLocaleString("vi-VN") + "<u>đ</u>"
     var payOpt = document.getElementById("payMethodWalletOpt")
-    if (payOpt != null) {
-        payOpt.textContent = "Tiền trong tài khoản cá nhân — " + formatVND(walletBalance)
-    }
+    if (payOpt != null) payOpt.textContent = "Tiền trong tài khoản cá nhân — " + formatVND(walletBalance)
 }
 
 document.getElementById("btnDeposit").addEventListener("click", function () {
     var amt = Number(document.getElementById("walletAmountInput").value) || 0
-    if (amt <= 0) {
-        return
-    }
-    walletBalance = walletBalance + amt
+    if (amt <= 0) return
+    walletBalance += amt
     updateWalletUI()
 
     var txList = document.getElementById("walletTxList")
     var row = document.createElement("div")
     row.className = "wallet-table-row"
     var codeNum = Math.floor(102 + Math.random() * 890)
-    row.innerHTML = '<strong>#TX' + codeNum + '</strong>' +
-        '<span>Nạp tiền vào ví nội bộ</span>' +
-        '<strong class="text-green">+' + formatVND(amt) + '</strong>' +
-        '<span><span class="badge-success">Hoàn tất</span></span>'
+    row.innerHTML = '<strong>#TX' + codeNum + '</strong><span>Nạp tiền vào ví nội bộ</span><strong class="text-green">+' + formatVND(amt) + '</strong><span><span class="badge-success">Hoàn tất</span></span>'
     txList.prepend(row)
 })
 
 document.getElementById("btnWithdraw").addEventListener("click", function () {
     var amt = Number(document.getElementById("walletAmountInput").value) || 0
-    if (amt <= 0 || amt > walletBalance) {
-        return
-    }
-    walletBalance = walletBalance - amt
+    if (amt <= 0 || amt > walletBalance) return
+    walletBalance -= amt
     updateWalletUI()
 
     var txList = document.getElementById("walletTxList")
     var row = document.createElement("div")
     row.className = "wallet-table-row"
     var codeNum = Math.floor(102 + Math.random() * 890)
-    row.innerHTML = '<strong>#TX' + codeNum + '</strong>' +
-        '<span>Rút tiền về tài khoản ngân hàng</span>' +
-        '<strong>-' + formatVND(amt) + '</strong>' +
-        '<span><span class="badge-success">Hoàn tất</span></span>'
+    row.innerHTML = '<strong>#TX' + codeNum + '</strong><span>Rút tiền về tài khoản ngân hàng</span><strong>-' + formatVND(amt) + '</strong><span><span class="badge-success">Hoàn tất</span></span>'
     txList.prepend(row)
 })
 
@@ -798,6 +990,7 @@ function bindScheduleToggle(btn) {
             badge.className = "badge-success"
             this.textContent = "Khóa lịch"
         }
+        renderOwnerOrders()
     })
 }
 
@@ -810,19 +1003,14 @@ var btnSubmitConsign = document.getElementById("btnSubmitConsign")
 if (btnSubmitConsign != null) {
     btnSubmitConsign.addEventListener("click", function () {
         var modelVal = document.getElementById("ownModel").value.trim()
-        if (modelVal == "") {
-            modelVal = document.getElementById("ownBrand").value + " 2024"
-        }
+        if (modelVal == "") modelVal = document.getElementById("ownBrand").value + " 2024"
         var ownerList = document.getElementById("ownerBikeList")
         var newRow = document.createElement("div")
         newRow.className = "owner-table-row"
-        newRow.innerHTML = '<strong>' + modelVal + '</strong>' +
-            '<span>06/11 - 10/11</span>' +
-            '<span><span class="badge-success">Đang trống</span></span>' +
-            '<button class="btn-secondary-sm toggle-schedule-btn">Khóa lịch</button>'
+        newRow.innerHTML = '<strong>' + modelVal + '</strong><span>06/11 - 10/11</span><span><span class="badge-success">Đang trống</span></span><button class="btn-secondary-sm toggle-schedule-btn">Khóa lịch</button>'
         ownerList.prepend(newRow)
-        var newBtn = newRow.querySelector(".toggle-schedule-btn")
-        bindScheduleToggle(newBtn)
+        bindScheduleToggle(newRow.querySelector(".toggle-schedule-btn"))
+        renderOwnerOrders()
         alert("Đã gửi hồ sơ ký gửi xe " + modelVal + " lên Admin!")
     })
 }
@@ -850,45 +1038,27 @@ function renderVouchers() {
     var out = ""
     for (var i = 0; i < vouchersData.length; i++) {
         var v = vouchersData[i]
-        var pillCls = "pill-status-expired"
-        if (v.type == "active") {
-            pillCls = "pill-status-active"
-        } else if (v.type == "warn") {
-            pillCls = "pill-status-warn"
-        }
+        var pillCls = (v.type == "active") ? "pill-status-active" : ((v.type == "warn") ? "pill-status-warn" : "pill-status-expired")
+        var delHtml = (isVoucherEditMode == true) ? '<button class="btn-delete-circle" data-idx="' + i + '">X</button>' : ""
 
-        var delHtml = ""
-        if (isVoucherEditMode == true) {
-            delHtml = '<button class="btn-delete-circle" data-idx="' + i + '">X</button>'
-        }
-
-        out = out + '<div class="voucher-row">'
-        out = out + '<strong>' + v.code + '</strong>'
-        out = out + '<span>' + v.uses + '</span>'
-        out = out + '<span>' + v.discount + '</span>'
-        out = out + '<span><span class="' + pillCls + '">' + v.status + '</span></span>'
-        out = out + '<span>' + v.exp + '</span>'
-        out = out + '<span>' + delHtml + '</span>'
-        out = out + '</div>'
+        out += '<div class="voucher-row">'
+        out += '<strong>' + v.code + '</strong><span>' + v.uses + '</span><span>' + v.discount + '</span>'
+        out += '<span><span class="' + pillCls + '">' + v.status + '</span></span><span>' + v.exp + '</span><span>' + delHtml + '</span>'
+        out += '</div>'
     }
     container.innerHTML = out
 
     var delBtns = container.querySelectorAll(".btn-delete-circle")
     for (var d = 0; d < delBtns.length; d++) {
         delBtns[d].addEventListener("click", function () {
-            var idx = Number(this.getAttribute("data-idx"))
-            vouchersData.splice(idx, 1)
+            vouchersData.splice(Number(this.getAttribute("data-idx")), 1)
             renderVouchers()
         })
     }
 }
 
 document.getElementById("btnToggleVoucherEdit").addEventListener("click", function () {
-    if (isVoucherEditMode == true) {
-        isVoucherEditMode = false
-    } else {
-        isVoucherEditMode = true
-    }
+    isVoucherEditMode = !isVoucherEditMode
     renderVouchers()
 })
 
@@ -903,27 +1073,17 @@ document.getElementById("btnCloseVoucherModal").addEventListener("click", functi
 var pctBtns = document.querySelectorAll("#percentSelector .pct-btn")
 for (var p = 0; p < pctBtns.length; p++) {
     pctBtns[p].addEventListener("click", function () {
-        for (var q = 0; q < pctBtns.length; q++) {
-            pctBtns[q].classList.remove("active")
-        }
+        for (var q = 0; q < pctBtns.length; q++) pctBtns[q].classList.remove("active")
         this.classList.add("active")
         selectedModalPct = this.getAttribute("data-pct")
     })
 }
 
 document.getElementById("btnSaveVoucher").addEventListener("click", function () {
-    var code = document.getElementById("newVoucherCode").value.trim()
-    if (code == "") {
-        code = "CONBO02"
-    }
+    var code = document.getElementById("newVoucherCode").value.trim() || "CONBO02"
     var uses = Number(document.getElementById("newVoucherUses").value)
-    if (isNaN(uses) || uses <= 0) {
-        uses = 100
-    }
-    var exp = document.getElementById("newVoucherExp").value.trim()
-    if (exp == "") {
-        exp = "29/01/2027"
-    }
+    if (isNaN(uses) || uses <= 0) uses = 100
+    var exp = document.getElementById("newVoucherExp").value.trim() || "29/01/2027"
 
     vouchersData.unshift({
         code: code.toUpperCase(),
@@ -945,14 +1105,11 @@ function renderAccounts() {
     for (var i = 0; i < accountsData.length; i++) {
         var acc = accountsData[i]
         var st = accountStates[acc.statusIndex]
-        str = str + '<div class="account-row">'
-        str = str + '<strong>' + acc.id + '</strong>'
-        str = str + '<span>' + acc.username + '</span>'
-        str = str + '<span>' + acc.phone + '</span>'
-        str = str + '<span>' + acc.email + '</span>'
-        str = str + '<span>' + acc.pass + '</span>'
-        str = str + '<span><button class="acct-pill ' + st.cls + '" data-idx="' + i + '">' + st.label + '</button></span>'
-        str = str + '</div>'
+        str += '<div class="account-row">'
+        str += '<strong>' + acc.id + '</strong><span>' + acc.username + '</span><span>' + acc.phone + '</span>'
+        str += '<span>' + acc.email + '</span><span>' + acc.pass + '</span>'
+        str += '<span><button class="acct-pill ' + st.cls + '" data-idx="' + i + '">' + st.label + '</button></span>'
+        str += '</div>'
     }
     container.innerHTML = str
 
@@ -969,10 +1126,10 @@ function renderAccounts() {
 tempBien = 1
 initBikeAreas()
 updateAuthUI()
+renderBookedBikes()
 updateHandoverPanels()
 renderBikes()
 updateBookingSummary()
 updateWalletUI()
 renderVouchers()
 renderAccounts()
-console.log("khoi tao xong web thue xe may")
