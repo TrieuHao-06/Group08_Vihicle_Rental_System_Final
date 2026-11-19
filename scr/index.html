@@ -43,72 +43,82 @@
     </header>
 
     <main class="main-container">
-        <section class="tab-panel active" id="tab1">
-            <div class="card">
-                <h2 class="section-title">Tìm kiếm lịch trình thuê xe máy</h2>
-                <div class="grid-3">
+    <section class="tab-panel active" id="tab1">
+        <div class="card">
+            <h2 class="section-title">Tìm kiếm lịch trình thuê xe máy</h2>
+            <div class="grid-3">
+                <div class="form-group">
+                    <label for="pickup-area">Khu vực nhận xe</label>
+                    <select id="pickup-area" name="pickup_area" class="input-soft">
+                        <option value="quan-1" selected>Quận 1</option>
+                        <option value="quan-3">Quận 3</option>
+                        <option value="quan-4">Quận 4</option>
+                        <option value="quan-5">Quận 5</option>
+                        <option value="quan-7">Quận 7</option>
+                        <option value="phu-nhuan">Quận Phú Nhuận</option>
+                        <option value="binh-thanh">Quận Bình Thạnh</option>
+                        <option value="go-vap">Quận Gò Vấp</option>
+                        <option value="thu-duc">TP. Thủ Đức</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="pickup-datetime">Ngày &amp; Giờ nhận xe</label>
+                    <input type="datetime-local" id="pickup-datetime" name="pickup_datetime" class="input-soft" value="2026-11-04T08:00">
+                </div>
+                <div class="form-group">
+                    <label for="return-datetime">Ngày &amp; Giờ trả xe</label>
+                    <input type="datetime-local" id="return-datetime" name="return_datetime" class="input-soft" value="2026-11-05T08:00">
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 class="section-title">Chọn dòng xe máy</h2>
+            <div class="filter-box">
+                <div class="grid-4">
                     <div class="form-group">
-                        <label>Địa điểm nhận xe</label>
-                        <input type="text" class="input-soft" value="Quận 1, TP.HCM">
+                        <label>Hãng xe máy</label>
+                        <select class="input-white" id="filterBrand">
+                            <option value="all">Tất cả hãng xe</option>
+                            <option value="Honda">Honda</option>
+                            <option value="Yamaha">Yamaha</option>
+                            <option value="VinFast">VinFast</option>
+                            <option value="Piaggio">Piaggio</option>
+                        </select>
                     </div>
                     <div class="form-group">
-                        <label>Ngày &amp; Giờ nhận xe</label>
-                        <input type="text" class="input-soft" value="04/11/2026 08:00 SA">
+                        <label>Loại xe</label>
+                        <select class="input-white" id="filterType">
+                            <option value="all">Tất cả loại xe</option>
+                            <option value="Xe tay ga">Xe tay ga</option>
+                            <option value="Xe số">Xe số</option>
+                            <option value="Xe côn tay">Xe côn tay</option>
+                            <option value="Xe máy điện">Xe máy điện</option>
+                        </select>
                     </div>
                     <div class="form-group">
-                        <label>Ngày &amp; Giờ trả xe</label>
-                        <input type="text" class="input-soft" value="05/11/2026 08:00 SA">
+                        <label>Phân khối</label>
+                        <select class="input-white" id="filterCc">
+                            <option value="all">Tất cả phân khối</option>
+                            <option value="110cc">110cc</option>
+                            <option value="125cc">125cc</option>
+                            <option value="155cc - 160cc">155cc - 160cc</option>
+                            <option value="Pin LFP">Pin LFP</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Nhiên liệu</label>
+                        <select class="input-white" id="filterFuel">
+                            <option value="all">Tất cả nhiên liệu</option>
+                            <option value="Xăng">Xăng</option>
+                            <option value="Điện">Điện</option>
+                        </select>
                     </div>
                 </div>
             </div>
 
-            <div class="card">
-                <h2 class="section-title">Chọn dòng xe máy</h2>
-                <div class="filter-box">
-                    <div class="grid-4">
-                        <div class="form-group">
-                            <label>Hãng xe máy</label>
-                            <select class="input-white" id="filterBrand">
-                                <option value="all">Tất cả hãng xe</option>
-                                <option value="Honda">Honda</option>
-                                <option value="Yamaha">Yamaha</option>
-                                <option value="VinFast">VinFast</option>
-                                <option value="Piaggio">Piaggio</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Loại xe</label>
-                            <select class="input-white" id="filterType">
-                                <option value="all">Tất cả loại xe</option>
-                                <option value="Xe tay ga">Xe tay ga</option>
-                                <option value="Xe số">Xe số</option>
-                                <option value="Xe côn tay">Xe côn tay</option>
-                                <option value="Xe máy điện">Xe máy điện</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Phân khối</label>
-                            <select class="input-white" id="filterCc">
-                                <option value="all">Tất cả phân khối</option>
-                                <option value="110cc">110cc</option>
-                                <option value="125cc">125cc</option>
-                                <option value="155cc - 160cc">155cc - 160cc</option>
-                                <option value="Pin LFP">Pin LFP</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Nhiên liệu</label>
-                            <select class="input-white" id="filterFuel">
-                                <option value="all">Tất cả nhiên liệu</option>
-                                <option value="Xăng">Xăng</option>
-                                <option value="Điện">Điện</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bike-grid" id="bikeGrid"></div>
-            </div>
+            <div class="bike-grid" id="bikeGrid"></div>
+        </div>
 
             <div class="grid-2-bottom">
                 <div class="card">
