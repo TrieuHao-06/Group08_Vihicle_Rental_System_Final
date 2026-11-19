@@ -15,6 +15,7 @@ const pool = mysql.createPool({
     user: process.env.DB_USER || "root",
     password: process.env.DB_PASSWORD || "",
     database: process.env.DB_NAME || "group08_db",
+    charset: "utf8mb4",
     waitForConnections: true,
     connectionLimit: 10
 });
@@ -86,6 +87,48 @@ app.post("/api/auth/login", async (req, res) => {
         });
     } catch (err) {
         res.status(500).json({ message: "Lỗi hệ thống: " + err.message });
+    }
+});
+
+// Đăng ký tài khoản người thuê mới
+app.post("/api/auth/register", async (req, res) => {
+    const { full_name, email, phone, password } = req.body || {};
+    if (!full_name || !email || !phone || !password) {
+        return res.status(400).json({ message: "Vui lòng nhập đầy đủ thông tin!" });
+    }
+    if (password.length < 8) {
+        return res.status(400).json({ message: "Mật khẩu phải có ít nhất 8 ký tự!" });
+    }
+
+    const conn = await pool.getConnection();
+    try {
+        await conn.beginTransaction();
+
+        const [existing] = await conn.query(
+            "SELECT user_id FROM users WHERE email = ? OR phone = ? LIMIT 1",
+            [email.trim(), phone.trim()]
+        );
+        if (existing.length > 0) {
+            await conn.rollback();
+            return res.status(409).json({ message: "Email hoặc số điện thoại đã được đăng ký!" });
+        }
+
+        const [userResult] = await conn.query(
+            "INSERT INTO users (full_name, email, phone, password_hash) VALUES (?, ?, ?, ?)",
+            [full_name.trim(), email.trim(), phone.trim(), password]
+        );
+        const newUserId = userResult.insertId;
+
+        await conn.query("INSERT INTO renters (user_id) VALUES (?)", [newUserId]);
+        await conn.query("INSERT INTO wallets (user_id, balance) VALUES (?, 0)", [newUserId]);
+
+        await conn.commit();
+        res.status(201).json({ message: "Đăng ký thành công!", user_id: newUserId });
+    } catch (err) {
+        await conn.rollback();
+        res.status(500).json({ message: "Lỗi hệ thống: " + err.message });
+    } finally {
+        conn.release();
     }
 });
 

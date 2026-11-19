@@ -937,7 +937,9 @@ if (btnSendReview != null) {
 
 document.getElementById("btnLogout").addEventListener("click", function () {
     isLoggedIn = false
+    currentUserName = ""
     updateAuthUI()
+    switchTab("tab6")
 })
 
 document.getElementById("btnGoLoginFromTab3").addEventListener("click", function () {
@@ -946,12 +948,41 @@ document.getElementById("btnGoLoginFromTab3").addEventListener("click", function
 
 var btnSubmitLogin = document.getElementById("btnSubmitLogin")
 if (btnSubmitLogin != null) {
-    btnSubmitLogin.addEventListener("click", function () {
-        var username = document.getElementById("loginUsername").value.trim() || "Trương Công Hào"
-        isLoggedIn = true
-        currentUserName = username
-        updateAuthUI()
-        switchTab("tab3")
+    btnSubmitLogin.addEventListener("click", async function () {
+        var identifier = document.getElementById("loginUsername").value.trim()
+        var password = document.getElementById("loginPassword").value
+
+        if (!identifier || !password) {
+            alert("Vui lòng nhập Email/Số điện thoại và Mật khẩu!")
+            return
+        }
+
+        try {
+            var res = await fetch("/api/auth/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ identifier: identifier, password: password })
+            })
+            var data = await res.json().catch(function () { return {} })
+
+            if (!res.ok) {
+                alert("❌ " + (data.message || "Đăng nhập thất bại!"))
+                return
+            }
+
+            alert("🎉 Đăng nhập thành công! Xin chào " + data.full_name)
+            isLoggedIn = true
+            currentUserName = data.full_name
+            updateAuthUI()
+
+            if (data.role === "ADMIN") {
+                switchTab("tab5")
+            } else {
+                switchTab("tab3")
+            }
+        } catch (err) {
+            alert("❌ Không thể kết nối tới máy chủ Backend: " + err.message)
+        }
     })
 }
 
@@ -972,7 +1003,58 @@ if (loginUserInput != null) {
 var btnRegister = document.getElementById("btnRegister")
 if (btnRegister != null) {
     btnRegister.addEventListener("click", function () {
-        alert("Chức năng Đăng ký tài khoản: Hệ thống đang mở đăng ký thử nghiệm!")
+        switchTab("tab7")
+    })
+}
+
+var btnBackToLogin = document.getElementById("btnBackToLogin")
+if (btnBackToLogin != null) {
+    btnBackToLogin.addEventListener("click", function () {
+        switchTab("tab6")
+    })
+}
+
+var btnSubmitRegister = document.getElementById("btnSubmitRegister")
+if (btnSubmitRegister != null) {
+    btnSubmitRegister.addEventListener("click", async function () {
+        var fullName = document.getElementById("registerFullName").value.trim()
+        var email = document.getElementById("registerEmail").value.trim()
+        var phone = document.getElementById("registerPhone").value.trim()
+        var password = document.getElementById("registerPassword").value
+        var confirmPassword = document.getElementById("registerConfirmPassword").value
+
+        if (!fullName || !email || !phone || !password) {
+            alert("Vui lòng nhập đầy đủ thông tin!")
+            return
+        }
+        if (password.length < 8) {
+            alert("Mật khẩu phải có ít nhất 8 ký tự!")
+            return
+        }
+        if (password !== confirmPassword) {
+            alert("Mật khẩu xác nhận không khớp!")
+            return
+        }
+
+        try {
+            var res = await fetch("/api/auth/register", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ full_name: fullName, email: email, phone: phone, password: password })
+            })
+            var data = await res.json().catch(function () { return {} })
+            if (!res.ok) {
+                alert(data.message || ("Đăng ký thất bại (HTTP " + res.status + ")!"))
+                return
+            }
+
+            alert("Đăng ký thành công! Vui lòng đăng nhập.")
+            document.getElementById("loginUsername").value = email
+            document.getElementById("loginPassword").value = ""
+            switchTab("tab6")
+        } catch (err) {
+            alert("Không kết nối được tới server: " + err.message)
+        }
     })
 }
 
