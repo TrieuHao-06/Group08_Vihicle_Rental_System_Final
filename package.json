@@ -1,0 +1,14 @@
+{
+  "name": "group08-vehicle-rental-system",
+  "version": "1.0.0",
+  "description": "Backend API cho hệ thống thuê xe máy Group08",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "mysql2": "^3.11.3"
+  }
+}
