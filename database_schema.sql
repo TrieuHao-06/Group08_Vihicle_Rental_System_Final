@@ -187,10 +187,15 @@ CREATE TABLE `bookings` (
     `booking_id` INT NOT NULL AUTO_INCREMENT,
     `renter_id` INT NOT NULL,
     `vehicle_id` INT NOT NULL,
+    `rental_type` VARCHAR(20) NOT NULL DEFAULT 'daily',
+    `delivery_method` VARCHAR(30) NOT NULL DEFAULT 'self_pickup',
+    `delivery_address` VARCHAR(255) DEFAULT NULL,
+    `delivery_fee` DOUBLE NOT NULL DEFAULT 0,
     `start_date` DATETIME NOT NULL,
     `end_date` DATETIME NOT NULL,
     `total_amount` DOUBLE NOT NULL,
     `deposit_amount` DOUBLE NOT NULL DEFAULT 0,
+    `deposit_status` VARCHAR(30) NOT NULL DEFAULT 'held',
     `status` VARCHAR(30) NOT NULL DEFAULT 'pending',
     `voucher_id` INT DEFAULT NULL,
     PRIMARY KEY (`booking_id`),
@@ -383,3 +388,117 @@ INSERT INTO `vehicles` (`owner_id`, `brand`, `model`, `license_plate`, `price_pe
 (1, 'Suzuki', 'Satria F150 (2022)', '29B1-39171', 180000, 720000),
 (1, 'Honda', 'Lead 125 (2025)', '59A1-78616', 100000, 400000),
 (1, 'Piaggio', 'Vespa Primavera (2022)', '50F1-85090', 130000, 520000);
+
+-- ============================================================================
+-- NẠP DỮ LIỆU MẪU: BẢNG VOUCHERS (MÃ GIẢM GIÁ)
+-- ============================================================================
+INSERT INTO `vouchers` (`code`, `discount_percent`, `end_date`, `usage_limit`, `status`) VALUES
+('CONBO01', 10.0, '2027-01-29 23:59:59', 300, 'active'),
+('CONHEO01', 30.0, '2027-01-19 23:59:59', 300, 'active'),
+('CONCHO01', 15.0, '2026-11-14 23:59:59', 300, 'expired'),
+('BONBON10', 10.0, '2027-12-31 23:59:59', 500, 'active');
+
+-- ============================================================================
+-- NẠP DỮ LIỆU MẪU: BẢNG WALLETS (VÍ ĐIỆN TỬ)
+-- ============================================================================
+INSERT INTO `wallets` (`user_id`, `balance`) VALUES
+(1, 2500000.0),
+(2, 1800000.0),
+(3, 3200000.0),
+(4, 1500000.0),
+(5, 2000000.0),
+(6, 10000000.0),
+(7, 5000000.0);
+
+-- ============================================================================
+-- NẠP DỮ LIỆU MẪU: BẢNG IDENTITY_DOCUMENTS (XÁC THỰC eKYC)
+-- ============================================================================
+INSERT INTO `identity_documents` (`user_id`, `verified_by`, `type`, `document_no`, `image_url`, `status`, `verified_at`) VALUES
+(8, 6, 'CCCD', '089208001234', 'uploads/kyc/cccd_user8.jpg', 'verified', '2026-11-04 10:30:00'),
+(8, 6, 'GPLX', '790123456789', 'uploads/kyc/gplx_user8.jpg', 'verified', '2026-11-04 10:35:00'),
+(1, 6, 'CCCD', '079090001111', 'uploads/kyc/cccd_user1.jpg', 'verified', '2026-10-25 09:15:00'),
+(2, NULL, 'CCCD', '079090002222', 'uploads/kyc/cccd_user2.jpg', 'pending', NULL);
+
+-- ============================================================================
+-- NẠP DỮ LIỆU MẪU: BẢNG BOOKINGS (ĐƠN ĐẶT THUÊ XE)
+-- ============================================================================
+INSERT INTO `bookings` (
+    `booking_id`, `renter_id`, `vehicle_id`, `voucher_id`, 
+    `rental_type`, `delivery_method`, `delivery_address`, `delivery_fee`, 
+    `start_date`, `end_date`, `total_amount`, `deposit_amount`, 
+    `deposit_status`, `status`
+) VALUES
+(1, 8, 1, 1, 'daily', 'self_pickup', 'Quận 1, TP.HCM', 0.0, 
+ '2026-11-04 08:00:00', '2026-11-05 08:00:00', 126000.0, 300000.0, 'approved_refund', 'completed'),
+(2, 8, 4, NULL, 'hourly', 'delivery_to_door', 'Ga Quốc nội Sân bay Tân Sơn Nhất, Quận Tân Bình', 40000.0, 
+ '2026-11-19 14:00:00', '2026-11-19 18:00:00', 140000.0, 800000.0, 'held', 'active'),
+(3, 8, 12, NULL, 'daily', 'delivery_to_door', 'Khách sạn Rex, 141 Nguyễn Huệ, Quận 1', 30000.0, 
+ '2026-11-25 08:00:00', '2026-11-28 08:00:00', 480000.0, 600000.0, 'held', 'pending');
+
+-- ============================================================================
+-- NẠP DỮ LIỆU MẪU: BẢNG CHECK_IN_OUT_REPORTS (BIÊN BẢN GIAO NHẬN XE 2 CHIỀU)
+-- ============================================================================
+INSERT INTO `check_in_out_reports` (
+    `report_id`, `booking_id`, `audited_by`, 
+    `check_in_odometer`, `check_out_odometer`, 
+    `check_in_fuel`, `check_out_fuel`, 
+    `inspection_photos`, `damage_notes`, `extra_fee`
+) VALUES
+(1, 1, 6, 8420, 8485, '90%', '85%', 'uploads/inspections/bk1_renter.jpg, uploads/inspections/bk1_owner.jpg', 'Biên bản 2 chiều đã khớp hoàn toàn. Đủ 02 mũ bảo hiểm, xe nguyên vẹn.', 0.0),
+(2, 2, NULL, 12500, NULL, '100%', NULL, 'uploads/inspections/bk2_pickup.jpg', 'Bàn giao xe tại sân bay TSN. Xe mới, pin 100%.', 0.0);
+
+-- ============================================================================
+-- NẠP DỮ LIỆU MẪU: BẢNG REVIEWS (ĐÁNH GIÁ VÀ NHẬN XÉT CỦA KHÁCH)
+-- ============================================================================
+INSERT INTO `reviews` (
+    `review_id`, `booking_id`, `renter_id`, `vehicle_id`, 
+    `rating`, `comment`, `created_at`
+) VALUES
+-- Bài đánh giá 5 sao cho đơn #BK0001 (xe VinFast Klubo ID 1) từ khách Triệu Quang Hào (ID 8)
+(1, 1, 8, 1, 5, 'Xe chạy rất êm, bình xăng/pin đầy đủ. Chủ xe bàn giao đúng giờ và hướng dẫn rất nhiệt tình!', '2026-11-05 09:30:00');
+
+-- ============================================================================
+-- NẠP DỮ LIỆU MẪU: BẢNG TRANSACTIONS (LỊCH SỬ GIAO DỊCH VÀ BIẾN ĐỘNG VÍ)
+-- ============================================================================
+INSERT INTO `transactions` (
+    `transaction_id`, `wallet_id`, `booking_id`, 
+    `amount`, `type`, `status`, `description`, `created_at`
+)
+SELECT 100, w.wallet_id, NULL, 2200000.0, 'topup', 'completed', 'Nạp tiền qua ngân hàng', '2026-11-03 14:20:00'
+FROM `wallets` w WHERE w.user_id = 8
+UNION ALL
+SELECT 101, w.wallet_id, 1, -300000.0, 'deposit_held', 'completed', 'Tạm giữ cọc xe đơn #BK0001', '2026-11-04 08:00:00'
+FROM `wallets` w WHERE w.user_id = 8
+UNION ALL
+SELECT 102, w.wallet_id, 1, -126000.0, 'rental_payment', 'completed', 'Thanh toán tiền thuê xe đơn #BK0001', '2026-11-04 08:00:00'
+FROM `wallets` w WHERE w.user_id = 8
+UNION ALL
+SELECT 103, w.wallet_id, 1, 300000.0, 'deposit_refund', 'completed', 'Hoàn cọc tự động đơn #BK0001 (Admin duyệt)', '2026-11-05 09:00:00'
+FROM `wallets` w WHERE w.user_id = 8;
+
+-- ============================================================================
+-- NẠP DỮ LIỆU MẪU: BẢNG WITHDRAWAL_REQUESTS (YÊU CẦU RÚT TIỀN)
+-- ============================================================================
+INSERT INTO `withdrawal_requests` (
+    `request_id`, `wallet_id`, `approved_by`, `amount`, `bank_info`, `status`, `requested_at`, `processed_at`
+)
+SELECT 1, w.wallet_id, 6, 1000000.0, 'VCB - 0123456789 - Nguyen Van An', 'approved', '2026-11-06 14:00:00', '2026-11-06 15:30:00'
+FROM `wallets` w WHERE w.user_id = 1
+UNION ALL
+SELECT 2, w.wallet_id, NULL, 500000.0, 'MB - 0908425939 - Trieu Quang Hao', 'pending', '2026-11-19 20:00:00', NULL
+FROM `wallets` w WHERE w.user_id = 8;
+
+-- ============================================================================
+-- NẠP DỮ LIỆU MẪU: BẢNG NOTIFICATIONS (THÔNG BÁO HỆ THỐNG)
+-- ============================================================================
+INSERT INTO `notifications` (`user_id`, `title`, `content`, `is_read`, `created_at`) VALUES
+(1, 'Rút tiền thành công', 'Yêu cầu rút 1.000.000đ về tài khoản VCB của bạn đã được Admin phê duyệt.', TRUE, '2026-11-06 15:30:00'),
+(8, 'Yêu cầu rút tiền đang chờ xử lý', 'Hệ thống đã tiếp nhận yêu cầu rút 500.000đ của bạn. Quản trị viên sẽ xử lý trong vòng 24h.', FALSE, '2026-11-19 20:00:00'),
+(8, 'Đặt xe #BK0001 thành công', 'Đơn đặt xe VinFast Klubo của bạn đã được xác nhận. Chúc bạn có một chuyến đi an toàn!', TRUE, '2026-11-04 08:00:00');
+
+
+
+
+
+
+
