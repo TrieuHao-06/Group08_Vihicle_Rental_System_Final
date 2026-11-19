@@ -22,16 +22,22 @@
             <nav class="nav-segmented" id="mainNav">
                 <button class="nav-tab active" data-target="tab1">Đặt xe</button>
                 <button class="nav-tab" data-target="tab2">Giao nhận xe</button>
+                <button class="nav-tab" data-target="tab3">Tài khoản &amp; Ví</button>
                 <span class="nav-divider"></span>
                 <button class="nav-tab" data-target="tab4">Xe của bạn</button>
             </nav>
 
             <div class="top-actions">
+                <button class="btn-top-account hidden" id="btnTopAccount">Tài khoản</button>
                 <div class="user-menu-wrap" id="userMenuWrap">
                     <button class="btn-top-login" id="btnTopLogin">Đăng nhập</button>
                     <div class="user-dropdown hidden" id="userDropdown">
-                        <div class="user-dropdown-header" id="dropdownUserLabel">Tài khoản: Trương Công Hào</div>
-                        <button type="button" class="user-dropdown-item" id="btnDropdownToAccount">Tài khoản &amp; Ví</button>
+                        <div class="user-dropdown-header" id="dropdownRoleLabel">Vai trò: Khách thuê</div>
+                        <button type="button" class="user-dropdown-item" data-role="Khách thuê">Đổi sang Người
+                            thuê</button>
+                        <button type="button" class="user-dropdown-item" data-role="Chủ xe">Đổi sang Chủ xe</button>
+                        <button type="button" class="user-dropdown-item" data-role="Quản trị viên">Đổi sang Quản trị
+                            viên</button>
                         <div class="user-dropdown-sep"></div>
                         <button type="button" class="user-dropdown-item logout-item" id="btnDropdownLogout">Đăng
                             xuất</button>
@@ -43,85 +49,74 @@
     </header>
 
     <main class="main-container">
-    <section class="tab-panel active" id="tab1">
-        <div class="card">
-            <h2 class="section-title">Tìm kiếm lịch trình thuê xe máy</h2>
-            <div class="grid-3">
-                <div class="form-group">
-                    <label for="pickup-area">Khu vực nhận xe</label>
-                    <select id="pickup-area" name="pickup_area" class="input-soft">
-                        <option value="toan_bo" selected>Tất cả khu vực</option>
-                        <option value="quan-1">Quận 1</option>
-                        <option value="quan-3">Quận 3</option>
-                        <option value="quan-4">Quận 4</option>
-                        <option value="quan-5">Quận 5</option>
-                        <option value="quan-7">Quận 7</option>
-                        <option value="phu-nhuan">Quận Phú Nhuận</option>
-                        <option value="binh-thanh">Quận Bình Thạnh</option>
-                        <option value="go-vap">Quận Gò Vấp</option>
-                        <option value="thu-duc">TP. Thủ Đức</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="pickup-datetime">Ngày &amp; Giờ nhận xe</label>
-                    <input type="datetime-local" id="pickup-datetime" name="pickup_datetime" class="input-soft" value="2026-11-04T08:00">
-                </div>
-                <div class="form-group">
-                    <label for="return-datetime">Ngày &amp; Giờ trả xe</label>
-                    <input type="datetime-local" id="return-datetime" name="return_datetime" class="input-soft" value="2026-11-05T08:00">
-                </div>
-            </div>
-        </div>
-
-        <div class="card">
-            <h2 class="section-title">Chọn dòng xe máy</h2>
-            <div class="filter-box">
-                <div class="grid-4">
+        <section class="tab-panel active" id="tab1">
+            <div class="card">
+                <h2 class="section-title">Tìm kiếm lịch trình thuê xe máy</h2>
+                <div class="grid-3">
                     <div class="form-group">
-                        <label>Hãng xe máy</label>
-                        <select class="input-white" id="filterBrand">
-                            <option value="all">Tất cả hãng xe</option>
-                            <option value="Honda">Honda</option>
-                            <option value="Yamaha">Yamaha</option>
-                            <option value="VinFast">VinFast</option>
-                            <option value="Piaggio">Piaggio</option>
-                        </select>
+                        <label>Địa điểm nhận xe</label>
+                        <input type="text" class="input-soft" value="Quận 1, TP.HCM">
                     </div>
                     <div class="form-group">
-                        <label>Loại xe</label>
-                        <select class="input-white" id="filterType">
-                            <option value="all">Tất cả loại xe</option>
-                            <option value="Xe tay ga">Xe tay ga</option>
-                            <option value="Xe số">Xe số</option>
-                            <option value="Xe côn tay">Xe côn tay</option>
-                            <option value="Xe máy điện">Xe máy điện</option>
-                        </select>
+                        <label>Ngày &amp; Giờ nhận xe</label>
+                        <input type="text" class="input-soft" value="04/11/2026 08:00 SA">
                     </div>
                     <div class="form-group">
-                        <label>Phân khối</label>
-                        <select class="input-white" id="filterCc">
-                            <option value="all">Tất cả phân khối</option>
-                            <option value="110cc">110cc</option>
-                            <option value="125cc">125cc</option>
-                            <option value="155cc - 160cc">155cc - 160cc</option>
-                            <option value="Pin LFP">Pin LFP</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Nhiên liệu</label>
-                        <select class="input-white" id="filterFuel">
-                            <option value="all">Tất cả nhiên liệu</option>
-                            <option value="Xăng">Xăng</option>
-                            <option value="Điện">Điện</option>
-                        </select>
+                        <label>Ngày &amp; Giờ trả xe</label>
+                        <input type="text" class="input-soft" value="05/11/2026 08:00 SA">
                     </div>
                 </div>
             </div>
 
-            <div class="bike-grid" id="bikeGrid"></div>
-        </div>
+            <div class="card">
+                <h2 class="section-title">Chọn dòng xe máy</h2>
+                <div class="filter-box">
+                    <div class="grid-4">
+                        <div class="form-group">
+                            <label>Hãng xe máy</label>
+                            <select class="input-white" id="filterBrand">
+                                <option value="all">Tất cả hãng xe</option>
+                                <option value="Honda">Honda</option>
+                                <option value="Yamaha">Yamaha</option>
+                                <option value="VinFast">VinFast</option>
+                                <option value="Piaggio">Piaggio</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Loại xe</label>
+                            <select class="input-white" id="filterType">
+                                <option value="all">Tất cả loại xe</option>
+                                <option value="Xe tay ga">Xe tay ga</option>
+                                <option value="Xe số">Xe số</option>
+                                <option value="Xe côn tay">Xe côn tay</option>
+                                <option value="Xe máy điện">Xe máy điện</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Phân khối</label>
+                            <select class="input-white" id="filterCc">
+                                <option value="all">Tất cả phân khối</option>
+                                <option value="110cc">110cc</option>
+                                <option value="125cc">125cc</option>
+                                <option value="155cc - 160cc">155cc - 160cc</option>
+                                <option value="Pin LFP">Pin LFP</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Nhiên liệu</label>
+                            <select class="input-white" id="filterFuel">
+                                <option value="all">Tất cả nhiên liệu</option>
+                                <option value="Xăng">Xăng</option>
+                                <option value="Điện">Điện</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
 
-            <div class="grid-2-bottom hidden" id="bookingDetailSection">
+                <div class="bike-grid" id="bikeGrid"></div>
+            </div>
+
+            <div class="grid-2-bottom">
                 <div class="card">
                     <h2 class="section-title">Chi tiết xe máy &amp; Chọn gói thuê</h2>
                     <div class="selected-bike-banner">
@@ -169,7 +164,7 @@
                             <label>Phương thức nhận xe</label>
                             <select class="input-soft" id="pickupMethod">
                                 <option value="0">Tự lấy xe tại điểm</option>
-                                <option value="30000">Giao xe tận nơi ( <5km +30.000đ)</option>
+                                <option value="30000">Giao xe tận nơi (+30.000đ)</option>
                             </select>
                         </div>
                         <div class="form-group">
@@ -269,8 +264,12 @@
 
                     <div class="form-group mt-12">
                         <label>Ảnh chụp phía Khách</label>
-                        <input type="text" class="input-white-bordered" id="hoImgInput"
-                            value="Chọn tệp — anh_nhan_xe_vision.jpg">
+                        <div class="file-upload-white" id="renterFileWrap">
+                            <input type="file" id="hoImgFile" accept="image/*" class="hidden-file-input">
+                            <button type="button" class="native-file-btn" id="btnPickRenterImg">Chọn tệp</button>
+                            <span class="file-name-text" id="hoImgFileName">anh_nhan_xe_vision.jpg</span>
+                        </div>
+                        <img id="hoImgPreview" class="upload-preview hidden" alt="Ảnh phía khách">
                     </div>
 
                     <div class="form-group mt-12">
@@ -305,8 +304,12 @@
 
                     <div class="form-group mt-12">
                         <label>Ảnh chụp phía Chủ xe</label>
-                        <input type="text" class="input-white-bordered" id="hoOwnerImgInput"
-                            value="Chọn tệp — anh_chuxe_ban_giao.jpg">
+                        <div class="file-upload-white" id="ownerFileWrap">
+                            <input type="file" id="hoOwnerImgFile" accept="image/*" class="hidden-file-input">
+                            <button type="button" class="native-file-btn" id="btnPickOwnerImg">Chọn tệp</button>
+                            <span class="file-name-text" id="hoOwnerImgFileName">anh_chuxe_ban_giao.jpg</span>
+                        </div>
+                        <img id="hoOwnerImgPreview" class="upload-preview hidden" alt="Ảnh phía chủ xe">
                     </div>
 
                     <div class="form-group mt-12">
@@ -403,7 +406,7 @@
                 <div class="session-bar hidden" id="sessionBarLoggedIn">
                     <div class="session-status">
                         <strong>Trạng thái hiện tại:</strong>
-                        <span class="text-green-bold" id="sessionUserText">Trương Công Hào</span>
+                        <span class="text-green-bold" id="sessionUserText">Trương Công Hào — Khách thuê</span>
                     </div>
                     <div class="session-btns">
                         <button class="btn-secondary-pill" id="btnChangePass">Đổi mật khẩu</button>
@@ -430,7 +433,7 @@
                     <div class="grid-2">
                         <div class="form-group">
                             <label>Họ và tên *</label>
-                            <input type="text" class="input-soft" id="ekycFullName" value="Trương Công Hào">
+                            <input type="text" class="input-soft" value="Trương Công Hào">
                         </div>
                         <div class="form-group">
                             <label>Số CCCD *</label>
@@ -451,11 +454,12 @@
 
                     <div class="form-group mt-12">
                         <label>Hình ảnh CCCD / Chân dung *</label>
-                        <div class="file-bar hidden" id="ekycFileLoggedIn">Chọn tệp — cccd_truongconghao.jpg</div>
-                        <div class="file-bar" id="ekycFileLoggedOut">
-                            <button type="button" class="native-file-btn">Chọn tệp</button>
-                            <span>Không có tệp nào được chọn</span>
+                        <div class="file-bar" id="ekycFileBar">
+                            <input type="file" id="ekycFileInput" accept="image/*" class="hidden-file-input">
+                            <button type="button" class="native-file-btn" id="btnPickEkycFile">Chọn tệp</button>
+                            <span class="file-name-text" id="ekycFileName">Không có tệp nào được chọn</span>
                         </div>
+                        <img id="ekycImgPreview" class="upload-preview hidden" alt="Ảnh CCCD eKYC">
                     </div>
 
                     <div class="ekyc-footer mt-16">
@@ -744,6 +748,18 @@
                 <button type="button" class="btn-modal-cancel" id="btnCloseVoucherModal">Hủy</button>
                 <button type="button" class="btn-modal-save" id="btnSaveVoucher">Lưu</button>
             </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop hidden" id="qrDepositModal">
+        <div class="qr-modal-card">
+            <span class="qr-badge">CỔNG THANH TOÁN QR</span>
+            <h3 class="qr-modal-title" id="qrModalTitle">Quét mã QR để nạp 500.000đ</h3>
+            <p class="qr-modal-sub">Sử dụng ứng dụng Ngân hàng hoặc Ví điện tử để quét mã QR bên dưới:</p>
+            <div class="qr-img-box">
+                <img src="qr.jpg" alt="Mã QR chuyển khoản" class="qr-img">
+            </div>
+            <button type="button" class="btn-qr-close" id="btnCloseQrModal">Đóng trang này</button>
         </div>
     </div>
 

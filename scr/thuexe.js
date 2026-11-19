@@ -7,8 +7,7 @@ var bikesData = [
         cc: "110cc",
         fuel: "Xăng",
         hourPrice: 25000,
-        dayPrice: 140000,
-        area: "Quận 1"
+        dayPrice: 140000
     },
     {
         id: 2,
@@ -18,8 +17,7 @@ var bikesData = [
         cc: "155cc - 160cc",
         fuel: "Xăng",
         hourPrice: 35000,
-        dayPrice: 180000,
-        area: "Quận 3"
+        dayPrice: 180000
     },
     {
         id: 3,
@@ -29,8 +27,7 @@ var bikesData = [
         cc: "155cc - 160cc",
         fuel: "Xăng",
         hourPrice: 40000,
-        dayPrice: 200000,
-        area: "Quận Bình Thạnh"
+        dayPrice: 200000
     },
     {
         id: 4,
@@ -40,8 +37,7 @@ var bikesData = [
         cc: "Pin LFP",
         fuel: "Điện",
         hourPrice: 22000,
-        dayPrice: 130000,
-        area: "TP. Thủ Đức"
+        dayPrice: 130000
     },
     {
         id: 5,
@@ -51,8 +47,7 @@ var bikesData = [
         cc: "110cc",
         fuel: "Xăng",
         hourPrice: 18000,
-        dayPrice: 100000,
-        area: "Quận 5"
+        dayPrice: 100000
     },
     {
         id: 6,
@@ -62,8 +57,7 @@ var bikesData = [
         cc: "125cc",
         fuel: "Xăng",
         hourPrice: 55000,
-        dayPrice: 300000,
-        area: "Quận 7"
+        dayPrice: 300000
     }
 ]
 
@@ -89,7 +83,7 @@ var accountStates = [
     { label: "Bị khóa vĩnh viễn", cls: "acct-ban" }
 ]
 
-var selectedBikeId = null
+var selectedBikeId = 1
 var rentMode = "day"
 var walletBalance = 2500000
 var currentBookingTotal = 426000
@@ -107,43 +101,13 @@ function formatVND(num) {
 }
 
 function timXeTheoId(id) {
-    if (id == null) {
-        return null
-    }
     var i = 0
     for (i = 0; i < bikesData.length; i++) {
         if (bikesData[i].id == id) {
             return bikesData[i]
         }
     }
-    return null
-}
-
-function getPickupAreaList() {
-    var select = document.getElementById("pickup-area")
-    var list = []
-    if (select != null) {
-        var opts = select.options
-        for (var i = 0; i < opts.length; i++) {
-            var val = opts[i].value
-            var text = opts[i].textContent.trim()
-            if (val !== "toan_bo" && text !== "Tất cả khu vực") {
-                list.push(text)
-            }
-        }
-    }
-    if (list.length === 0) {
-        list = ["Quận 1", "Quận 3", "Quận 4", "Quận 5", "Quận 7", "Quận Phú Nhuận", "Quận Bình Thạnh", "Quận Gò Vấp", "TP. Thủ Đức"]
-    }
-    return list
-}
-
-function initBikeAreas() {
-    var areas = getPickupAreaList()
-    var shuffled = areas.slice().sort(function () { return 0.5 - Math.random() })
-    for (var i = 0; i < bikesData.length; i++) {
-        bikesData[i].area = shuffled[i % shuffled.length]
-    }
+    return bikesData[0]
 }
 
 function switchTab(targetId) {
@@ -169,76 +133,105 @@ function switchTab(targetId) {
     console.log("chuyen sang tab: " + targetId)
 }
 
+var ekycUploadedName = ""
+var ekycImgDataUrl = ""
+var renterUploadedName = "anh_nhan_xe_vision.jpg"
+var renterImgDataUrl = ""
+var ownerUploadedName = "anh_chuxe_ban_giao.jpg"
+var ownerImgDataUrl = ""
+
 function updateAuthUI() {
     var btnLogin = document.getElementById("btnTopLogin")
     var btnAcc = document.getElementById("btnTopAccount")
     var dropdown = document.getElementById("userDropdown")
-    var userLbl = document.getElementById("dropdownUserLabel")
     var roleLbl = document.getElementById("dropdownRoleLabel")
     var barIn = document.getElementById("sessionBarLoggedIn")
     var barOut = document.getElementById("sessionBarLoggedOut")
-    var fileIn = document.getElementById("ekycFileLoggedIn")
-    var fileOut = document.getElementById("ekycFileLoggedOut")
+    var ekycNameEl = document.getElementById("ekycFileName")
     var userTxt = document.getElementById("sessionUserText")
-    var ekycName = document.getElementById("ekycFullName")
 
     if (isLoggedIn == true) {
-        if (btnAcc != null) {
-            btnAcc.classList.remove("hidden")
+        btnAcc.classList.remove("hidden")
+        btnLogin.textContent = currentUserName + " ▾"
+        roleLbl.textContent = "Vai trò: " + currentUserRole
+        barIn.classList.remove("hidden")
+        barOut.classList.add("hidden")
+        if (ekycNameEl != null && ekycUploadedName == "") {
+            ekycNameEl.textContent = "cccd_truongconghao.jpg"
         }
-        if (btnLogin != null) {
-            btnLogin.textContent = "Tài khoản"
-            btnLogin.setAttribute("aria-label", "Vào trang tài khoản của " + currentUserName)
-        }
-        if (userLbl != null) {
-            userLbl.textContent = "Tài khoản: " + currentUserName
-        }
-        if (roleLbl != null) {
-            roleLbl.textContent = "Vai trò: " + currentUserRole
-        }
-        if (barIn != null) {
-            barIn.classList.remove("hidden")
-        }
-        if (barOut != null) {
-            barOut.classList.add("hidden")
-        }
-        if (fileIn != null) {
-            fileIn.classList.remove("hidden")
-        }
-        if (fileOut != null) {
-            fileOut.classList.add("hidden")
-        }
-        if (userTxt != null) {
-            userTxt.textContent = currentUserName
-        }
-        if (ekycName != null) {
-            ekycName.value = currentUserName
-        }
+        userTxt.textContent = currentUserName + " — " + currentUserRole
     } else {
-        if (btnAcc != null) {
-            btnAcc.classList.add("hidden")
-        }
-        if (btnLogin != null) {
-            btnLogin.textContent = "Đăng nhập"
-            btnLogin.setAttribute("aria-label", "Mở trang đăng nhập")
-        }
-        if (dropdown != null) {
-            dropdown.classList.add("hidden")
-        }
-        if (barIn != null) {
-            barIn.classList.add("hidden")
-        }
-        if (barOut != null) {
-            barOut.classList.remove("hidden")
-        }
-        if (fileIn != null) {
-            fileIn.classList.add("hidden")
-        }
-        if (fileOut != null) {
-            fileOut.classList.remove("hidden")
+        btnAcc.classList.add("hidden")
+        btnLogin.textContent = "Đăng nhập"
+        dropdown.classList.add("hidden")
+        barIn.classList.add("hidden")
+        barOut.classList.remove("hidden")
+        if (ekycNameEl != null && ekycUploadedName == "") {
+            ekycNameEl.textContent = "Không có tệp nào được chọn"
         }
     }
 }
+
+function setupImageUpload(wrapId, btnId, inputId, nameId, previewId, loaiAnh) {
+    var wrap = document.getElementById(wrapId)
+    var btn = document.getElementById(btnId)
+    var inp = document.getElementById(inputId)
+    var nameEl = document.getElementById(nameId)
+    var prevEl = document.getElementById(previewId)
+
+    if (wrap != null && inp != null) {
+        wrap.addEventListener("click", function (e) {
+            if (e.target != inp) {
+                inp.click()
+            }
+        })
+    }
+    if (btn != null && inp != null) {
+        btn.addEventListener("click", function (e) {
+            e.stopPropagation()
+            inp.click()
+        })
+    }
+    if (inp != null) {
+        inp.addEventListener("change", function () {
+            if (this.files != null && this.files.length > 0) {
+                var f = this.files[0]
+                if (nameEl != null) {
+                    nameEl.textContent = f.name
+                }
+                if (loaiAnh == "ekyc") {
+                    ekycUploadedName = f.name
+                } else if (loaiAnh == "renter") {
+                    renterUploadedName = f.name
+                } else if (loaiAnh == "owner") {
+                    ownerUploadedName = f.name
+                }
+
+                var reader = new FileReader()
+                reader.onload = function (ev) {
+                    var url = ev.target.result
+                    if (loaiAnh == "ekyc") {
+                        ekycImgDataUrl = url
+                    } else if (loaiAnh == "renter") {
+                        renterImgDataUrl = url
+                    } else if (loaiAnh == "owner") {
+                        ownerImgDataUrl = url
+                    }
+                    if (prevEl != null) {
+                        prevEl.src = url
+                        prevEl.classList.remove("hidden")
+                    }
+                }
+                reader.readAsDataURL(f)
+                console.log("da tai anh: " + f.name)
+            }
+        })
+    }
+}
+
+setupImageUpload("ekycFileBar", "btnPickEkycFile", "ekycFileInput", "ekycFileName", "ekycImgPreview", "ekyc")
+setupImageUpload("renterFileWrap", "btnPickRenterImg", "hoImgFile", "hoImgFileName", "hoImgPreview", "renter")
+setupImageUpload("ownerFileWrap", "btnPickOwnerImg", "hoOwnerImgFile", "hoOwnerImgFileName", "hoOwnerImgPreview", "owner")
 
 var allNavTabs = document.querySelectorAll(".nav-tab")
 for (var n = 0; n < allNavTabs.length; n++) {
@@ -258,23 +251,28 @@ document.getElementById("btnTopLogin").addEventListener("click", function (e) {
         switchTab("tab6")
     } else {
         var dd = document.getElementById("userDropdown")
-        if (dd != null) {
-            if (dd.classList.contains("hidden")) {
-                dd.classList.remove("hidden")
-            } else {
-                dd.classList.add("hidden")
-            }
+        if (dd.classList.contains("hidden")) {
+            dd.classList.remove("hidden")
+        } else {
+            dd.classList.add("hidden")
         }
     }
 })
 
-var btnDropdownToAccount = document.getElementById("btnDropdownToAccount")
-if (btnDropdownToAccount != null) {
-    btnDropdownToAccount.addEventListener("click", function () {
-        switchTab("tab3")
-        var dd = document.getElementById("userDropdown")
-        if (dd != null) {
-            dd.classList.add("hidden")
+var roleItems = document.querySelectorAll(".user-dropdown-item[data-role]")
+for (var r = 0; r < roleItems.length; r++) {
+    roleItems[r].addEventListener("click", function () {
+        var newRole = this.getAttribute("data-role")
+        currentUserRole = newRole
+        updateAuthUI()
+        document.getElementById("userDropdown").classList.add("hidden")
+        console.log("doi vai tro: " + newRole)
+        if (newRole == "Chủ xe") {
+            switchTab("tab4")
+        } else if (newRole == "Quản trị viên") {
+            switchTab("tab5")
+        } else {
+            switchTab("tab1")
         }
     })
 }
@@ -282,10 +280,7 @@ if (btnDropdownToAccount != null) {
 document.getElementById("btnDropdownLogout").addEventListener("click", function () {
     isLoggedIn = false
     updateAuthUI()
-    var dd = document.getElementById("userDropdown")
-    if (dd != null) {
-        dd.classList.add("hidden")
-    }
+    document.getElementById("userDropdown").classList.add("hidden")
     console.log("da dang xuat")
 })
 
@@ -319,16 +314,6 @@ function renderBikes() {
     var ccVal = document.getElementById("filterCc").value
     var fuelVal = document.getElementById("filterFuel").value
 
-    var areaSelect = document.getElementById("pickup-area")
-    var areaVal = "toan_bo"
-    var areaText = ""
-    if (areaSelect != null) {
-        areaVal = areaSelect.value
-        if (areaSelect.selectedIndex >= 0) {
-            areaText = areaSelect.options[areaSelect.selectedIndex].textContent.trim()
-        }
-    }
-
     var filtered = []
     for (var i = 0; i < bikesData.length; i++) {
         var b = bikesData[i]
@@ -348,20 +333,13 @@ function renderBikes() {
         if (fuelVal == "all" || b.fuel == fuelVal) {
             okFuel = true
         }
-        var okArea = false
-        if (areaVal == "toan_bo" || b.area == areaText) {
-            okArea = true
-        }
-        if (okBrand && okType && okCc && okFuel && okArea) {
+        if (okBrand && okType && okCc && okFuel) {
             filtered.push(b)
         }
     }
 
     var grid = document.getElementById("bikeGrid")
     var htmlStr = ""
-    if (filtered.length === 0) {
-        htmlStr = '<div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #64748b; font-size: 13.5px;">Không tìm thấy xe phù hợp tại khu vực này. Vui lòng chọn khu vực khác hoặc Tất cả khu vực.</div>'
-    }
     for (var j = 0; j < filtered.length; j++) {
         var xe = filtered[j]
         var btnCls = "btn-select-bike"
@@ -371,7 +349,7 @@ function renderBikes() {
             btnText = "Đang chọn xe này"
         }
 
-        htmlStr = htmlStr + '<div class="bike-card" data-id="' + xe.id + '" style="cursor: pointer;">'
+        htmlStr = htmlStr + '<div class="bike-card">'
         htmlStr = htmlStr + '<div class="bike-banner">'
         htmlStr = htmlStr + '<div class="bike-banner-top">'
         htmlStr = htmlStr + '<span class="badge-brand">' + xe.brand + '</span>'
@@ -391,10 +369,6 @@ function renderBikes() {
         htmlStr = htmlStr + '<span class="price-caption">Theo giờ</span>'
         htmlStr = htmlStr + '<span class="price-hour">' + xe.hourPrice.toLocaleString("vi-VN") + '<u>đ</u>/h</span>'
         htmlStr = htmlStr + '</div>'
-        htmlStr = htmlStr + '<div class="price-col center">'
-        htmlStr = htmlStr + '<span class="price-caption">Khu vực</span>'
-        htmlStr = htmlStr + '<span class="price-area">' + (xe.area || "Quận 1") + '</span>'
-        htmlStr = htmlStr + '</div>'
         htmlStr = htmlStr + '<div class="price-col right">'
         htmlStr = htmlStr + '<span class="price-caption">Theo ngày</span>'
         htmlStr = htmlStr + '<span class="price-day">' + xe.dayPrice.toLocaleString("vi-VN") + '<u>đ</u>/ngày</span>'
@@ -406,40 +380,21 @@ function renderBikes() {
 
     grid.innerHTML = htmlStr
 
-    var cards = grid.querySelectorAll(".bike-card")
-    for (var k = 0; k < cards.length; k++) {
-        cards[k].addEventListener("click", function () {
+    var selBtns = grid.querySelectorAll(".btn-select-bike")
+    for (var k = 0; k < selBtns.length; k++) {
+        selBtns[k].addEventListener("click", function () {
             selectedBikeId = Number(this.getAttribute("data-id"))
             console.log("chon xe id: " + selectedBikeId)
             renderBikes()
             updateBookingSummary()
-            var detailSec = document.getElementById("bookingDetailSection")
-            if (detailSec != null) {
-                detailSec.scrollIntoView({ behavior: "smooth", block: "start" })
-            }
         })
     }
 }
 
 function updateBookingSummary() {
-    var detailSec = document.getElementById("bookingDetailSection")
-    if (selectedBikeId == null) {
-        if (detailSec != null) {
-            detailSec.classList.add("hidden")
-        }
-        return
-    }
-
-    if (detailSec != null) {
-        detailSec.classList.remove("hidden")
-    }
-
     var bike = timXeTheoId(selectedBikeId)
-    if (!bike) return
-
     document.getElementById("detailBikeName").textContent = bike.name
-    var bikeArea = bike.area || "Quận 1"
-    document.getElementById("detailBikeSpecs").textContent = bike.brand + " • " + bike.type + " • " + bike.cc + " • " + bike.fuel + " • " + bikeArea + ", TP.HCM"
+    document.getElementById("detailBikeSpecs").textContent = bike.brand + " • " + bike.type + " • " + bike.cc + " • " + bike.fuel + " • Quận 1, TP.HCM"
 
     document.getElementById("pkgHourText").textContent = (bike.hourPrice / 1000) + "K / giờ"
     document.getElementById("pkgDayText").textContent = (bike.dayPrice / 1000) + "K / ngày"
@@ -489,12 +444,9 @@ function updateBookingSummary() {
     document.getElementById("sumTotalVal").textContent = formatVND(total)
 }
 
-var filterIds = ["filterBrand", "filterType", "filterCc", "filterFuel", "pickup-area"]
+var filterIds = ["filterBrand", "filterType", "filterCc", "filterFuel"]
 for (var f = 0; f < filterIds.length; f++) {
-    var elem = document.getElementById(filterIds[f])
-    if (elem != null) {
-        elem.addEventListener("change", renderBikes)
-    }
+    document.getElementById(filterIds[f]).addEventListener("change", renderBikes)
 }
 
 document.getElementById("pkgHourBtn").addEventListener("click", function () {
@@ -518,10 +470,6 @@ for (var s = 0; s < sumInputIds.length; s++) {
 }
 
 document.getElementById("btnBookNow").addEventListener("click", function () {
-    if (selectedBikeId == null) {
-        alert("Vui lòng chọn một xe máy trước khi thanh toán!")
-        return
-    }
     demLanBam = demLanBam + 1
     if (walletBalance < currentBookingTotal) {
         alert("Số dư trong tài khoản cá nhân (" + formatVND(walletBalance) + ") không đủ để thanh toán " + formatVND(currentBookingTotal) + "! Vui lòng nạp thêm tiền vào tài khoản.")
@@ -604,17 +552,20 @@ document.getElementById("btnExecHandover").addEventListener("click", function ()
     var fuel = "90"
     var note = "Đủ 2 mũ, nguyên vẹn"
     var imgName = "anh_giao_nhan.jpg"
+    var imgUrl = ""
 
     if (roleVal == "Chủ xe") {
         odo = Number(document.getElementById("hoOwnerOdoInput").value) || 8420
         fuel = document.getElementById("hoOwnerFuelInput").value || "90"
         note = document.getElementById("hoOwnerNoteInput").value || "Chủ xe đã xác nhận"
-        imgName = document.getElementById("hoOwnerImgInput").value || "anh_chuxe.jpg"
+        imgName = ownerUploadedName || "anh_chuxe.jpg"
+        imgUrl = ownerImgDataUrl
     } else {
         odo = Number(document.getElementById("hoOdoInput").value) || 8420
         fuel = document.getElementById("hoFuelInput").value || "90"
         note = document.getElementById("hoNoteInput").value || "Đủ 2 mũ, nguyên vẹn"
-        imgName = document.getElementById("hoImgInput").value || "anh_khach.jpg"
+        imgName = renterUploadedName || "anh_khach.jpg"
+        imgUrl = renterImgDataUrl
     }
 
     var list = document.getElementById("handoverHistoryList")
@@ -630,9 +581,13 @@ document.getElementById("btnExecHandover").addEventListener("click", function ()
     var storage = document.getElementById("storageList")
     if (storage != null) {
         var cleanName = imgName.replace("Chọn tệp — ", "")
+        var thumbHtml = '<div class="storage-thumb">Ảnh ' + txType + '</div>'
+        if (imgUrl != "") {
+            thumbHtml = '<img src="' + imgUrl + '" class="storage-thumb-img" alt="Ảnh giao nhận">'
+        }
         var card = document.createElement("div")
         card.className = "storage-card"
-        card.innerHTML = '<div class="storage-thumb">Ảnh ' + txType + '</div>' +
+        card.innerHTML = thumbHtml +
             '<div class="storage-filename">' + cleanName + '</div>' +
             '<div class="storage-meta">Từ: ' + roleVal + ' • #BK0001</div>' +
             '<span class="badge-warn-sm">Xóa sau 4 ngày</span>'
@@ -682,45 +637,32 @@ document.getElementById("btnGoLoginFromTab3").addEventListener("click", function
     switchTab("tab6")
 })
 
-var btnSubmitLogin = document.getElementById("btnSubmitLogin")
-if (btnSubmitLogin != null) {
-    btnSubmitLogin.addEventListener("click", function () {
-        var rawUser = document.getElementById("loginUsername").value
-        var username = rawUser.trim()
-        if (username == "") {
-            username = "Trương Công Hào"
-        }
+document.getElementById("btnSubmitLogin").addEventListener("click", function () {
+    var rawUser = document.getElementById("loginUsername").value
+    var username = rawUser.trim()
+    if (username == "") {
+        username = "Trương Công Hào"
+    }
 
-        isLoggedIn = true
-        currentUserName = username
+    isLoggedIn = true
+    currentUserName = username
 
+    var lowerUser = username.toLowerCase()
+    if (lowerUser == "admin" || lowerUser.indexOf("admin") != -1) {
+        currentUserRole = "Quản trị viên"
+        updateAuthUI()
+        switchTab("tab5")
+    } else if (lowerUser.indexOf("owner") != -1 || lowerUser.indexOf("chuxe") != -1 || lowerUser.indexOf("chủ xe") != -1) {
+        currentUserRole = "Chủ xe"
+        updateAuthUI()
+        switchTab("tab4")
+    } else {
+        currentUserRole = "Khách thuê"
         updateAuthUI()
         switchTab("tab3")
-        console.log("dang nhap thanh cong: " + currentUserName)
-    })
-}
-
-var loginPassInput = document.getElementById("loginPassword")
-if (loginPassInput != null) {
-    loginPassInput.addEventListener("keydown", function (e) {
-        if (e.key === "Enter") {
-            if (btnSubmitLogin != null) {
-                btnSubmitLogin.click()
-            }
-        }
-    })
-}
-
-var loginUserInput = document.getElementById("loginUsername")
-if (loginUserInput != null) {
-    loginUserInput.addEventListener("keydown", function (e) {
-        if (e.key === "Enter") {
-            if (btnSubmitLogin != null) {
-                btnSubmitLogin.click()
-            }
-        }
-    })
-}
+    }
+    console.log("dang nhap thanh cong: " + currentUserName)
+})
 
 var btnRegister = document.getElementById("btnRegister")
 if (btnRegister != null) {
@@ -764,7 +706,32 @@ document.getElementById("btnDeposit").addEventListener("click", function () {
         '<strong class="text-green">+' + formatVND(amt) + '</strong>' +
         '<span><span class="badge-success">Hoàn tất</span></span>'
     txList.prepend(row)
+
+    var qrTitle = document.getElementById("qrModalTitle")
+    if (qrTitle != null) {
+        qrTitle.textContent = "Quét mã QR để nạp " + formatVND(amt)
+    }
+    var qrModal = document.getElementById("qrDepositModal")
+    if (qrModal != null) {
+        qrModal.classList.remove("hidden")
+    }
 })
+
+var btnCloseQr = document.getElementById("btnCloseQrModal")
+if (btnCloseQr != null) {
+    btnCloseQr.addEventListener("click", function () {
+        document.getElementById("qrDepositModal").classList.add("hidden")
+    })
+}
+
+var qrModalBackdrop = document.getElementById("qrDepositModal")
+if (qrModalBackdrop != null) {
+    qrModalBackdrop.addEventListener("click", function (e) {
+        if (e.target == qrModalBackdrop) {
+            qrModalBackdrop.classList.add("hidden")
+        }
+    })
+}
 
 document.getElementById("btnWithdraw").addEventListener("click", function () {
     var amt = Number(document.getElementById("walletAmountInput").value) || 0
@@ -967,7 +934,6 @@ function renderAccounts() {
 }
 
 tempBien = 1
-initBikeAreas()
 updateAuthUI()
 updateHandoverPanels()
 renderBikes()

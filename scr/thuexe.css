@@ -12,7 +12,7 @@ body {
     color: #0F172A;
     min-height: 100vh;
     font-weight: 400;
-    color: #0f172a;
+    colr: #0f172a;
 }
 
 .topbar {
@@ -466,14 +466,8 @@ body {
     flex-direction: column;
 }
 
-.price-col.center {
-    text-align: center;
-    align-items: center;
-}
-
 .price-col.right {
     text-align: right;
-    align-items: flex-end;
 }
 
 .price-caption {
@@ -487,15 +481,6 @@ body {
     font-weight: 600;
     letter-spacing: -0.003em;
     color: #007aff;
-}
-
-.price-area {
-    font-family: "SF Pro Display", "SF Pro Icons", "Helvetica Neue", Helvetica, Arial, sans-serif;
-    font-size: 13.5px;
-    font-weight: 600;
-    letter-spacing: -0.003em;
-    color: #0f172a;
-    white-space: nowrap;
 }
 
 .price-day {
@@ -1515,6 +1500,132 @@ body {
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
+}
+
+.hidden-file-input {
+    display: none;
+}
+
+.file-upload-white {
+    background: #FFFFFF;
+    border: none;
+    border-radius: 50px;
+    padding: 8px 16px;
+    font-size: 13px;
+    color: #0F172A;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+    cursor: pointer;
+}
+
+.file-bar {
+    cursor: pointer;
+}
+
+.file-name-text {
+    font-size: 12.5px;
+    color: #334155;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.upload-preview {
+    margin-top: 8px;
+    width: 140px;
+    height: 92px;
+    object-fit: cover;
+    border-radius: 14px;
+    box-shadow: 0 3px 10px rgba(15, 23, 42, 0.1);
+}
+
+.storage-thumb-img {
+    width: 100%;
+    height: 82px;
+    object-fit: cover;
+    border-radius: 12px;
+    display: block;
+}
+
+.qr-modal-card {
+    background: #ffffff;
+    width: 440px;
+    max-width: 92vw;
+    border-radius: 26px;
+    padding: 30px 28px;
+    box-shadow: 0 22px 55px rgba(15, 23, 42, 0.15);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 14px;
+}
+
+.qr-badge {
+    background: #fff4e0;
+    color: #d97706;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 5px 14px;
+    border-radius: 50px;
+    letter-spacing: 0.3px;
+}
+
+.qr-modal-title {
+    font-family: "SF Pro Display", "SF Pro Icons", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: -0.003em;
+    color: #0f172a;
+}
+
+.qr-modal-sub {
+    font-size: 12.5px;
+    color: #64748b;
+    margin-top: -6px;
+}
+
+.qr-img-box {
+    background: #FFFFFF;
+    padding: 16px;
+    border-radius: 20px;
+    box-shadow: 0 6px 22px rgba(15, 23, 42, 0.08);
+    margin: 4px 0;
+}
+
+.qr-img {
+    width: 220px;
+    height: 220px;
+    object-fit: contain;
+    display: block;
+}
+
+.qr-note-pill {
+    width: 100%;
+    background: #F4F7FA;
+    color: #0d74e7;
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 10px 18px;
+    border-radius: 50px;
+}
+
+.btn-qr-close {
+    background: #0d74e7;
+    color: #ffffff;
+    border: none;
+    border-radius: 50px;
+    padding: 10px 28px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(13, 116, 231, 0.24);
+}
+
+.btn-qr-close:hover {
+    background: #0b63c5;
 }
 
 .hidden {
