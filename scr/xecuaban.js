@@ -25,17 +25,17 @@
     let editingId = null;
     let busy = false; // chặn bấm nút 2 lần khi đang gọi server
 
-    /* ---------- Gọi API backend (/api/owner/...) ----------
-       TODO: hiện chưa có đăng nhập thật nên gửi user_id qua header X-User-Id.
-       Khi Văn Hiến xong đăng nhập (session/JWT) thì sửa lại hàm này cho khớp.
-       Nếu chưa lưu user_id trong localStorage thì tạm dùng chủ xe số 1 để demo. */
+    /* ---------- Gọi API backend ----------
+       Đường dẫn bắt đầu bằng "/api/" dùng nguyên; còn lại tự thêm tiền tố /api/owner.
+       Đăng nhập dùng session của Spring nên chỉ cần gửi kèm cookie (credentials). */
     async function api(path, { method = "GET", body } = {}) {
-        const headers = { "X-User-Id": localStorage.getItem("user_id") || "1" };
+        const headers = {};
         if (body && !(body instanceof FormData)) {
             headers["Content-Type"] = "application/json";
             body = JSON.stringify(body);
         }
-        const res = await fetch("/api/owner" + path, { method, headers, body });
+        const url = path.startsWith("/api/") ? path : "/api/owner" + path;
+        const res = await fetch(url, { method, headers, body, credentials: "same-origin" });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.message || "Có lỗi xảy ra, vui lòng thử lại.");
         return data;
@@ -43,10 +43,11 @@
 
     async function loadVehicles() { vehicles = await api("/vehicles"); renderVehicles(); }
     async function loadRequests() { requests = await api("/bookings"); renderRequests(); }
+    // Doanh thu: /api/owner/earnings; số dư rút được = số dư ví; lịch sử rút tiền = giao dịch loại WITHDRAW
     async function loadEarnings() {
-        const data = await api("/earnings");
-        earnings = data;
-        withdrawals = data.withdrawals;
+        const [e, txs] = await Promise.all([api("/api/owner/earnings"), api("/api/wallet/transactions")]);
+        earnings = { completedTrips: e.completedTrips, netRevenue: e.netRevenue, withdrawable: e.walletBalance };
+        withdrawals = txs.filter(t => t.type === "WITHDRAW");
         renderEarnings();
     }
 
@@ -347,8 +348,8 @@
        4. DOANH THU & RÚT TIỀN
        ========================================================== */
     function withdrawBadge(status) {
-        if (status === "approved") return '<span class="badge-success">Đã duyệt</span>';
-        if (status === "rejected") return '<span class="badge-danger-sm">Bị từ chối</span>';
+        if (status === "COMPLETED") return '<span class="badge-success">Đã duyệt</span>';
+        if (status === "REJECTED") return '<span class="badge-danger-sm">Bị từ chối</span>';
         return '<span class="badge-info-sm">Chờ Admin duyệt</span>';
     }
 
@@ -362,9 +363,9 @@
             ? '<div class="ov-empty">Chưa có yêu cầu rút tiền nào.</div>'
             : withdrawals.map(w => `
                 <div class="wd-row">
-                    <strong>#${esc(w.id)}</strong>
-                    <span>${esc(w.bank)}</span>
-                    <strong>-${money(w.amount)}</strong>
+                    <strong>#${esc(w.code)}</strong>
+                    <span>${esc(w.description)}</span>
+                    <strong>-${money(Math.abs(w.amount))}</strong>
                     <span>${withdrawBadge(w.status)}</span>
                 </div>`).join("");
     }
@@ -385,9 +386,9 @@
         busy = true;
         $("btnOwnerWithdraw").disabled = true;
         try {
-            await api("/withdrawals", { method: "POST", body: { amount, bankInfo: bank } });
+            const data = await api("/api/wallet/withdraw", { method: "POST", body: { amount, bankInfo: bank } });
             $("ownWdAmount").value = "";
-            setMsg(msg, "✅ Đã gửi yêu cầu rút tiền. Admin sẽ xét duyệt.", true);
+            setMsg(msg, "✅ " + (data.message || "Đã gửi yêu cầu rút tiền. Admin sẽ xét duyệt."), true);
             await loadEarnings();
         } catch (e) {
             setMsg(msg, "⚠️ " + e.message, false);
