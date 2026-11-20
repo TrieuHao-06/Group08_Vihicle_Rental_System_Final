@@ -10,11 +10,22 @@ app.use(express.json());
 const frontEndPath = path.join(__dirname, "source code", "front-end");
 app.use(express.static(frontEndPath));
 app.use(express.static(path.join(__dirname, "scr")));
+app.use("/uploads", express.static(path.join(__dirname, "source code", "uploads")));
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Điều hướng trang chủ về index.html
 app.get("/", (req, res) => {
     res.sendFile(path.join(frontEndPath, "index.html"));
 });
+
+// Gắn router Chủ xe (owner)
+try {
+    const ownerRoutes = require("./source code/backend/owner/ownerRoutes");
+    app.use("/api/owner", ownerRoutes);
+    console.log("Đã kích hoạt thành công API Chủ xe (/api/owner)");
+} catch (err) {
+    console.warn("Chưa nạp được /api/owner (cần chạy 'npm.cmd install' để cài multer):", err.message);
+}
 
 const pool = mysql.createPool({
     host: process.env.DB_HOST || "127.0.0.1",
