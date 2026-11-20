@@ -7,7 +7,14 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
+const frontEndPath = path.join(__dirname, "source code", "front-end");
+app.use(express.static(frontEndPath));
 app.use(express.static(path.join(__dirname, "scr")));
+
+// Điều hướng trang chủ về index.html
+app.get("/", (req, res) => {
+    res.sendFile(path.join(frontEndPath, "index.html"));
+});
 
 const pool = mysql.createPool({
     host: process.env.DB_HOST || "127.0.0.1",
