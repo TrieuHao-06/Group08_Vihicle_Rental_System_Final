@@ -473,7 +473,7 @@
                     </div>
                     <div class="session-btns">
                         <button class="btn-primary-pill" id="btnGoLoginFromTab3">Đăng nhập</button>
-                        <button class="btn-disabled-pill" disabled>Đổi mật khẩu</button>
+                        <button class="btn-secondary-pill" id="btnChangePassLoggedOut">Đổi mật khẩu</button>
                         <button class="btn-disabled-pill" disabled>Đăng xuất</button>
                     </div>
                 </div>
@@ -572,41 +572,41 @@
                     <div class="grid-2">
                         <div class="form-group">
                             <label>Hãng xe máy</label>
-                            <input type="text" class="input-soft" id="ownBrand" value="Honda">
+                            <input type="text" class="input-soft" id="ownBrand" placeholder="VD: Honda, Yamaha, VinFast..." value="">
                         </div>
                         <div class="form-group">
                             <label>Tên mẫu xe &amp; Đời xe</label>
-                            <input type="text" class="input-soft" id="ownModel" placeholder="VD: Honda SH 160i 2024">
+                            <input type="text" class="input-soft" id="ownModel" placeholder="VD: Honda SH 160i 2024" value="">
                         </div>
                     </div>
 
                     <div class="grid-3 mt-12">
                         <div class="form-group">
                             <label>Loại xe</label>
-                            <input type="text" class="input-soft" id="ownType" value="Xe tay ga">
+                            <input type="text" class="input-soft" id="ownType" placeholder="VD: Xe tay ga, Xe số, Côn tay..." value="">
                         </div>
                         <div class="form-group">
                             <label>Phân khối</label>
-                            <input type="text" class="input-soft" id="ownCc" value="110cc">
+                            <input type="text" class="input-soft" id="ownCc" placeholder="VD: 110cc, 150cc..." value="">
                         </div>
                         <div class="form-group">
                             <label>Nhiên liệu</label>
-                            <input type="text" class="input-soft" id="ownFuel" value="Xăng">
+                            <input type="text" class="input-soft" id="ownFuel" placeholder="VD: Xăng, Điện..." value="">
                         </div>
                     </div>
 
                     <div class="grid-3 mt-12">
                         <div class="form-group">
                             <label>Giá thuê theo giờ</label>
-                            <input type="number" class="input-soft" value="30000">
+                            <input type="number" class="input-soft" id="ownHourPrice" placeholder="VD: 30000" value="">
                         </div>
                         <div class="form-group">
                             <label>Giá thuê theo ngày</label>
-                            <input type="number" class="input-soft" value="180000">
+                            <input type="number" class="input-soft" id="ownDayPrice" placeholder="VD: 180000" value="">
                         </div>
                         <div class="form-group">
                             <label>Biển số kiểm soát</label>
-                            <input type="text" class="input-soft" value="59-P2 688.88">
+                            <input type="text" class="input-soft" id="ownPlate" placeholder="VD: 59-P2 688.88" value="">
                         </div>
                     </div>
 
@@ -629,24 +629,11 @@
                     <h3 class="sub-heading mt-16">Danh sách xe máy thuộc sở hữu của bạn</h3>
                     <div class="owner-table-head">
                         <span>Tên xe máy</span>
-                        <span>Khung ngày</span>
-                        <span>Trạng thái lịch</span>
+                        <span>Biển số</span>
+                        <span>Trạng thái duyệt</span>
                         <span>Đổi trạng thái</span>
                     </div>
-                    <div id="ownerBikeList">
-                        <div class="owner-table-row">
-                            <strong>Honda Vision 2024</strong>
-                            <span>04/11 - 06/11</span>
-                            <span><span class="badge-success">Đang trống</span></span>
-                            <button class="btn-secondary-sm toggle-schedule-btn">Khóa lịch</button>
-                        </div>
-                        <div class="owner-table-row">
-                            <strong>Honda AirBlade 160 2024</strong>
-                            <span>04/11 - 05/11</span>
-                            <span><span class="badge-warn-sm">Đang cho thuê</span></span>
-                            <button class="btn-secondary-sm toggle-schedule-btn">Mở trống</button>
-                        </div>
-                    </div>
+                    <div id="ownerBikeList"></div>
                 </div>
             </div>
         </section>
@@ -654,19 +641,40 @@
         <!-- TAB 5: ADMIN -->
         <section class="tab-panel" id="tab5">
             <div class="card">
-                <h2 class="section-title">Duyệt Xe Máy, eKYC &amp; Xử lý tranh chấp</h2>
+                <div class="voucher-header-bar">
+                    <h2 class="section-title mb-0">Duyệt Xe Máy Ký Gửi Mới</h2>
+                    <button class="btn-grey-pill" id="btnRefreshAdminVehicles">Làm mới</button>
+                </div>
                 <div class="admin-approve-head">
                     <span>Phân loại</span>
                     <span>Nội dung chi tiết</span>
                     <span>Trạng thái</span>
                     <span>Hành động</span>
                 </div>
+                <div id="adminPendingVehicleList"></div>
+            </div>
 
-                <div class="admin-approve-row">
-                    <strong>Duyệt xe ký gửi</strong>
-                    <span>Yamaha Grande 2024 • Xe tay ga • 125cc • Xăng • 25K/giờ • 150K/ngày</span>
-                    <span><span class="badge-warn-sm" id="consignBadge">Chờ duyệt</span></span>
-                    <button class="btn-primary-sm" id="btnApproveConsign">Duyệt lên sàn</button>
+            <div class="card">
+                <div class="voucher-header-bar">
+                    <h2 class="section-title mb-0">Duyệt Yêu Cầu Nạp Tiền Qua QR / Ngân Hàng</h2>
+                    <button class="btn-grey-pill" id="btnRefreshAdminDeposits">Làm mới</button>
+                </div>
+                <div class="admin-approve-head">
+                    <span>Mã GD / Loại</span>
+                    <span>Chi tiết người nạp &amp; số tiền</span>
+                    <span>Trạng thái</span>
+                    <span>Hành động</span>
+                </div>
+                <div id="adminPendingDepositList"></div>
+            </div>
+
+            <div class="card">
+                <h2 class="section-title">Duyệt eKYC &amp; Xử lý tranh chấp</h2>
+                <div class="admin-approve-head">
+                    <span>Phân loại</span>
+                    <span>Nội dung chi tiết</span>
+                    <span>Trạng thái</span>
+                    <span>Hành động</span>
                 </div>
 
                 <div class="admin-approve-row">
@@ -734,13 +742,13 @@
 
                     <div class="login-form">
                         <div class="login-row">
-                            <label>Tên đăng nhập</label>
-                            <input type="text" class="login-input focus-ring" id="loginUsername" value="Haotruong11111">
+                            <label>Email hoặc Số điện thoại</label>
+                            <input type="text" class="login-input focus-ring" id="loginUsername" placeholder="Nhập email hoặc SĐT" value="tranvanhien@gmail.com">
                         </div>
 
                         <div class="login-row">
                             <label>Mật khẩu</label>
-                            <input type="password" class="login-input" id="loginPassword" value="12345678">
+                            <input type="password" class="login-input" id="loginPassword" placeholder="Nhập mật khẩu" value="">
                         </div>
 
                         <button class="btn-login-submit" id="btnSubmitLogin">Đăng nhập</button>
@@ -754,7 +762,8 @@
             </div>
         </section>
 
-        <section class="tab-panel" id="tab7">
+        <!-- TAB ĐĂNG KÝ TÀI KHOẢN -->
+        <section class="tab-panel" id="tabRegister">
             <div class="login-wrapper">
                 <div class="login-card">
                     <div class="login-header">
@@ -863,6 +872,38 @@
             <div class="modal-actions">
                 <button type="button" class="btn-modal-cancel" id="btnCloseQrModal">Đóng</button>
                 <button type="button" class="btn-modal-save" id="btnConfirmDeposit">Xác nhận đã chuyển</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL ĐỔI MẬT KHẨU -->
+    <div class="modal-backdrop hidden" id="passwordModal">
+        <div class="modal-card">
+            <h3 class="modal-title">Đổi mật khẩu tài khoản</h3>
+
+            <div class="modal-form-row">
+                <label>Email hoặc Số điện thoại tài khoản *</label>
+                <input type="text" class="modal-input focus-ring" id="changePassIdentifier" placeholder="example@gmail.com hoặc SĐT" value="tranvanhien@gmail.com">
+            </div>
+
+            <div class="modal-form-row">
+                <label>Mật khẩu hiện tại *</label>
+                <input type="password" class="modal-input" id="oldPasswordInput" placeholder="Nhập mật khẩu hiện tại">
+            </div>
+
+            <div class="modal-form-row">
+                <label>Mật khẩu mới (tối thiểu 8 ký tự) *</label>
+                <input type="password" class="modal-input" id="newPasswordInput" placeholder="Nhập mật khẩu mới">
+            </div>
+
+            <div class="modal-form-row">
+                <label>Xác nhận mật khẩu mới *</label>
+                <input type="password" class="modal-input" id="confirmNewPasswordInput" placeholder="Nhập lại mật khẩu mới">
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn-modal-cancel" id="btnCancelChangePass">Hủy</button>
+                <button type="button" class="btn-modal-save" id="btnSubmitChangePass">Lưu mật khẩu mới</button>
             </div>
         </div>
     </div>

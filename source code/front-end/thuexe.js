@@ -105,8 +105,24 @@ var currentBookingTotal = 426000
 var isVoucherEditMode = false
 var selectedModalPct = "10%"
 var isLoggedIn = false
-var currentUserName = "Trương Công Hào"
+var currentUserId = null
+var currentUserName = ""
 var currentUserRole = "Khách thuê"
+
+// Khôi phục phiên làm việc đã lưu từ localStorage nếu có
+try {
+    var savedSession = localStorage.getItem("group08_session")
+    if (savedSession) {
+        var sessObj = JSON.parse(savedSession)
+        if (sessObj && sessObj.user_id && sessObj.full_name) {
+            isLoggedIn = true
+            currentUserId = sessObj.user_id
+            currentUserName = sessObj.full_name
+            var rMap = { ADMIN: "Quản trị viên", OWNER: "Chủ xe", RENTER: "Khách thuê" }
+            currentUserRole = rMap[sessObj.role] || "Khách thuê"
+        }
+    }
+} catch (e) {}
 var tempBien = 0
 var demLanBam = 0
 var renterUploadedName = ""
@@ -206,10 +222,19 @@ function switchTab(targetId) {
         }
     }
 
-    // Đồng bộ dữ liệu mỗi khi chuyển sang tab Giao nhận xe hoặc Xe đã đặt
-    if (targetId === "tab2") {
+    // Đồng bộ dữ liệu mỗi khi chuyển tab
+    if (targetId === "tab1") {
+        fetchBikesFromBackend()
+    } else if (targetId === "tab2") {
         renderRenterOrders()
         renderOwnerOrders()
+    } else if (targetId === "tab3") {
+        loadWalletData()
+    } else if (targetId === "tab4") {
+        fetchOwnerVehicles()
+    } else if (targetId === "tab5") {
+        loadAdminPendingVehicles()
+        loadAdminPendingDeposits()
     } else if (targetId === "tab7") {
         renderBookedBikes()
     }
@@ -289,12 +314,28 @@ if (btnDropdownToAccount != null) {
     })
 }
 
-document.getElementById("btnDropdownLogout").addEventListener("click", function () {
+async function handleLogout() {
+    try {
+        await fetch("/api/auth/logout", { method: "POST" })
+    } catch (e) {}
+    try { localStorage.removeItem("group08_session") } catch (e) {}
     isLoggedIn = false
-    updateAuthUI()
+    currentUserId = null
+    currentUserName = ""
+    currentUserRole = "Khách thuê"
+    selectedBikeId = null
     var dd = document.getElementById("userDropdown")
     if (dd != null) dd.classList.add("hidden")
-})
+    updateAuthUI()
+    renderBikes()
+    alert("Đã đăng xuất thành công!")
+    switchTab("tab1") // Chuyển về tab trang chủ đặt xe
+}
+
+var btnDropdownLogout = document.getElementById("btnDropdownLogout")
+if (btnDropdownLogout != null) {
+    btnDropdownLogout.addEventListener("click", handleLogout)
+}
 
 document.addEventListener("click", function (e) {
     var wrap = document.getElementById("userMenuWrap")
@@ -379,6 +420,11 @@ function renderBikes() {
     var cards = grid.querySelectorAll(".bike-card")
     for (var k = 0; k < cards.length; k++) {
         cards[k].addEventListener("click", function () {
+            if (!isLoggedIn) {
+                alert("🔒 Bạn cần đăng nhập tài khoản trước khi chọn và đặt xe!")
+                switchTab("tab6")
+                return
+            }
             selectedBikeId = Number(this.getAttribute("data-id"))
             renderBikes()
             updateBookingSummary()
@@ -509,6 +555,11 @@ function renderBookedBikes() {
 
 // XỬ LÝ NÚT THANH TOÁN & ĐẶT XE Ở TAB 1
 document.getElementById("btnBookNow").addEventListener("click", function () {
+    if (!isLoggedIn) {
+        alert("🔒 Bạn cần đăng nhập tài khoản trước khi tiến hành đặt xe!")
+        switchTab("tab6")
+        return
+    }
     if (selectedBikeId == null) {
         alert("Vui lòng chọn một xe máy trước khi thanh toán!")
         return
@@ -935,12 +986,110 @@ if (btnSendReview != null) {
     })
 }
 
-document.getElementById("btnLogout").addEventListener("click", function () {
-    isLoggedIn = false
-    currentUserName = ""
-    updateAuthUI()
-    switchTab("tab6")
-})
+var btnLogout = document.getElementById("btnLogout")
+if (btnLogout != null) {
+    btnLogout.addEventListener("click", handleLogout)
+}
+
+function openChangePasswordModal() {
+    var idfInput = document.getElementById("changePassIdentifier")
+    var loginUser = document.getElementById("loginUsername")
+    if (idfInput != null) {
+        var defaultIdf = ""
+        try {
+            var sess = JSON.parse(localStorage.getItem("group08_session") || "{}")
+            defaultIdf = sess.email || sess.phone || ""
+        } catch(e) {}
+        if (!defaultIdf && loginUser) defaultIdf = loginUser.value.trim()
+        if (!defaultIdf) defaultIdf = "tranvanhien@gmail.com"
+        idfInput.value = defaultIdf
+    }
+    document.getElementById("oldPasswordInput").value = ""
+    document.getElementById("newPasswordInput").value = ""
+    document.getElementById("confirmNewPasswordInput").value = ""
+    document.getElementById("passwordModal").classList.remove("hidden")
+}
+
+// Mở modal Đổi mật khẩu từ tab Tài khoản & Ví (khi đã đăng nhập hoặc chưa đăng nhập)
+var btnChangePass = document.getElementById("btnChangePass")
+if (btnChangePass != null) {
+    btnChangePass.addEventListener("click", openChangePasswordModal)
+}
+
+var btnChangePassLoggedOut = document.getElementById("btnChangePassLoggedOut")
+if (btnChangePassLoggedOut != null) {
+    btnChangePassLoggedOut.addEventListener("click", openChangePasswordModal)
+}
+
+// Đóng modal Đổi mật khẩu
+var btnCancelChangePass = document.getElementById("btnCancelChangePass")
+if (btnCancelChangePass != null) {
+    btnCancelChangePass.addEventListener("click", function () {
+        document.getElementById("passwordModal").classList.add("hidden")
+    })
+}
+
+// Xác nhận đổi mật khẩu liên kết CSDL
+var btnSubmitChangePass = document.getElementById("btnSubmitChangePass")
+if (btnSubmitChangePass != null) {
+    btnSubmitChangePass.addEventListener("click", async function () {
+        var identifier = (document.getElementById("changePassIdentifier") ? document.getElementById("changePassIdentifier").value.trim() : "")
+        var oldPass = document.getElementById("oldPasswordInput").value
+        var newPass = document.getElementById("newPasswordInput").value
+        var confirmPass = document.getElementById("confirmNewPasswordInput").value
+
+        if (!identifier || !oldPass || !newPass || !confirmPass) {
+            alert("Vui lòng nhập đầy đủ tất cả các trường (Email/SĐT, Mật khẩu cũ và Mật khẩu mới)!")
+            return
+        }
+        if (newPass.length < 8) {
+            alert("Mật khẩu mới phải có tối thiểu 8 ký tự!")
+            return
+        }
+        if (newPass === oldPass) {
+            alert("Mật khẩu mới không được trùng với mật khẩu cũ!")
+            return
+        }
+        if (newPass !== confirmPass) {
+            alert("Mật khẩu xác nhận không khớp!")
+            return
+        }
+
+        try {
+            var res = await fetch("/api/user/change-password", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    user_id: currentUserId,
+                    identifier: identifier,
+                    old_password: oldPass,
+                    new_password: newPass
+                })
+            })
+            var text = await res.text()
+            var data = {}
+            try { data = JSON.parse(text) } catch(e) {}
+
+            if (!res.ok) {
+                var errMsg = data.message || (res.status === 404 ? "Server chưa được nạp mã đổi mật khẩu mới (Vui lòng chạy 'npm.cmd start' lại trên terminal)!" : ("Lỗi HTTP " + res.status))
+                alert("❌ Đổi mật khẩu thất bại: " + errMsg)
+                return
+            }
+
+            alert("🎉 Đổi mật khẩu thành công! Mật khẩu mới đã được cập nhật vào hệ thống.")
+            document.getElementById("passwordModal").classList.add("hidden")
+
+            // Đồng bộ mật khẩu mới vào ô đăng nhập và chuyển sang tab đăng nhập
+            var loginPassEl = document.getElementById("loginPassword")
+            if (loginPassEl != null) loginPassEl.value = newPass
+            var loginUserEl = document.getElementById("loginUsername")
+            if (loginUserEl != null && identifier) loginUserEl.value = identifier
+            switchTab("tab6")
+        } catch (err) {
+            alert("❌ Lỗi kết nối tới máy chủ: " + err.message)
+        }
+    })
+}
 
 document.getElementById("btnGoLoginFromTab3").addEventListener("click", function () {
     switchTab("tab6")
@@ -972,7 +1121,22 @@ if (btnSubmitLogin != null) {
 
             alert("🎉 Đăng nhập thành công! Xin chào " + data.full_name)
             isLoggedIn = true
+            currentUserId = data.user_id
             currentUserName = data.full_name
+            var rMap = { ADMIN: "Quản trị viên", OWNER: "Chủ xe", RENTER: "Khách thuê" }
+            currentUserRole = rMap[data.role] || "Khách thuê"
+
+            try {
+                localStorage.setItem("group08_session", JSON.stringify({
+                    user_id: data.user_id,
+                    full_name: data.full_name,
+                    email: data.email,
+                    phone: data.phone,
+                    role: data.role,
+                    kyc_status: data.kyc_status
+                }))
+            } catch (e) {}
+
             updateAuthUI()
 
             if (data.role === "ADMIN") {
@@ -1003,7 +1167,7 @@ if (loginUserInput != null) {
 var btnRegister = document.getElementById("btnRegister")
 if (btnRegister != null) {
     btnRegister.addEventListener("click", function () {
-        switchTab("tab7")
+        switchTab("tabRegister")
     })
 }
 
@@ -1061,7 +1225,7 @@ if (btnSubmitRegister != null) {
 var btnForgotPassword = document.getElementById("btnForgotPassword")
 if (btnForgotPassword != null) {
     btnForgotPassword.addEventListener("click", function () {
-        alert("Chức năng Quên mật khẩu: Vui lòng liên hệ Quản trị viên để được cấp lại mật khẩu!")
+        openChangePasswordModal()
     })
 }
 
@@ -1082,22 +1246,45 @@ document.getElementById("btnDeposit").addEventListener("click", function () {
     document.getElementById("qrDepositModal").classList.remove("hidden")
 })
 
-document.getElementById("btnConfirmDeposit").addEventListener("click", function () {
+// Xử lý nạp tiền: Người dùng gửi yêu cầu nạp tiền QR lên Admin chờ phê duyệt
+document.getElementById("btnConfirmDeposit").addEventListener("click", async function () {
     var amt = pendingDepositAmount
     if (amt <= 0) return
 
-    walletBalance += amt
-    updateWalletUI()
+    if (!isLoggedIn || !currentUserId) {
+        alert("🔒 Bạn cần đăng nhập tài khoản trước khi thực hiện nạp tiền!")
+        document.getElementById("qrDepositModal").classList.add("hidden")
+        switchTab("tab6")
+        return
+    }
 
-    var txList = document.getElementById("walletTxList")
-    var row = document.createElement("div")
-    row.className = "wallet-table-row"
-    var codeNum = Math.floor(102 + Math.random() * 890)
-    row.innerHTML = '<strong>#TX' + codeNum + '</strong><span>Nạp tiền vào ví nội bộ</span><strong class="text-green">+' + formatVND(amt) + '</strong><span><span class="badge-success">Hoàn tất</span></span>'
-    txList.prepend(row)
+    var btn = document.getElementById("btnConfirmDeposit")
+    try {
+        btn.disabled = true
+        btn.textContent = "Đang gửi yêu cầu..."
 
-    pendingDepositAmount = 0
-    document.getElementById("qrDepositModal").classList.add("hidden")
+        var res = await fetch("/api/wallet/deposit-request", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ user_id: currentUserId, amount: amt })
+        })
+        var data = await res.json().catch(function () { return {} })
+
+        if (!res.ok) {
+            alert("❌ " + (data.message || "Gửi yêu cầu nạp tiền thất bại!"))
+            return
+        }
+
+        alert("✅ Yêu cầu nạp " + formatVND(amt) + " đã gửi lên hệ thống!\nVui lòng chờ Admin kiểm tra và duyệt để tiền được cộng vào tài khoản ví của bạn.")
+        pendingDepositAmount = 0
+        document.getElementById("qrDepositModal").classList.add("hidden")
+        loadWalletData()
+    } catch (err) {
+        alert("❌ Không thể kết nối tới máy chủ Backend: " + err.message)
+    } finally {
+        btn.disabled = false
+        btn.textContent = "Xác nhận đã chuyển"
+    }
 })
 
 document.getElementById("btnCloseQrModal").addEventListener("click", function () {
@@ -1127,15 +1314,90 @@ document.getElementById("btnWithdraw").addEventListener("click", function () {
     txList.prepend(row)
 })
 
+// Tải thông tin ví và lịch sử biến động từ CSDL
+async function loadWalletData() {
+    if (!isLoggedIn || !currentUserId) return
+    try {
+        var res = await fetch("/api/wallet?user_id=" + currentUserId)
+        if (!res.ok) return
+        var data = await res.json()
+        walletBalance = Number(data.balance) || 0
+        updateWalletUI()
+
+        var txList = document.getElementById("walletTxList")
+        if (txList && Array.isArray(data.transactions) && data.transactions.length > 0) {
+            var html = ""
+            for (var i = 0; i < data.transactions.length; i++) {
+                var tx = data.transactions[i]
+                var sign = (tx.amount >= 0 ? "+" : "")
+                var amtColor = (tx.amount >= 0 ? "text-green" : "")
+                var badgeHtml = ""
+
+                if (tx.status === "completed") {
+                    badgeHtml = '<span class="badge-success">Hoàn tất</span>'
+                } else if (tx.status === "pending") {
+                    badgeHtml = '<span class="badge-warn-sm">Chờ duyệt</span>'
+                } else if (tx.status === "rejected") {
+                    badgeHtml = '<span class="badge-warn-sm" style="background: #fee2e2; color: #ef4444;">Bị từ chối</span>'
+                } else {
+                    badgeHtml = '<span class="badge-info-sm">' + tx.status + '</span>'
+                }
+
+                html += '<div class="wallet-table-row">'
+                html += '<strong>#TX' + tx.transaction_id + '</strong>'
+                html += '<span>' + (tx.description || "Giao dịch ví") + ' (' + tx.created_at + ')</span>'
+                html += '<strong class="' + amtColor + '">' + sign + formatVND(tx.amount) + '</strong>'
+                html += '<span>' + badgeHtml + '</span>'
+                html += '</div>'
+            }
+            txList.innerHTML = html
+        }
+    } catch (e) {
+        console.warn("Lỗi tải thông tin ví:", e.message)
+    }
+}
+
+// Tải danh sách xe từ CSDL (chỉ lấy các xe đã được Admin duyệt)
+async function fetchBikesFromBackend() {
+    try {
+        var res = await fetch("/api/vehicles")
+        if (!res.ok) return
+        var list = await res.json()
+        if (Array.isArray(list) && list.length > 0) {
+            var areas = getPickupAreaList()
+            bikesData = list.map(function (v, idx) {
+                return {
+                    id: v.id,
+                    brand: v.brand,
+                    name: v.name || (v.brand + " " + v.model),
+                    type: v.type || "Xe tay ga",
+                    cc: v.cc || "110cc",
+                    fuel: v.fuel || "Xăng",
+                    hourPrice: Number(v.hourPrice) || 30000,
+                    dayPrice: Number(v.dayPrice) || 180000,
+                    deposit: Number(v.deposit) || 300000,
+                    area: areas[idx % areas.length],
+                    owner: v.owner || "Chủ xe",
+                    license_plate: v.license_plate
+                }
+            })
+            renderBikes()
+            updateBookingSummary()
+        }
+    } catch (e) {
+        console.warn("Không tải được xe từ CSDL:", e.message)
+    }
+}
+
 function bindScheduleToggle(btn) {
     btn.addEventListener("click", function () {
         var row = this.closest(".owner-table-row")
         var badge = row.querySelector("span span")
-        if (badge.textContent == "Đang trống") {
+        if (badge && badge.textContent === "Đang trống") {
             badge.textContent = "Đang cho thuê"
             badge.className = "badge-warn-sm"
             this.textContent = "Mở trống"
-        } else {
+        } else if (badge) {
             badge.textContent = "Đang trống"
             badge.className = "badge-success"
             this.textContent = "Khóa lịch"
@@ -1149,39 +1411,294 @@ for (var t = 0; t < toggleBtns.length; t++) {
     bindScheduleToggle(toggleBtns[t])
 }
 
+// Tải danh sách xe của chính chủ xe đăng nhập
+async function fetchOwnerVehicles() {
+    var ownerList = document.getElementById("ownerBikeList")
+    if (!ownerList) return
+    if (!isLoggedIn || !currentUserId) {
+        ownerList.innerHTML = '<div style="text-align: center; padding: 20px; color: #64748b; font-size: 13px;">🔒 Vui lòng đăng nhập để xem danh sách xe ký gửi của bạn.</div>'
+        return
+    }
+    try {
+        var res = await fetch("/api/owner/my-vehicles?user_id=" + currentUserId)
+        if (!res.ok) return
+        var list = await res.json()
+        if (!Array.isArray(list) || list.length === 0) {
+            ownerList.innerHTML = '<div style="text-align: center; padding: 20px; color: #64748b; font-size: 13px;">Bạn chưa có xe ký gửi nào. Điền form bên cạnh để gửi yêu cầu thêm xe!</div>'
+            return
+        }
+
+        var html = ""
+        for (var i = 0; i < list.length; i++) {
+            var v = list[i]
+            var appStatus = v.approval_status || "pending"
+            var badgeHtml = ""
+            var btnHtml = ""
+
+            if (appStatus === "approved") {
+                badgeHtml = '<span class="badge-success">Đã duyệt</span>'
+                var isAvail = (v.availability_status === "available")
+                btnHtml = '<button class="btn-secondary-sm toggle-schedule-btn">' + (isAvail ? "Khóa lịch" : "Mở trống") + '</button>'
+            } else if (appStatus === "rejected") {
+                badgeHtml = '<span class="badge-warn-sm" style="background: #fee2e2; color: #ef4444;">Bị từ chối</span>'
+                btnHtml = '<button class="btn-disabled-sm" disabled>Bị từ chối</button>'
+            } else {
+                badgeHtml = '<span class="badge-warn-sm">Chờ duyệt</span>'
+                btnHtml = '<button class="btn-disabled-sm" disabled>Đang đợi duyệt</button>'
+            }
+
+            html += '<div class="owner-table-row">'
+            html += '<strong>' + v.name + '</strong>'
+            html += '<span>' + v.license_plate + '</span>'
+            html += '<span>' + badgeHtml + '</span>'
+            html += btnHtml
+            html += '</div>'
+        }
+        ownerList.innerHTML = html
+
+        var btns = ownerList.querySelectorAll(".toggle-schedule-btn")
+        for (var b = 0; b < btns.length; b++) {
+            bindScheduleToggle(btns[b])
+        }
+    } catch (e) {
+        console.warn("Lỗi load danh sách xe chủ:", e.message)
+    }
+}
+
+// Người dùng gửi hồ sơ ký gửi xe mới lên Admin
 var btnSubmitConsign = document.getElementById("btnSubmitConsign")
 if (btnSubmitConsign != null) {
-    btnSubmitConsign.addEventListener("click", function () {
-        var modelVal = document.getElementById("ownModel").value.trim()
-        if (modelVal == "") modelVal = document.getElementById("ownBrand").value + " 2024"
-        var ownerList = document.getElementById("ownerBikeList")
-        var newRow = document.createElement("div")
-        newRow.className = "owner-table-row"
-        newRow.innerHTML = '<strong>' + modelVal + '</strong><span>06/11 - 10/11</span><span><span class="badge-success">Đang trống</span></span><button class="btn-secondary-sm toggle-schedule-btn">Khóa lịch</button>'
-        ownerList.prepend(newRow)
-        bindScheduleToggle(newRow.querySelector(".toggle-schedule-btn"))
-        renderOwnerOrders()
-        alert("Đã gửi hồ sơ ký gửi xe " + modelVal + " lên Admin!")
+    btnSubmitConsign.addEventListener("click", async function () {
+        if (!isLoggedIn || !currentUserId) {
+            alert("🔒 Bạn cần đăng nhập tài khoản trước khi gửi yêu cầu ký gửi xe!")
+            switchTab("tab6")
+            return
+        }
+
+        var brand = (document.getElementById("ownBrand") ? document.getElementById("ownBrand").value.trim() : "")
+        var model = (document.getElementById("ownModel") ? document.getElementById("ownModel").value.trim() : "")
+        var type = (document.getElementById("ownType") ? document.getElementById("ownType").value.trim() : "Xe tay ga")
+        var cc = (document.getElementById("ownCc") ? document.getElementById("ownCc").value.trim() : "110cc")
+        var fuel = (document.getElementById("ownFuel") ? document.getElementById("ownFuel").value.trim() : "Xăng")
+        var hourPrice = (document.getElementById("ownHourPrice") ? document.getElementById("ownHourPrice").value.trim() : "")
+        var dayPrice = (document.getElementById("ownDayPrice") ? document.getElementById("ownDayPrice").value.trim() : "")
+        var plate = (document.getElementById("ownPlate") ? document.getElementById("ownPlate").value.trim() : "")
+
+        if (!brand || !model || !plate || !hourPrice || !dayPrice) {
+            alert("❌ Vui lòng nhập đầy đủ thông tin: Hãng xe, Tên mẫu xe, Giá thuê theo giờ, Giá theo ngày và Biển số xe!")
+            return
+        }
+
+        try {
+            btnSubmitConsign.disabled = true
+            btnSubmitConsign.textContent = "Đang gửi hồ sơ lên Admin..."
+
+            var res = await fetch("/api/vehicles/consign", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    user_id: currentUserId,
+                    brand: brand,
+                    model: model,
+                    vehicle_type: type || "Xe tay ga",
+                    engine_cc: cc || "110cc",
+                    fuel_type: fuel || "Xăng",
+                    hour_price: Number(hourPrice),
+                    day_price: Number(dayPrice),
+                    license_plate: plate
+                })
+            })
+            var data = await res.json().catch(function () { return {} })
+
+            if (!res.ok) {
+                alert("❌ " + (data.message || "Gửi yêu cầu ký gửi thất bại!"))
+                return
+            }
+
+            alert("🎉 " + data.message)
+            // Làm trống toàn bộ form sau khi gửi thành công
+            if (document.getElementById("ownBrand")) document.getElementById("ownBrand").value = ""
+            if (document.getElementById("ownModel")) document.getElementById("ownModel").value = ""
+            if (document.getElementById("ownType")) document.getElementById("ownType").value = ""
+            if (document.getElementById("ownCc")) document.getElementById("ownCc").value = ""
+            if (document.getElementById("ownFuel")) document.getElementById("ownFuel").value = ""
+            if (document.getElementById("ownHourPrice")) document.getElementById("ownHourPrice").value = ""
+            if (document.getElementById("ownDayPrice")) document.getElementById("ownDayPrice").value = ""
+            if (document.getElementById("ownPlate")) document.getElementById("ownPlate").value = ""
+
+            fetchOwnerVehicles()
+        } catch (err) {
+            alert("❌ Lỗi kết nối hệ thống: " + err.message)
+        } finally {
+            btnSubmitConsign.disabled = false
+            btnSubmitConsign.textContent = "Gửi hồ sơ ký gửi xe lên Admin"
+        }
     })
 }
 
-document.getElementById("btnApproveConsign").addEventListener("click", function () {
-    var badge = document.getElementById("consignBadge")
-    badge.textContent = "Đã duyệt"
-    badge.className = "badge-success"
-    this.textContent = "Đã lên sàn"
-    this.className = "btn-disabled-sm"
-    this.disabled = true
-})
+// ==========================================
+// ADMIN: DUYỆT XE KÝ GỬI & DUYỆT NẠP TIỀN QR
+// ==========================================
+async function loadAdminPendingVehicles() {
+    var container = document.getElementById("adminPendingVehicleList")
+    if (!container) return
+    try {
+        var res = await fetch("/api/admin/vehicles/pending")
+        if (!res.ok) return
+        var list = await res.json()
+        if (!Array.isArray(list) || list.length === 0) {
+            container.innerHTML = '<div style="text-align: center; padding: 20px; color: #64748b; font-size: 13px;">✅ Hiện không có xe nào đang chờ duyệt.</div>'
+            return
+        }
 
-document.getElementById("btnRefundDeposit").addEventListener("click", function () {
-    var badge = document.getElementById("disputeBadge")
-    badge.textContent = "Đã hoàn cọc"
-    badge.className = "badge-success"
-    this.textContent = "Đã hoàn tất"
-    this.className = "btn-disabled-sm"
-    this.disabled = true
-})
+        var html = ""
+        for (var i = 0; i < list.length; i++) {
+            var v = list[i]
+            html += '<div class="admin-approve-row">'
+            html += '<strong>Xe ký gửi: ' + v.brand + ' ' + v.model + '</strong>'
+            html += '<span>Biển số: <strong>' + v.license_plate + '</strong> • ' + (v.vehicle_type || 'Xe tay ga') + ' • ' + (v.engine_cc || '110cc') + ' • Giá: ' + formatVND(v.price_per_day) + '/ngày • Chủ xe: ' + v.owner_name + ' (' + v.owner_phone + ')</span>'
+            html += '<span><span class="badge-warn-sm">Chờ duyệt</span></span>'
+            html += '<div style="display: flex; gap: 6px;">'
+            html += '<button class="btn-primary-sm" onclick="handleApproveVehicle(' + v.vehicle_id + ')">Duyệt lên sàn</button>'
+            html += '<button class="btn-secondary-sm" style="background: #fee2e2; color: #ef4444; border: none;" onclick="handleRejectVehicle(' + v.vehicle_id + ')">Từ chối</button>'
+            html += '</div>'
+            html += '</div>'
+        }
+        container.innerHTML = html
+    } catch (e) {
+        console.warn("Lỗi load danh sách xe chờ duyệt:", e.message)
+    }
+}
+
+window.handleApproveVehicle = async function (vehicleId) {
+    if (!confirm("Bạn có chắc chắn muốn duyệt xe này lên sàn cho khách thuê?")) return
+    try {
+        var res = await fetch("/api/admin/vehicles/" + vehicleId + "/approve", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ admin_id: currentUserId || 6 })
+        })
+        var data = await res.json().catch(function () { return {} })
+        if (!res.ok) {
+            alert("❌ " + (data.message || "Duyệt xe thất bại!"))
+            return
+        }
+        alert("🎉 " + data.message)
+        loadAdminPendingVehicles()
+        fetchBikesFromBackend()
+    } catch (err) {
+        alert("❌ Lỗi duyệt xe: " + err.message)
+    }
+}
+
+window.handleRejectVehicle = async function (vehicleId) {
+    if (!confirm("Bạn có chắc chắn muốn từ chối hồ sơ xe này?")) return
+    try {
+        var res = await fetch("/api/admin/vehicles/" + vehicleId + "/reject", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" }
+        })
+        var data = await res.json().catch(function () { return {} })
+        if (!res.ok) {
+            alert("❌ " + (data.message || "Từ chối xe thất bại!"))
+            return
+        }
+        alert("Đã từ chối xe ký gửi.")
+        loadAdminPendingVehicles()
+    } catch (err) {
+        alert("❌ Lỗi từ chối xe: " + err.message)
+    }
+}
+
+async function loadAdminPendingDeposits() {
+    var container = document.getElementById("adminPendingDepositList")
+    if (!container) return
+    try {
+        var res = await fetch("/api/admin/deposits/pending")
+        if (!res.ok) return
+        var list = await res.json()
+        if (!Array.isArray(list) || list.length === 0) {
+            container.innerHTML = '<div style="text-align: center; padding: 20px; color: #64748b; font-size: 13px;">✅ Hiện không có yêu cầu nạp tiền nào đang chờ duyệt.</div>'
+            return
+        }
+
+        var html = ""
+        for (var i = 0; i < list.length; i++) {
+            var d = list[i]
+            html += '<div class="admin-approve-row">'
+            html += '<strong>Nạp tiền #TX' + d.transaction_id + '</strong>'
+            html += '<span>Số tiền: <strong class="text-green">+' + formatVND(d.amount) + '</strong> • Người nạp: <strong>' + d.full_name + '</strong> (SĐT: ' + (d.phone || d.email) + ') • Lúc: ' + d.created_at + '</span>'
+            html += '<span><span class="badge-warn-sm">Chờ duyệt</span></span>'
+            html += '<div style="display: flex; gap: 6px;">'
+            html += '<button class="btn-primary-sm" onclick="handleApproveDeposit(' + d.transaction_id + ')">Duyệt nạp tiền</button>'
+            html += '<button class="btn-secondary-sm" style="background: #fee2e2; color: #ef4444; border: none;" onclick="handleRejectDeposit(' + d.transaction_id + ')">Từ chối</button>'
+            html += '</div>'
+            html += '</div>'
+        }
+        container.innerHTML = html
+    } catch (e) {
+        console.warn("Lỗi load danh sách nạp tiền chờ duyệt:", e.message)
+    }
+}
+
+window.handleApproveDeposit = async function (txId) {
+    if (!confirm("Bạn có chắc chắn đã nhận được tiền và muốn duyệt cộng tiền cho giao dịch #" + txId + "?")) return
+    try {
+        var res = await fetch("/api/admin/deposits/" + txId + "/approve", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" }
+        })
+        var data = await res.json().catch(function () { return {} })
+        if (!res.ok) {
+            alert("❌ " + (data.message || "Duyệt thất bại!"))
+            return
+        }
+        alert("🎉 " + data.message)
+        loadAdminPendingDeposits()
+        loadWalletData()
+    } catch (err) {
+        alert("❌ Lỗi duyệt nạp tiền: " + err.message)
+    }
+}
+
+window.handleRejectDeposit = async function (txId) {
+    if (!confirm("Bạn có chắc chắn muốn từ chối yêu cầu nạp tiền #" + txId + "?")) return
+    try {
+        var res = await fetch("/api/admin/deposits/" + txId + "/reject", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" }
+        })
+        var data = await res.json().catch(function () { return {} })
+        if (!res.ok) {
+            alert("❌ " + (data.message || "Từ chối thất bại!"))
+            return
+        }
+        alert("Đã từ chối yêu cầu nạp tiền.")
+        loadAdminPendingDeposits()
+    } catch (err) {
+        alert("❌ Lỗi từ chối nạp tiền: " + err.message)
+    }
+}
+
+var btnRefreshAdminVehicles = document.getElementById("btnRefreshAdminVehicles")
+if (btnRefreshAdminVehicles) btnRefreshAdminVehicles.addEventListener("click", loadAdminPendingVehicles)
+
+var btnRefreshAdminDeposits = document.getElementById("btnRefreshAdminDeposits")
+if (btnRefreshAdminDeposits) btnRefreshAdminDeposits.addEventListener("click", loadAdminPendingDeposits)
+
+var btnRefundDeposit = document.getElementById("btnRefundDeposit")
+if (btnRefundDeposit) {
+    btnRefundDeposit.addEventListener("click", function () {
+        var badge = document.getElementById("disputeBadge")
+        if (badge) {
+            badge.textContent = "Đã hoàn cọc"
+            badge.className = "badge-success"
+        }
+        this.textContent = "Đã hoàn tất"
+        this.className = "btn-disabled-sm"
+        this.disabled = true
+    })
+}
 
 function renderVouchers() {
     var container = document.getElementById("voucherListContainer")
@@ -1283,3 +1800,11 @@ updateBookingSummary()
 updateWalletUI()
 renderVouchers()
 renderAccounts()
+
+fetchBikesFromBackend()
+if (isLoggedIn) {
+    loadWalletData()
+    fetchOwnerVehicles()
+}
+loadAdminPendingVehicles()
+loadAdminPendingDeposits()

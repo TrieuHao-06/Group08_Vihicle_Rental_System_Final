@@ -38,6 +38,78 @@ const pool = mysql.createPool({
     connectionLimit: 10
 });
 
+// Tự động kiểm tra và đồng bộ cấu trúc bảng vehicles nếu CSDL đang chạy schema cũ
+async function initDatabaseSchema() {
+    try {
+        const [cols] = await pool.query("SHOW COLUMNS FROM vehicles");
+        const existingCols = new Set(cols.map(c => c.Field));
+
+        if (!existingCols.has("vehicle_type")) {
+            await pool.query("ALTER TABLE vehicles ADD COLUMN vehicle_type VARCHAR(50) NOT NULL DEFAULT 'Xe tay ga'");
+            console.log("-> Đã bổ sung cột vehicle_type vào bảng vehicles");
+        }
+        if (!existingCols.has("engine_cc")) {
+            await pool.query("ALTER TABLE vehicles ADD COLUMN engine_cc VARCHAR(30) NOT NULL DEFAULT '110cc'");
+            console.log("-> Đã bổ sung cột engine_cc vào bảng vehicles");
+        }
+        if (!existingCols.has("fuel_type")) {
+            await pool.query("ALTER TABLE vehicles ADD COLUMN fuel_type VARCHAR(30) NOT NULL DEFAULT 'Xăng'");
+            console.log("-> Đã bổ sung cột fuel_type vào bảng vehicles");
+        }
+        if (!existingCols.has("price_per_hour")) {
+            await pool.query("ALTER TABLE vehicles ADD COLUMN price_per_hour DOUBLE NOT NULL DEFAULT 0");
+            console.log("-> Đã bổ sung cột price_per_hour vào bảng vehicles");
+        }
+        if (!existingCols.has("available_from")) {
+            await pool.query("ALTER TABLE vehicles ADD COLUMN available_from DATE DEFAULT NULL");
+            console.log("-> Đã bổ sung cột available_from vào bảng vehicles");
+        }
+        if (!existingCols.has("available_to")) {
+            await pool.query("ALTER TABLE vehicles ADD COLUMN available_to DATE DEFAULT NULL");
+            console.log("-> Đã bổ sung cột available_to vào bảng vehicles");
+        }
+        if (!existingCols.has("approval_status")) {
+            await pool.query("ALTER TABLE vehicles ADD COLUMN approval_status VARCHAR(30) NOT NULL DEFAULT 'pending'");
+            console.log("-> Đã bổ sung cột approval_status vào bảng vehicles");
+        }
+        if (!existingCols.has("availability_status")) {
+            await pool.query("ALTER TABLE vehicles ADD COLUMN availability_status VARCHAR(30) NOT NULL DEFAULT 'available'");
+            console.log("-> Đã bổ sung cột availability_status vào bảng vehicles");
+        }
+
+        // Tạo bảng vehicle_files nếu chưa có
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS vehicle_files (
+                file_id     INT NOT NULL AUTO_INCREMENT,
+                vehicle_id  INT NOT NULL,
+                kind        VARCHAR(20)  NOT NULL,
+                file_path   VARCHAR(255) NOT NULL,
+                uploaded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (file_id),
+                CONSTRAINT fk_vehicle_files_vehicle FOREIGN KEY (vehicle_id) REFERENCES vehicles (vehicle_id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
+        console.log("-> Cấu trúc bảng vehicles & CSDL đã được kiểm tra và đồng bộ hoàn tất.");
+    } catch (e) {
+        console.warn("Lưu ý initDatabaseSchema:", e.message);
+    }
+}
+initDatabaseSchema();
+
+// Khởi tạo tài khoản mẫu nếu chưa tồn tại (KHÔNG ghi đè mật khẩu khi người dùng đã đổi)
+async function initDemoUsers() {
+    try {
+        await pool.query(`
+            INSERT IGNORE INTO users (user_id, full_name, email, phone, password_hash, kyc_status, status)
+            VALUES (8, 'Trần Văn Hiền', 'tranvanhien@gmail.com', '0908425939', '123456789', 'verified', 'active');
+        `);
+        console.log("Đã sẵn sàng tài khoản Trần Văn Hiền (email: tranvanhien@gmail.com)");
+    } catch (e) {
+        console.warn("Lưu ý initDemoUsers:", e.message);
+    }
+}
+initDemoUsers();
+
 // Kiểm tra kết nối MySQL
 app.get("/api/health", async (req, res) => {
     try {
@@ -48,19 +120,335 @@ app.get("/api/health", async (req, res) => {
     }
 });
 
-// Lấy danh sách xe từ bảng vehicles
+// Lấy danh sách xe đã được Admin duyệt từ bảng vehicles để hiển thị cho khách thuê
 app.get("/api/vehicles", async (req, res) => {
     try {
         const [rows] = await pool.query(
-            `SELECT v.vehicle_id, v.owner_id, u.full_name AS owner_name,
-                    v.brand, v.model, v.license_plate,
-                    v.price_per_day, v.deposit_amount,
+            `SELECT v.vehicle_id AS id, v.owner_id, u.full_name AS owner,
+                    v.brand, v.model,
+                    CONCAT(v.brand, ' ', v.model) AS name,
+                    COALESCE(v.vehicle_type, 'Xe tay ga') AS type,
+                    COALESCE(v.engine_cc, '110cc') AS cc,
+                    COALESCE(v.fuel_type, 'Xăng') AS fuel,
+                    v.license_plate,
+                    COALESCE(v.price_per_hour, ROUND(v.price_per_day / 6, -3)) AS hourPrice,
+                    v.price_per_day AS dayPrice,
+                    COALESCE(v.deposit_amount, 300000) AS deposit,
                     v.approval_status, v.availability_status
              FROM vehicles v
              JOIN users u ON v.owner_id = u.user_id
+             WHERE v.approval_status = 'approved' AND v.availability_status = 'available'
              ORDER BY v.vehicle_id ASC`
         );
         res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Người dùng gửi yêu cầu ký gửi thêm xe mới (trạng thái ban đầu: pending - Chờ Admin duyệt)
+app.post("/api/vehicles/consign", async (req, res) => {
+    const { user_id, brand, model, vehicle_type, engine_cc, fuel_type, hour_price, day_price, license_plate } = req.body || {};
+    const hPrice = Number(hour_price);
+    const dPrice = Number(day_price);
+    if (!user_id || !brand || !model || !license_plate || !hPrice || !dPrice) {
+        return res.status(400).json({ message: "Vui lòng nhập đầy đủ hãng xe, mẫu xe, giá thuê và biển số kiểm soát!" });
+    }
+
+    const cleanPlate = String(license_plate).trim().toUpperCase();
+    const normPlate = cleanPlate.replace(/[\s.\-]/g, "");
+    if (!normPlate) {
+        return res.status(400).json({ message: "Biển số xe không hợp lệ!" });
+    }
+
+    const conn = await pool.getConnection();
+    try {
+        await conn.beginTransaction();
+
+        // Đảm bảo user có bản ghi trong bảng vehicle_owners
+        await conn.query("INSERT IGNORE INTO vehicle_owners (user_id) VALUES (?)", [user_id]);
+
+        // Kiểm tra biển số xe trùng (chuẩn hóa không phân biệt khoảng trắng, dấu chấm, dấu gạch ngang)
+        const PLATE_NORM_SQL = "REPLACE(REPLACE(REPLACE(UPPER(license_plate),' ',''),'.',''),'-','')";
+        const [existing] = await conn.query(
+            `SELECT vehicle_id, license_plate, brand, model FROM vehicles WHERE ${PLATE_NORM_SQL} = ? LIMIT 1`,
+            [normPlate]
+        );
+        if (existing.length > 0) {
+            await conn.rollback();
+            return res.status(409).json({
+                message: `Biển số xe "${cleanPlate}" đã bị trùng với xe "${existing[0].brand} ${existing[0].model}" (${existing[0].license_plate}) trong hệ thống!`
+            });
+        }
+
+        const depositAmt = dPrice * 3;
+
+        // Kiểm tra các cột thực tế có trong bảng vehicles để đảm bảo tương thích 100%
+        const [cols] = await conn.query("SHOW COLUMNS FROM vehicles");
+        const existingCols = new Set(cols.map(c => c.Field));
+
+        const fields = ["owner_id", "brand", "model", "license_plate", "price_per_day", "deposit_amount"];
+        const values = [user_id, brand.trim(), model.trim(), cleanPlate, dPrice, depositAmt];
+        const placeholders = ["?", "?", "?", "?", "?", "?"];
+
+        if (existingCols.has("vehicle_type")) {
+            fields.push("vehicle_type");
+            values.push(vehicle_type || "Xe tay ga");
+            placeholders.push("?");
+        }
+        if (existingCols.has("engine_cc")) {
+            fields.push("engine_cc");
+            values.push(engine_cc || "110cc");
+            placeholders.push("?");
+        }
+        if (existingCols.has("fuel_type")) {
+            fields.push("fuel_type");
+            values.push(fuel_type || "Xăng");
+            placeholders.push("?");
+        }
+        if (existingCols.has("price_per_hour")) {
+            fields.push("price_per_hour");
+            values.push(hPrice);
+            placeholders.push("?");
+        }
+        if (existingCols.has("approval_status")) {
+            fields.push("approval_status");
+            values.push("pending");
+            placeholders.push("?");
+        }
+        if (existingCols.has("availability_status")) {
+            fields.push("availability_status");
+            values.push("unavailable");
+            placeholders.push("?");
+        }
+
+        const [ins] = await conn.query(
+            `INSERT INTO vehicles (${fields.join(", ")}) VALUES (${placeholders.join(", ")})`,
+            values
+        );
+
+        await conn.commit();
+        res.status(201).json({
+            ok: true,
+            vehicle_id: ins.insertId,
+            message: `Hồ sơ ký gửi xe ${brand} ${model} (${cleanPlate}) đã gửi lên Admin. Vui lòng chờ phê duyệt!`
+        });
+    } catch (err) {
+        await conn.rollback();
+        res.status(500).json({ message: "Lỗi lưu xe: " + err.message });
+    } finally {
+        conn.release();
+    }
+});
+
+// Chủ xe xem danh sách xe của chính mình cùng trạng thái duyệt
+app.get("/api/owner/my-vehicles", async (req, res) => {
+    const userId = Number(req.query.user_id);
+    if (!userId) return res.json([]);
+    try {
+        const [rows] = await pool.query(
+            `SELECT vehicle_id AS id, brand, model, CONCAT(brand, ' ', model) AS name,
+                    vehicle_type AS type, engine_cc AS cc, fuel_type AS fuel, license_plate,
+                    price_per_hour AS hourPrice, price_per_day AS dayPrice, deposit_amount AS deposit,
+                    approval_status, availability_status
+             FROM vehicles
+             WHERE owner_id = ?
+             ORDER BY vehicle_id DESC`,
+            [userId]
+        );
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Admin: Lấy danh sách xe đang chờ duyệt (approval_status = 'pending')
+app.get("/api/admin/vehicles/pending", async (req, res) => {
+    try {
+        const [rows] = await pool.query(
+            `SELECT v.vehicle_id, v.owner_id, u.full_name AS owner_name, u.phone AS owner_phone,
+                    v.brand, v.model, v.license_plate, v.vehicle_type, v.engine_cc, v.fuel_type,
+                    v.price_per_hour, v.price_per_day, v.deposit_amount, v.approval_status
+             FROM vehicles v
+             JOIN users u ON v.owner_id = u.user_id
+             WHERE v.approval_status = 'pending'
+             ORDER BY v.vehicle_id DESC`
+        );
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Admin: Phê duyệt xe lên sàn (chuyển sang 'approved' và 'available')
+app.post("/api/admin/vehicles/:id/approve", async (req, res) => {
+    const vehicleId = Number(req.params.id);
+    const adminId = Number(req.body.admin_id) || 6;
+    try {
+        const [result] = await pool.query(
+            `UPDATE vehicles 
+             SET approval_status = 'approved', availability_status = 'available', approved_by = ?
+             WHERE vehicle_id = ?`,
+            [adminId, vehicleId]
+        );
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: "Không tìm thấy xe hoặc xe không tồn tại!" });
+        }
+        res.json({ ok: true, message: "Đã duyệt xe lên sàn thành công! Khách thuê có thể thấy xe này trên trang chủ." });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Admin: Từ chối xe ký gửi
+app.post("/api/admin/vehicles/:id/reject", async (req, res) => {
+    const vehicleId = Number(req.params.id);
+    try {
+        const [result] = await pool.query(
+            `UPDATE vehicles 
+             SET approval_status = 'rejected', availability_status = 'unavailable'
+             WHERE vehicle_id = ?`,
+            [vehicleId]
+        );
+        res.json({ ok: true, message: "Đã từ chối xe ký gửi." });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Lấy thông tin ví và lịch sử biến động số dư của người dùng
+app.get("/api/wallet", async (req, res) => {
+    const userId = Number(req.query.user_id);
+    if (!userId) {
+        return res.status(400).json({ message: "Thiếu user_id!" });
+    }
+    try {
+        await pool.query("INSERT IGNORE INTO wallets (user_id, balance) VALUES (?, 0)", [userId]);
+        const [wallets] = await pool.query("SELECT wallet_id, balance FROM wallets WHERE user_id = ?", [userId]);
+        const wallet = wallets[0];
+
+        const [txs] = await pool.query(
+            `SELECT transaction_id, wallet_id, booking_id, amount, type, status, description,
+                    DATE_FORMAT(created_at, '%d/%m/%Y %H:%i') AS created_at
+             FROM transactions
+             WHERE wallet_id = ?
+             ORDER BY transaction_id DESC`,
+            [wallet.wallet_id]
+        );
+        res.json({
+            wallet_id: wallet.wallet_id,
+            balance: Number(wallet.balance),
+            transactions: txs
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Người dùng gửi yêu cầu nạp tiền QR (trạng thái ban đầu: pending - Chờ Admin duyệt)
+app.post("/api/wallet/deposit-request", async (req, res) => {
+    const { user_id, amount } = req.body || {};
+    const numAmt = Number(amount);
+    if (!user_id || !numAmt || numAmt <= 0) {
+        return res.status(400).json({ message: "Số tiền nạp không hợp lệ!" });
+    }
+
+    const conn = await pool.getConnection();
+    try {
+        await conn.beginTransaction();
+        await conn.query("INSERT IGNORE INTO wallets (user_id, balance) VALUES (?, 0)", [user_id]);
+        const [wallets] = await conn.query("SELECT wallet_id FROM wallets WHERE user_id = ?", [user_id]);
+        const walletId = wallets[0].wallet_id;
+
+        const [ins] = await conn.query(
+            `INSERT INTO transactions (wallet_id, amount, type, status, description)
+             VALUES (?, ?, 'deposit', 'pending', ?)`,
+            [walletId, numAmt, `Nạp tiền qua chuyển khoản QR`]
+        );
+
+        await conn.commit();
+        res.status(201).json({
+            ok: true,
+            transaction_id: ins.insertId,
+            message: "Yêu cầu nạp tiền đã được gửi. Vui lòng chờ Admin kiểm tra và duyệt để cộng tiền vào tài khoản!"
+        });
+    } catch (err) {
+        await conn.rollback();
+        res.status(500).json({ message: "Lỗi tạo yêu cầu nạp: " + err.message });
+    } finally {
+        conn.release();
+    }
+});
+
+// Admin: Lấy danh sách các yêu cầu nạp tiền đang chờ duyệt
+app.get("/api/admin/deposits/pending", async (req, res) => {
+    try {
+        const [rows] = await pool.query(
+            `SELECT t.transaction_id, t.wallet_id, t.amount, t.status, t.description,
+                    DATE_FORMAT(t.created_at, '%d/%m/%Y %H:%i') AS created_at,
+                    u.user_id, u.full_name, u.phone, u.email
+             FROM transactions t
+             JOIN wallets w ON t.wallet_id = w.wallet_id
+             JOIN users u ON w.user_id = u.user_id
+             WHERE t.type = 'deposit' AND t.status = 'pending'
+             ORDER BY t.transaction_id DESC`
+        );
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Admin: Duyệt yêu cầu nạp tiền -> hoàn tất giao dịch & cộng số dư vào ví
+app.post("/api/admin/deposits/:id/approve", async (req, res) => {
+    const txId = Number(req.params.id);
+    const conn = await pool.getConnection();
+    try {
+        await conn.beginTransaction();
+        const [txs] = await conn.query(
+            "SELECT transaction_id, wallet_id, amount, status FROM transactions WHERE transaction_id = ? AND status = 'pending' FOR UPDATE",
+            [txId]
+        );
+        if (txs.length === 0) {
+            await conn.rollback();
+            return res.status(404).json({ message: "Không tìm thấy yêu cầu nạp tiền hoặc yêu cầu đã được xử lý!" });
+        }
+        const tx = txs[0];
+
+        // 1. Cập nhật trạng thái transaction
+        await conn.query(
+            "UPDATE transactions SET status = 'completed', description = 'Nạp tiền qua chuyển khoản QR (Admin đã duyệt)' WHERE transaction_id = ?",
+            [txId]
+        );
+
+        // 2. Cộng tiền vào ví
+        await conn.query(
+            "UPDATE wallets SET balance = balance + ? WHERE wallet_id = ?",
+            [tx.amount, tx.wallet_id]
+        );
+
+        await conn.commit();
+        res.json({ ok: true, message: `Đã duyệt nạp ${tx.amount.toLocaleString('vi-VN')}đ thành công! Tiền đã được cộng vào ví của người dùng.` });
+    } catch (err) {
+        await conn.rollback();
+        res.status(500).json({ error: err.message });
+    } finally {
+        conn.release();
+    }
+});
+
+// Admin: Từ chối yêu cầu nạp tiền
+app.post("/api/admin/deposits/:id/reject", async (req, res) => {
+    const txId = Number(req.params.id);
+    try {
+        const [result] = await pool.query(
+            "UPDATE transactions SET status = 'rejected', description = 'Nạp tiền bị từ chối bởi Admin' WHERE transaction_id = ? AND status = 'pending'",
+            [txId]
+        );
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: "Không tìm thấy yêu cầu nạp tiền hoặc yêu cầu đã được xử lý!" });
+        }
+        res.json({ ok: true, message: "Đã từ chối yêu cầu nạp tiền!" });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -73,19 +461,22 @@ app.post("/api/auth/login", async (req, res) => {
         return res.status(400).json({ message: "Vui lòng nhập email/SĐT và mật khẩu!" });
     }
 
+    const idClean = String(identifier).trim();
+    const passClean = String(password).trim();
+
     try {
         const [rows] = await pool.query(
             `SELECT u.user_id, u.full_name, u.email, u.phone, u.password_hash, u.kyc_status, u.status,
-                    a.admin_level, vo.bank_account
+                    a.admin_level, vo.user_id AS owner_uid
              FROM users u
              LEFT JOIN admins a ON u.user_id = a.user_id
              LEFT JOIN vehicle_owners vo ON u.user_id = vo.user_id
              WHERE u.email = ? OR u.phone = ?
              LIMIT 1`,
-            [identifier.trim(), identifier.trim()]
+            [idClean, idClean]
         );
 
-        if (rows.length === 0 || rows[0].password_hash !== password) {
+        if (rows.length === 0 || String(rows[0].password_hash).trim() !== passClean) {
             return res.status(401).json({ message: "Sai email/SĐT hoặc mật khẩu!" });
         }
 
@@ -94,7 +485,8 @@ app.post("/api/auth/login", async (req, res) => {
             return res.status(403).json({ message: "Tài khoản đang bị khóa hoặc ngừng hoạt động!" });
         }
 
-        const role = user.admin_level ? "ADMIN" : (user.bank_account ? "OWNER" : "RENTER");
+        const role = user.admin_level ? "ADMIN" : (user.owner_uid ? "OWNER" : "RENTER");
+        console.log(`[AUTH] ${user.full_name} (${user.email}) đăng nhập thành công vai trò ${role}`);
         res.json({
             user_id: user.user_id,
             full_name: user.full_name,
@@ -105,6 +497,68 @@ app.post("/api/auth/login", async (req, res) => {
         });
     } catch (err) {
         res.status(500).json({ message: "Lỗi hệ thống: " + err.message });
+    }
+});
+
+// Đăng xuất
+app.post("/api/auth/logout", (req, res) => {
+    res.json({ ok: true, message: "Đăng xuất thành công!" });
+});
+
+// Đổi mật khẩu tài khoản (kết nối CSDL users, hỗ trợ cả user_id hoặc email/sđt)
+app.post("/api/user/change-password", async (req, res) => {
+    const { user_id, identifier, old_password, new_password } = req.body || {};
+    const idClean = String(identifier || "").trim();
+    const oldClean = String(old_password || "").trim();
+    const newClean = String(new_password || "").trim();
+
+    if ((!user_id && !idClean) || !oldClean || !newClean) {
+        return res.status(400).json({ message: "Vui lòng nhập đầy đủ thông tin (tài khoản, mật khẩu cũ và mới)!" });
+    }
+    if (newClean.length < 8) {
+        return res.status(400).json({ message: "Mật khẩu mới phải có tối thiểu 8 ký tự!" });
+    }
+    if (newClean === oldClean) {
+        return res.status(400).json({ message: "Mật khẩu mới không được trùng với mật khẩu cũ!" });
+    }
+
+    try {
+        let rows;
+        if (idClean) {
+            [rows] = await pool.query(
+                "SELECT user_id, password_hash, full_name, email, phone FROM users WHERE email = ? OR phone = ? LIMIT 1",
+                [idClean, idClean]
+            );
+        } else {
+            [rows] = await pool.query(
+                "SELECT user_id, password_hash, full_name, email, phone FROM users WHERE user_id = ? LIMIT 1",
+                [user_id]
+            );
+        }
+
+        if (rows.length === 0) {
+            return res.status(404).json({ message: `Không tìm thấy tài khoản "${idClean}" trong hệ thống CSDL!` });
+        }
+
+        const user = rows[0];
+        const hashClean = String(user.password_hash).trim();
+
+        if (hashClean !== oldClean) {
+            return res.status(400).json({ 
+                message: `Mật khẩu hiện tại không chính xác!` 
+            });
+        }
+
+        const [updateResult] = await pool.query(
+            "UPDATE users SET password_hash = ? WHERE user_id = ?",
+            [newClean, user.user_id]
+        );
+
+        console.log(`[AUTH] Đã đổi mật khẩu thành công cho ${user.full_name} (${user.email}). Cập nhật ${updateResult.affectedRows} dòng.`);
+        res.json({ ok: true, message: "Đổi mật khẩu thành công!" });
+    } catch (err) {
+        console.error("[AUTH] Lỗi đổi mật khẩu:", err);
+        res.status(500).json({ message: "Lỗi hệ thống CSDL: " + err.message });
     }
 });
 
