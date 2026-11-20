@@ -204,6 +204,11 @@ function initBikeAreas() {
 }
 
 function switchTab(targetId) {
+    if (targetId === "tab5" && currentAppRoleMode === "USER") {
+        alert("🔒 KHU VỰC QUẢN TRỊ ĐANG BỊ KHÓA!\nBạn đang ở chế độ Khách thuê (User) nên không thể truy cập vào trang Quản trị.\n\nVui lòng bấm nút 'Chế độ: Khách thuê (User)' trên góc phải thanh điều hướng để chuyển sang Quản trị viên (Admin) trước khi truy cập.")
+        return
+    }
+
     var panels = document.querySelectorAll(".tab-panel")
     for (var i = 0; i < panels.length; i++) {
         panels[i].classList.remove("active")
@@ -239,6 +244,7 @@ function switchTab(targetId) {
         loadAdminPendingDeposits()
         if (typeof loadDailyRevenueReport === "function") loadDailyRevenueReport()
         loadVouchersFromBackend()
+        loadAccountsFromBackend()
     } else if (targetId === "tab7") {
         renderBookedBikes()
     }
@@ -365,6 +371,8 @@ function updateRoleModeUI() {
     var toggleBtn = document.getElementById("btnRoleToggle")
     var badgeIcon = document.getElementById("roleBadgeIcon")
     var badgeText = document.getElementById("roleBadgeText")
+    var navTabAdmin = document.getElementById("navTabAdmin")
+    var adminDivider = document.getElementById("adminNavDivider")
     var adminBtn = document.getElementById("btnTopAdmin")
     var tab5Panel = document.getElementById("tab5")
 
@@ -376,11 +384,15 @@ function updateRoleModeUI() {
             toggleBtn.style.color = "#0d74e7"
             toggleBtn.style.background = "#eff6ff"
         }
+        if (navTabAdmin) {
+            navTabAdmin.innerHTML = "⚡ Quản trị"
+            navTabAdmin.classList.remove("locked")
+            navTabAdmin.title = "Khu vực Quản trị viên (Đang mở khóa)"
+        }
+        if (adminDivider) adminDivider.style.display = "inline-block"
         if (adminBtn) {
             adminBtn.innerHTML = "⚡ Admin"
-            adminBtn.style.opacity = "1"
-            adminBtn.style.cursor = "pointer"
-            adminBtn.title = "Khu vực Quản trị viên (Đang mở khóa)"
+            adminBtn.style.display = "none"
         }
         var lockedNotice = document.getElementById("adminLockedOverlay")
         if (lockedNotice) lockedNotice.classList.add("hidden")
@@ -400,10 +412,15 @@ function updateRoleModeUI() {
             toggleBtn.style.color = "#475569"
             toggleBtn.style.background = "#fff"
         }
+        if (navTabAdmin) {
+            navTabAdmin.innerHTML = "🔒 Quản trị"
+            navTabAdmin.classList.add("locked")
+            navTabAdmin.title = "Khu vực Quản trị viên (Bị khóa ở chế độ User - hãy bấm nút đổi vai trò sang Admin để mở)"
+        }
+        if (adminDivider) adminDivider.style.display = "inline-block"
         if (adminBtn) {
             adminBtn.innerHTML = "🔒 Admin"
-            adminBtn.style.opacity = "0.7"
-            adminBtn.title = "Khu vực Admin (Bị khóa ở chế độ User)"
+            adminBtn.style.display = "none"
         }
         if (tab5Panel) {
             var lockedNotice = document.getElementById("adminLockedOverlay")
@@ -440,16 +457,17 @@ if (btnRoleToggle != null) {
     btnRoleToggle.addEventListener("click", function () {
         if (currentAppRoleMode === "USER") {
             currentAppRoleMode = "ADMIN"
-            alert("🔄 ĐÃ CHUYỂN SANG CHẾ ĐỘ QUẢN TRỊ VIÊN (ADMIN)!\nCác nút duyệt xe, duyệt nạp tiền, quản lý voucher và báo cáo doanh thu đã được mở khóa và có thể tương tác.")
+            localStorage.setItem("group08_app_role_mode", currentAppRoleMode)
+            updateRoleModeUI()
+            switchTab("tab5")
         } else {
             currentAppRoleMode = "USER"
-            alert("🔄 ĐÃ CHUYỂN SANG CHẾ ĐỘ NGƯỜI DÙNG (USER)!\nKhu vực Quản trị viên (Admin) đã được khóa lại để bảo mật.")
+            localStorage.setItem("group08_app_role_mode", currentAppRoleMode)
+            updateRoleModeUI()
             if (document.getElementById("tab5") && document.getElementById("tab5").classList.contains("active")) {
                 switchTab("tab1")
             }
         }
-        localStorage.setItem("group08_app_role_mode", currentAppRoleMode)
-        updateRoleModeUI()
     })
 }
 

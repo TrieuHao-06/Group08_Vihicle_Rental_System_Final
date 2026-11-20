@@ -199,20 +199,38 @@ body {
 }
 
 .btn-top-admin {
-    background: transparent;
-    color: transparent;
-    border: none;
-    padding: 10px 22px;
-    border-radius: 50px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: default;
-    opacity: 0;
+    display: none;
 }
 
-.btn-top-admin:hover {
-    background: transparent;
-    opacity: 0;
+.nav-tab.nav-tab-admin {
+    color: #0d74e7;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.nav-tab.nav-tab-admin:hover {
+    background: #eff6ff;
+    color: #0b5ec4;
+}
+
+.nav-tab.nav-tab-admin.active {
+    background: #0d74e7;
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(13, 116, 231, 0.3);
+}
+
+.nav-tab.nav-tab-admin.locked {
+    opacity: 0.55;
+    cursor: not-allowed !important;
+    background: #f8fafc;
+    color: #94a3b8;
+    border: 1px dashed #cbd5e1;
+}
+
+.nav-tab.nav-tab-admin.locked:hover {
+    background: #fef2f2;
+    color: #ef4444;
+    border-color: #fca5a5;
 }
 
 .main-container {
