@@ -228,13 +228,17 @@ function switchTab(targetId) {
     } else if (targetId === "tab2") {
         renderRenterOrders()
         renderOwnerOrders()
+        if (typeof checkSelectedHandoverLockState === "function") checkSelectedHandoverLockState()
     } else if (targetId === "tab3") {
         loadWalletData()
     } else if (targetId === "tab4") {
         fetchOwnerVehicles()
     } else if (targetId === "tab5") {
+        if (typeof updateRoleModeUI === "function") updateRoleModeUI()
         loadAdminPendingVehicles()
         loadAdminPendingDeposits()
+        if (typeof loadDailyRevenueReport === "function") loadDailyRevenueReport()
+        loadVouchersFromBackend()
     } else if (targetId === "tab7") {
         renderBookedBikes()
     }
@@ -352,12 +356,119 @@ if (btnTopAccount != null) {
     })
 }
 
+// =========================================================================
+// QUẢN LÝ CHẾ ĐỘ VAI TRÒ (USER <-> ADMIN)
+// =========================================================================
+var currentAppRoleMode = localStorage.getItem("group08_app_role_mode") || "USER" // "USER" hoặc "ADMIN"
+
+function updateRoleModeUI() {
+    var toggleBtn = document.getElementById("btnRoleToggle")
+    var badgeIcon = document.getElementById("roleBadgeIcon")
+    var badgeText = document.getElementById("roleBadgeText")
+    var adminBtn = document.getElementById("btnTopAdmin")
+    var tab5Panel = document.getElementById("tab5")
+
+    if (currentAppRoleMode === "ADMIN") {
+        if (badgeIcon) badgeIcon.textContent = "🛡️"
+        if (badgeText) badgeText.textContent = "Quản trị viên (Admin)"
+        if (toggleBtn) {
+            toggleBtn.style.borderColor = "#0d74e7"
+            toggleBtn.style.color = "#0d74e7"
+            toggleBtn.style.background = "#eff6ff"
+        }
+        if (adminBtn) {
+            adminBtn.innerHTML = "⚡ Admin"
+            adminBtn.style.opacity = "1"
+            adminBtn.style.cursor = "pointer"
+            adminBtn.title = "Khu vực Quản trị viên (Đang mở khóa)"
+        }
+        var lockedNotice = document.getElementById("adminLockedOverlay")
+        if (lockedNotice) lockedNotice.classList.add("hidden")
+        if (tab5Panel) {
+            var allAdminInputs = tab5Panel.querySelectorAll("button, input, select")
+            for (var i = 0; i < allAdminInputs.length; i++) {
+                if (allAdminInputs[i].getAttribute("data-was-disabled") !== "1") {
+                    allAdminInputs[i].disabled = false
+                }
+            }
+        }
+    } else {
+        if (badgeIcon) badgeIcon.textContent = "👤"
+        if (badgeText) badgeText.textContent = "Khách thuê (User)"
+        if (toggleBtn) {
+            toggleBtn.style.borderColor = "#cbd5e1"
+            toggleBtn.style.color = "#475569"
+            toggleBtn.style.background = "#fff"
+        }
+        if (adminBtn) {
+            adminBtn.innerHTML = "🔒 Admin"
+            adminBtn.style.opacity = "0.7"
+            adminBtn.title = "Khu vực Admin (Bị khóa ở chế độ User)"
+        }
+        if (tab5Panel) {
+            var lockedNotice = document.getElementById("adminLockedOverlay")
+            if (!lockedNotice) {
+                lockedNotice = document.createElement("div")
+                lockedNotice.id = "adminLockedOverlay"
+                lockedNotice.style.margin = "16px 0"
+                lockedNotice.style.padding = "14px 18px"
+                lockedNotice.style.borderRadius = "8px"
+                lockedNotice.style.background = "#fef2f2"
+                lockedNotice.style.border = "1px solid #f87171"
+                lockedNotice.style.color = "#991b1b"
+                lockedNotice.style.fontWeight = "500"
+                lockedNotice.innerHTML = "🔒 <strong>KHU VỰC ADMIN ĐANG BỊ KHÓA:</strong> Bạn đang ở chế độ <strong>Khách thuê (User)</strong>. Các thao tác duyệt xe, duyệt nạp tiền, quản lý voucher và cấu hình hệ thống đã bị khóa. Vui lòng bấm nút <strong>'Chế độ: Khách thuê (User)'</strong> trên góc phải thanh điều hướng để chuyển sang vai trò <strong>Quản trị viên (Admin)</strong> để tương tác."
+                tab5Panel.insertBefore(lockedNotice, tab5Panel.firstChild)
+            } else {
+                lockedNotice.classList.remove("hidden")
+            }
+            // Khóa các nút hành động trong Tab 5
+            var allAdminBtns = tab5Panel.querySelectorAll("button:not(.btn-role-toggle)")
+            for (var b = 0; b < allAdminBtns.length; b++) {
+                if (allAdminBtns[b].disabled) {
+                    allAdminBtns[b].setAttribute("data-was-disabled", "1")
+                } else {
+                    allAdminBtns[b].disabled = true
+                }
+            }
+        }
+    }
+}
+
+var btnRoleToggle = document.getElementById("btnRoleToggle")
+if (btnRoleToggle != null) {
+    btnRoleToggle.addEventListener("click", function () {
+        if (currentAppRoleMode === "USER") {
+            currentAppRoleMode = "ADMIN"
+            alert("🔄 ĐÃ CHUYỂN SANG CHẾ ĐỘ QUẢN TRỊ VIÊN (ADMIN)!\nCác nút duyệt xe, duyệt nạp tiền, quản lý voucher và báo cáo doanh thu đã được mở khóa và có thể tương tác.")
+        } else {
+            currentAppRoleMode = "USER"
+            alert("🔄 ĐÃ CHUYỂN SANG CHẾ ĐỘ NGƯỜI DÙNG (USER)!\nKhu vực Quản trị viên (Admin) đã được khóa lại để bảo mật.")
+            if (document.getElementById("tab5") && document.getElementById("tab5").classList.contains("active")) {
+                switchTab("tab1")
+            }
+        }
+        localStorage.setItem("group08_app_role_mode", currentAppRoleMode)
+        updateRoleModeUI()
+    })
+}
+
 var btnTopAdmin = document.getElementById("btnTopAdmin")
 if (btnTopAdmin != null) {
     btnTopAdmin.addEventListener("click", function () {
+        if (currentAppRoleMode === "USER") {
+            alert("🔒 CHẾ ĐỘ NGƯỜI DÙNG (USER) ĐANG BẬT!\nPhần Quản trị viên (Admin) đang bị khóa. Hãy bấm nút 'Chế độ: Khách thuê (User)' trên thanh tiêu đề để chuyển sang quyền Quản trị viên trước khi vào thao tác.")
+            switchTab("tab5")
+            updateRoleModeUI()
+            return
+        }
         switchTab("tab5")
+        updateRoleModeUI()
     })
 }
+
+// Khởi tạo trạng thái vai trò ban đầu
+updateRoleModeUI()
 
 function renderBikes() {
     var brandVal = document.getElementById("filterBrand").value
@@ -457,7 +568,12 @@ function updateBookingSummary() {
 
     var rawDur = Number(document.getElementById("rentDuration").value)
     var duration = (rawDur > 1) ? rawDur : 1
-    var voucherPct = Number(document.getElementById("voucherSelect").value) || 0
+    var vSelect = document.getElementById("voucherSelect")
+    var voucherPct = 0
+    if (vSelect && vSelect.selectedIndex >= 0) {
+        var opt = vSelect.options[vSelect.selectedIndex]
+        voucherPct = Number(opt.getAttribute("data-pct")) || (isNaN(Number(opt.value)) ? 0 : Number(opt.value)) || 0
+    }
     var shipFee = Number(document.getElementById("pickupMethod").value) || 0
 
     var unitPrice = (rentMode == "day") ? bike.dayPrice : bike.hourPrice
@@ -529,7 +645,11 @@ function renderBookedBikes() {
         html += '<div><span>' + o.packageText + '</span><div style="font-size: 11px; color: #64748b;">' + o.pickupTime + ' → ' + o.returnTime + '</div></div>'
         html += '<strong style="color: #0d74e7;">' + formatVND(o.totalPrice) + '</strong>'
         html += '<span><span class="' + badgeCls + '">' + o.status + '</span></span>'
-        html += '<button class="btn-primary-sm go-handover-btn" data-id="' + o.id + '">Giao nhận xe</button>'
+        if (o.status === "Đã trả xe" || o.status === "completed") {
+            html += '<button class="btn-disabled-sm" disabled style="background:#f1f5f9; color:#94a3b8; border:1px solid #cbd5e1; cursor:not-allowed; padding: 6px 12px; border-radius: 6px; font-size: 12px;" title="Chuyến đi đã hoàn tất trả xe và khóa giao nhận">🔒 Đã khóa (Đã trả xe)</button>'
+        } else {
+            html += '<button class="btn-primary-sm go-handover-btn" data-id="' + o.id + '">Giao nhận xe</button>'
+        }
         html += '</div>'
     }
     container.innerHTML = html
@@ -553,72 +673,87 @@ function renderBookedBikes() {
     }
 }
 
-// XỬ LÝ NÚT THANH TOÁN & ĐẶT XE Ở TAB 1
-document.getElementById("btnBookNow").addEventListener("click", function () {
-    if (!isLoggedIn) {
-        alert("🔒 Bạn cần đăng nhập tài khoản trước khi tiến hành đặt xe!")
-        switchTab("tab6")
-        return
+// TẢI DANH SÁCH ĐƠN XE ĐÃ ĐẶT TỪ CSDL MYSQL
+async function fetchMyBookingsFromBackend() {
+    if (!isLoggedIn || !currentUserId) return;
+    try {
+        var res = await fetch("/api/bookings/my-bookings?renter_id=" + currentUserId);
+        if (!res.ok) return;
+        var list = await res.json();
+        if (Array.isArray(list)) {
+            bookedOrders = list;
+            renderBookedBikes();
+            renderRenterOrders();
+            renderOwnerOrders();
+        }
+    } catch (e) {
+        console.warn("Lỗi tải danh sách xe đã đặt:", e.message);
+    }
+}
+
+// XỬ LÝ NÚT THANH TOÁN & ĐẶT XE Ở TAB 1 (KẾT NỐI API CSDL)
+document.getElementById("btnBookNow").addEventListener("click", async function () {
+    if (!isLoggedIn || !currentUserId) {
+        alert("🔒 Bạn cần đăng nhập tài khoản trước khi tiến hành đặt xe!");
+        switchTab("tab6");
+        return;
     }
     if (selectedBikeId == null) {
-        alert("Vui lòng chọn một xe máy trước khi thanh toán!")
-        return
-    }
-    demLanBam = demLanBam + 1
-    if (walletBalance < currentBookingTotal) {
-        alert("Số dư trong tài khoản cá nhân (" + formatVND(walletBalance) + ") không đủ để thanh toán " + formatVND(currentBookingTotal) + "! Vui lòng nạp thêm tiền vào tài khoản.")
-        return
+        alert("Vui lòng chọn một xe máy trước khi thanh toán!");
+        return;
     }
 
-    walletBalance = walletBalance - currentBookingTotal
-    updateWalletUI()
+    var bike = timXeTheoId(selectedBikeId);
+    var rawDur = Number(document.getElementById("rentDuration").value);
+    var duration = (rawDur > 1) ? rawDur : 1;
+    var pTime = (document.getElementById("pickup-datetime").value || "2026-11-04T08:00");
+    var rTime = (document.getElementById("return-datetime").value || "2026-11-05T08:00");
+    var vSelect = document.getElementById("voucherSelect");
+    var vCode = vSelect ? vSelect.value : "";
+    var pMethod = document.getElementById("pickupMethod") ? document.getElementById("pickupMethod").value : "self";
+    var delAddress = (bike && bike.area) ? bike.area : "Quận 1, TP.HCM";
+    var delFee = (pMethod === "door") ? 30000 : 0;
 
-    var bike = timXeTheoId(selectedBikeId)
+    var btn = document.getElementById("btnBookNow");
+    try {
+        btn.disabled = true;
+        btn.textContent = "Đang xử lý đặt xe...";
 
-    // Ghi lịch sử giao dịch ví
-    var txList = document.getElementById("walletTxList")
-    if (txList != null) {
-        var row = document.createElement("div")
-        row.className = "wallet-table-row"
-        var maGd = Math.floor(102 + Math.random() * 890)
-        row.innerHTML = '<strong>#TX' + maGd + '</strong>' +
-            '<span>Thanh toán thuê xe ' + bike.name + '</span>' +
-            '<strong style="color: #ef4444;">-' + formatVND(currentBookingTotal) + '</strong>' +
-            '<span><span class="badge-success">Hoàn tất</span></span>'
-        txList.prepend(row)
+        var res = await fetch("/api/bookings", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                renter_id: currentUserId,
+                vehicle_id: selectedBikeId,
+                rental_type: (rentMode === "day") ? "daily" : "hourly",
+                delivery_method: (pMethod === "door") ? "delivery_to_door" : "self_pickup",
+                delivery_address: delAddress,
+                delivery_fee: delFee,
+                start_date: pTime.replace("T", " ") + (pTime.length === 16 ? ":00" : ""),
+                end_date: rTime.replace("T", " ") + (rTime.length === 16 ? ":00" : ""),
+                voucher_code: (vCode !== "none" && vCode) ? vCode : null,
+                total_amount: currentBookingTotal,
+                deposit_amount: bike.deposit || 300000
+            })
+        });
+        var data = await res.json().catch(function() { return {}; });
+
+        if (!res.ok) {
+            alert("❌ Đặt xe thất bại: " + (data.message || data.error || "Vui lòng thử lại!"));
+            return;
+        }
+
+        alert("✅ " + (data.message || "Đặt xe thành công!"));
+        await loadWalletData();
+        await fetchMyBookingsFromBackend();
+        switchTab("tab7");
+    } catch (e) {
+        alert("❌ Lỗi kết nối máy chủ: " + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = "Thanh toán & Đặt xe";
     }
-
-    // Lấy thông tin gói thuê và thời gian
-    var rawDur = Number(document.getElementById("rentDuration").value)
-    var duration = (rawDur > 1) ? rawDur : 1
-    var pkgText = (rentMode === "day") ? ("Thuê theo ngày (" + duration + " ngày)") : ("Thuê theo giờ (" + duration + " giờ)")
-    var pTime = (document.getElementById("pickup-datetime").value || "2026-11-04T08:00").replace("T", " ")
-    var rTime = (document.getElementById("return-datetime").value || "2026-11-05T08:00").replace("T", " ")
-
-    // Thêm đơn mới vào mảng bookedOrders (Tab Xe đã đặt)
-    var newOrderId = "BK" + String(bookedOrders.length + 1).padStart(4, "0")
-    bookedOrders.unshift({
-        id: newOrderId,
-        bikeId: bike.id,
-        bikeName: bike.name,
-        area: bike.area || "Quận 1",
-        packageText: pkgText,
-        pickupTime: pTime,
-        returnTime: rTime,
-        totalPrice: currentBookingTotal,
-        status: "Chờ Check-in",
-        odo: 8420,
-        fuel: 90
-    })
-
-    // Cập nhật giao diện Xe đã đặt & Dropdown Giao nhận xe
-    renderBookedBikes()
-    renderRenterOrders()
-    renderOwnerOrders()
-
-    alert("✅ Đặt xe thành công! Đơn #" + newOrderId + " (" + bike.name + ") đã được lưu vào mục 'Xe đã đặt'.")
-    switchTab("tab7")
-})
+});
 
 // ================= LOGIC GIAO NHẬN XE 2 CHIỀU =================
 var handoverSessions = {}
@@ -671,14 +806,16 @@ function renderRenterOrders() {
 
     if (bookedOrders.length === 0) {
         renterSel.innerHTML = '<option value="">-- Chưa có xe nào trong mục Xe đã đặt --</option>'
+        checkSelectedHandoverLockState()
         return
     }
 
     var html = ""
     for (var i = 0; i < bookedOrders.length; i++) {
         var o = bookedOrders[i]
-        var val = "#" + o.id + " — " + o.bikeName + " • " + o.status
-        html += '<option value="' + val + '" data-odo="' + o.odo + '" data-fuel="' + o.fuel + '">' + val + '</option>'
+        var isLocked = (o.status === "Đã trả xe" || o.status === "completed")
+        var label = "#" + o.id + " — " + o.bikeName + " • " + (isLocked ? "[ĐÃ TRẢ XE - KHÓA]" : o.status)
+        html += '<option value="' + label + '" data-odo="' + o.odo + '" data-fuel="' + o.fuel + '" data-locked="' + (isLocked ? '1' : '0') + '" data-status="' + o.status + '">' + label + '</option>'
     }
     renterSel.innerHTML = html
 
@@ -688,6 +825,33 @@ function renderRenterOrders() {
         document.getElementById("hoFuelInput").value = Number(curOpt.getAttribute("data-fuel"))
     }
     updateCompareBoxMetrics()
+    checkSelectedHandoverLockState()
+}
+
+function checkSelectedHandoverLockState() {
+    var rSel = document.getElementById("hoOrderInput")
+    var btn = document.getElementById("btnExecHandover")
+    if (!rSel || !btn) return
+
+    var opt = rSel.options[rSel.selectedIndex]
+    var isLocked = opt ? (opt.getAttribute("data-locked") === "1") : false
+    var banner = document.getElementById("compareResultBanner")
+
+    if (isLocked) {
+        btn.disabled = true
+        btn.style.opacity = "0.5"
+        btn.style.cursor = "not-allowed"
+        btn.textContent = "🔒 Đã hoàn tất trả xe (Khóa giao nhận)"
+        if (banner) {
+            banner.className = "compare-result-banner waiting"
+            banner.innerHTML = "🔒 <strong>XE NÀY ĐÃ HOÀN TẤT CHECK-OUT (ĐÃ TRẢ XE) VÀ ĐÃ BỊ KHÓA!</strong> Không thể thực hiện thêm thao tác nào cho đơn này. Vui lòng theo quy trình: Đặt xe mới -> Check-in nhận xe từ đầu!"
+        }
+    } else {
+        btn.disabled = false
+        btn.style.opacity = "1"
+        btn.style.cursor = "pointer"
+        btn.textContent = "Ghi nhận & Đối chiếu 2 chiều"
+    }
 }
 
 // 3. Render dropdown cho CHỦ XE — CHỈ LẤY DATA TỪ MỤC "XE CỦA BẠN" (#ownerBikeList)
@@ -842,6 +1006,29 @@ document.getElementById("btnExecHandover").addEventListener("click", function ()
 
     var orderCode = extractOrderCode(orderInputVal)
     var bikeName = extractBikeName(orderInputVal)
+
+    // 1. Kiểm tra nếu đơn đã check-out (completed/Đã trả xe) -> KHÓA THAO TÁC
+    var matchedOrder = null
+    for (var b = 0; b < bookedOrders.length; b++) {
+        if (bookedOrders[b].bikeName === bikeName || ("#" + bookedOrders[b].id) === orderCode) {
+            matchedOrder = bookedOrders[b]
+            break
+        }
+    }
+    if (matchedOrder && (matchedOrder.status === "Đã trả xe" || matchedOrder.status === "completed")) {
+        alert("🔒 ĐƠN NÀY ĐÃ HOÀN TẤT CHECK-OUT (ĐÃ TRẢ XE) VÀ ĐÃ BỊ KHÓA!\nKhông thể thao tác thêm trên chuyến này. Quý khách vui lòng theo quy trình: Đặt xe mới -> Check-in từ đầu.")
+        checkSelectedHandoverLockState()
+        return
+    }
+
+    // 2. YÊU CẦU: BẮT BUỘC PHẢI CHECK-IN MỚI ĐƯỢC CHECK-OUT
+    if (txType === "Check-out") {
+        if (matchedOrder && matchedOrder.status !== "Đang thuê" && matchedOrder.status !== "active") {
+            alert("⚠️ BẮT BUỘC PHẢI CHECK-IN MỚI ĐƯỢC CHECK-OUT!\nĐơn đặt xe " + (orderCode || bikeName) + " chưa được Check-in nhận xe (trạng thái: " + (matchedOrder ? matchedOrder.status : "Chờ nhận xe") + "). Bạn phải hoàn tất thủ tục Check-in trước khi trả xe!")
+            return
+        }
+    }
+
     // Dùng tên xe làm khóa đối chiếu chung nếu chủ xe chọn xe chưa gắn mã #BK
     var sessionKey = (orderCode ? orderCode : bikeName) + "_" + txType
 
@@ -870,6 +1057,23 @@ document.getElementById("btnExecHandover").addEventListener("click", function ()
         addPhotoToStorage(txType, "Chủ xe", labelDisplay, oImg, ownerImgDataUrl)
     }
 
+    // Gửi biên bản lên máy chủ CSDL
+    try {
+        fetch("/api/handover/reports", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                bookingCode: orderCode,
+                transactionType: txType,
+                role: roleVal,
+                odometer: (roleVal === "Khách thuê") ? rOdo : oOdo,
+                fuelLevel: (roleVal === "Khách thuê") ? rFuel : oFuel,
+                imageUrl: (roleVal === "Khách thuê") ? rImg : oImg,
+                note: (roleVal === "Khách thuê") ? rNote : oNote
+            })
+        }).catch(function(e) { console.warn("Lỗi đồng bộ biên bản lên CSDL:", e.message) })
+    } catch (e) {}
+
     var rSub = handoverSessions[sessionKey].renter
     var oSub = handoverSessions[sessionKey].owner
 
@@ -893,7 +1097,7 @@ document.getElementById("btnExecHandover").addEventListener("click", function ()
             elBadgeStatus.textContent = "⏳ Chờ Chủ xe"; elBadgeStatus.className = "compare-badge waiting"
             elBanner.className = "compare-result-banner waiting"
             elBanner.innerHTML = "⏳ <strong>Đã tiếp nhận biên bản " + txType + " từ Khách thuê.</strong> Vui lòng chuyển sang vai trò <strong>'Chủ xe'</strong> để gửi thông số đối chiếu 2 chiều."
-            alert("📤 ĐÃ GHI NHẬN BIÊN BẢN TỪ KHÁCH THUÊ!\n• Xe: " + labelDisplay + "\n• Odo: " + rSub.odo + " km | Xăng: " + rSub.fuel + "%\n👉 Vui lòng chuyển sang vai trò 'Chủ xe' để đối chiếu.")
+            alert("📤 ĐÃ GHI NHẬN BIÊN BẢN TỪ KHÁCH THUÊ VÀ ĐỒNG BỘ CSDL!\n• Xe: " + labelDisplay + "\n• Odo: " + rSub.odo + " km | Xăng: " + rSub.fuel + "%\n👉 Vui lòng chuyển sang vai trò 'Chủ xe' để đối chiếu.")
         } else {
             elBadgeOwner.textContent = "Đã gửi"; elBadgeOwner.className = "badge-success"
             elStatusOwner.textContent = "Đã gửi lúc " + oSub.time + " (Odo: " + oSub.odo.toLocaleString("vi-VN") + " km | Xăng: " + oSub.fuel + "%)"
@@ -903,7 +1107,7 @@ document.getElementById("btnExecHandover").addEventListener("click", function ()
             elBadgeStatus.textContent = "⏳ Chờ Khách thuê"; elBadgeStatus.className = "compare-badge waiting"
             elBanner.className = "compare-result-banner waiting"
             elBanner.innerHTML = "⏳ <strong>Đã tiếp nhận biên bản " + txType + " từ Chủ xe.</strong> Vui lòng chuyển sang vai trò <strong>'Người thuê'</strong> để gửi thông số đối chiếu 2 chiều."
-            alert("📤 ĐÃ GHI NHẬN BIÊN BẢN TỪ CHỦ XE!\n• Xe: " + labelDisplay + "\n• Odo: " + oSub.odo + " km | Xăng: " + oSub.fuel + "%\n👉 Vui lòng chuyển sang vai trò 'Người thuê' để đối chiếu.")
+            alert("📤 ĐÃ GHI NHẬN BIÊN BẢN TỪ CHỦ XE VÀ ĐỒNG BỘ CSDL!\n• Xe: " + labelDisplay + "\n• Odo: " + oSub.odo + " km | Xăng: " + oSub.fuel + "%\n👉 Vui lòng chuyển sang vai trò 'Người thuê' để đối chiếu.")
         }
         return
     }
@@ -936,6 +1140,11 @@ document.getElementById("btnExecHandover").addEventListener("click", function ()
         }
 
         // Cập nhật trạng thái trong bookedOrders (Tab Xe đã đặt)
+        var gross = matchedOrder ? matchedOrder.totalPrice : 440000;
+        var deposit = 300000;
+        var rentalFee = Math.max(0, gross - deposit);
+        var netRevenue = Math.round(rentalFee * 0.9); // (Tổng thu - Cọc xe) * 90%
+
         for (var op = 0; op < bookedOrders.length; op++) {
             if (bookedOrders[op].bikeName === bikeName || ("#" + bookedOrders[op].id) === orderCode) {
                 bookedOrders[op].status = (txType === "Check-in") ? "Đang thuê" : "Đã trả xe"
@@ -946,7 +1155,17 @@ document.getElementById("btnExecHandover").addEventListener("click", function ()
         renderRenterOrders()
         renderOwnerOrders()
 
-        alert("🎉 ĐỐI CHIẾU THÀNH CÔNG — HOÀN TẤT " + txType.toUpperCase() + "!\nXe: " + labelDisplay + "\nOdo & Nhiên liệu trùng khớp 100%.")
+        if (txType === "Check-out") {
+            alert("🎉 ĐỐI CHIẾU THÀNH CÔNG — HOÀN TẤT CHECK-OUT (TRẢ XE)!\n" +
+                  "• Xe: " + labelDisplay + "\n" +
+                  "• Trạng thái: ĐÃ TRẢ XE & KHÓA THAO TÁC.\n" +
+                  "• CÔNG THỨC DOANH THU: (Tổng thu " + formatVND(gross) + " - Cọc xe " + formatVND(deposit) + ") × 90%\n" +
+                  "👉 DOANH THU THỰC NHẬN CỦA CHỦ XE: +" + formatVND(netRevenue) + " (Hoa hồng nền tảng 10%: " + formatVND(rentalFee - netRevenue) + ").\n" +
+                  "Xe đã sẵn sàng cho quy trình mới: Khách có thể đặt xe và check-in lại từ đầu.");
+            if (typeof loadDailyRevenueReport === "function") loadDailyRevenueReport();
+        } else {
+            alert("🎉 ĐỐI CHIẾU THÀNH CÔNG — HOÀN TẤT CHECK-IN!\nXe: " + labelDisplay + "\nKhách đã nhận xe thành công. Đơn chuyển sang trạng thái 'Đang thuê'. Giờ đây bạn đã có thể thực hiện Check-out khi trả xe.");
+        }
         handoverSessions[sessionKey] = null
     } else {
         colRenter.className = "compare-col mismatched"
@@ -966,8 +1185,27 @@ document.getElementById("btnToggleIncident").addEventListener("click", function 
 
 var btnSendIncident = document.getElementById("btnSendIncident")
 if (btnSendIncident != null) {
-    btnSendIncident.addEventListener("click", function () {
-        alert("Đã gửi báo cáo sự cố thành công lên hệ thống!")
+    btnSendIncident.addEventListener("click", async function () {
+        var orderInputVal = document.getElementById("hoOrderInput") ? document.getElementById("hoOrderInput").value : ""
+        var code = extractOrderCode(orderInputVal) || "BK0001"
+        try {
+            var res = await fetch("/api/handover/incidents", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    bookingCode: code,
+                    transactionType: "Check-out",
+                    role: "Khách thuê",
+                    description: "Trầy xước phần đuôi xe khi bàn giao",
+                    estimatedCost: 200000
+                })
+            })
+            var data = await res.json().catch(function() { return {} })
+            alert("✅ " + (data.message || "Đã gửi báo cáo sự cố thành công lên hệ thống CSDL!"))
+            document.getElementById("incidentBox").classList.add("hidden")
+        } catch (e) {
+            alert("❌ Lỗi kết nối gửi sự cố: " + e.message)
+        }
     })
 }
 
@@ -981,8 +1219,32 @@ for (var st = 0; st < starBtns.length; st++) {
 
 var btnSendReview = document.getElementById("btnSendReview")
 if (btnSendReview != null) {
-    btnSendReview.addEventListener("click", function () {
-        alert("Cảm ơn bạn đã gửi đánh giá!")
+    btnSendReview.addEventListener("click", async function () {
+        var orderInputVal = document.getElementById("hoOrderInput") ? document.getElementById("hoOrderInput").value : ""
+        var code = extractOrderCode(orderInputVal) || "BK0001"
+        var activeStar = document.querySelector("#starRow .star-btn.active")
+        var starVal = activeStar ? (activeStar.textContent.match(/⭐/g) || [1,2,3,4,5]).length : 5
+
+        try {
+            var res = await fetch("/api/handover/reviews", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    bookingCode: code,
+                    renterId: currentUserId || 8,
+                    rating: starVal,
+                    comment: "Xe chạy rất êm và bền bỉ, nhận trả xe đúng giờ!"
+                })
+            })
+            var data = await res.json().catch(function() { return {} })
+            if (res.ok) {
+                alert("⭐ " + (data.message || "Cảm ơn bạn đã gửi đánh giá vào CSDL!"))
+            } else {
+                alert("⚠️ " + (data.message || "Không thể gửi đánh giá!"))
+            }
+        } catch (e) {
+            alert("❌ Lỗi kết nối gửi đánh giá: " + e.message)
+        }
     })
 }
 
@@ -1300,19 +1562,78 @@ if (qrModalBackdrop != null) qrModalBackdrop.addEventListener("click", function 
     }
 })
 
-document.getElementById("btnWithdraw").addEventListener("click", function () {
+document.getElementById("btnWithdraw").addEventListener("click", async function () {
     var amt = Number(document.getElementById("walletAmountInput").value) || 0
-    if (amt <= 0 || amt > walletBalance) return
-    walletBalance -= amt
-    updateWalletUI()
+    if (amt <= 0) {
+        alert("Vui lòng nhập số tiền rút hợp lệ!")
+        return
+    }
+    if (!isLoggedIn || !currentUserId) {
+        alert("🔒 Bạn cần đăng nhập tài khoản trước khi thực hiện rút tiền!")
+        switchTab("tab6")
+        return
+    }
+    if (amt > walletBalance) {
+        alert("Số tiền rút vượt quá số dư khả dụng (" + formatVND(walletBalance) + ")!")
+        return
+    }
 
-    var txList = document.getElementById("walletTxList")
-    var row = document.createElement("div")
-    row.className = "wallet-table-row"
-    var codeNum = Math.floor(102 + Math.random() * 890)
-    row.innerHTML = '<strong>#TX' + codeNum + '</strong><span>Rút tiền về tài khoản ngân hàng</span><strong>-' + formatVND(amt) + '</strong><span><span class="badge-success">Hoàn tất</span></span>'
-    txList.prepend(row)
+    var bank = prompt("Nhập thông tin tài khoản ngân hàng nhận tiền:", "VCB - 0123456789 - " + currentUserName)
+    if (!bank) return
+
+    try {
+        var res = await fetch("/api/wallet/withdraw", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ user_id: currentUserId, amount: amt, bank_info: bank })
+        })
+        var data = await res.json().catch(function() { return {} })
+        if (res.ok) {
+            alert("✅ " + (data.message || "Đã gửi yêu cầu rút tiền thành công!"))
+            loadWalletData()
+        } else {
+            alert("⚠️ " + (data.message || "Rút tiền thất bại!"))
+        }
+    } catch (e) {
+        alert("❌ Lỗi kết nối máy chủ: " + e.message)
+    }
 })
+
+// Cập nhật và gửi duyệt hồ sơ eKYC lên CSDL
+var btnUpdateEkyc = document.getElementById("btnUpdateEkyc")
+if (btnUpdateEkyc != null) {
+    btnUpdateEkyc.addEventListener("click", async function () {
+        if (!isLoggedIn || !currentUserId) {
+            alert("🔒 Vui lòng đăng nhập trước khi gửi hồ sơ eKYC!")
+            switchTab("tab6")
+            return
+        }
+
+        var cccdInputs = document.querySelectorAll("#tab3 input.input-soft")
+        var cccdVal = (cccdInputs.length > 1 && cccdInputs[1].value.trim()) ? cccdInputs[1].value.trim() : "089206001234"
+
+        try {
+            var res = await fetch("/api/user/kyc", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    user_id: currentUserId,
+                    type: "CCCD",
+                    document_no: cccdVal,
+                    image_url: "uploads/kyc/cccd_user" + currentUserId + ".jpg"
+                })
+            })
+            var data = await res.json().catch(function() { return {} })
+            if (res.ok) {
+                alert("✅ " + (data.message || "Đã nộp hồ sơ eKYC lên hệ thống CSDL thành công!"))
+            } else {
+                alert("⚠️ " + (data.message || "Gửi eKYC thất bại!"))
+            }
+        } catch (e) {
+            alert("❌ Lỗi kết nối: " + e.message)
+        }
+    })
+}
 
 // Tải thông tin ví và lịch sử biến động từ CSDL
 async function loadWalletData() {
@@ -1580,14 +1901,35 @@ window.handleApproveVehicle = async function (vehicleId) {
         })
         var data = await res.json().catch(function () { return {} })
         if (!res.ok) {
-            alert("❌ " + (data.message || "Duyệt xe thất bại!"))
+            alert("❌ " + (data.message || data.error || "Duyệt xe thất bại!"))
             return
         }
-        alert("🎉 " + data.message)
+        alert("🎉 " + (data.message || "Đã duyệt xe thành công!"))
         loadAdminPendingVehicles()
         fetchBikesFromBackend()
     } catch (err) {
         alert("❌ Lỗi duyệt xe: " + err.message)
+    }
+}
+
+window.handleApproveAllVehicles = async function () {
+    if (!confirm("Bạn có chắc chắn muốn duyệt TẤT CẢ các xe máy đang chờ duyệt lên sàn?")) return
+    try {
+        var res = await fetch("/api/admin/vehicles/approve-all", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ admin_id: currentUserId || 6 })
+        })
+        var data = await res.json().catch(function () { return {} })
+        if (!res.ok) {
+            alert("❌ " + (data.message || data.error || "Duyệt tất cả thất bại!"))
+            return
+        }
+        alert("🎉 " + (data.message || "Đã duyệt tất cả xe thành công!"))
+        loadAdminPendingVehicles()
+        fetchBikesFromBackend()
+    } catch (err) {
+        alert("❌ Lỗi duyệt tất cả xe: " + err.message)
     }
 }
 
@@ -1688,25 +2030,67 @@ if (btnRefreshAdminDeposits) btnRefreshAdminDeposits.addEventListener("click", l
 
 var btnRefundDeposit = document.getElementById("btnRefundDeposit")
 if (btnRefundDeposit) {
-    btnRefundDeposit.addEventListener("click", function () {
-        var badge = document.getElementById("disputeBadge")
-        if (badge) {
-            badge.textContent = "Đã hoàn cọc"
-            badge.className = "badge-success"
+    btnRefundDeposit.addEventListener("click", async function () {
+        if (!confirm("Bạn có chắc chắn muốn duyệt hoàn trả tiền cọc cho đơn #BK0001?")) return
+        try {
+            var res = await fetch("/api/admin/refunds/1/approve", { method: "POST" })
+            var data = await res.json().catch(function() { return {} })
+            var badge = document.getElementById("disputeBadge")
+            if (badge) {
+                badge.textContent = "Đã hoàn cọc"
+                badge.className = "badge-success"
+            }
+            this.textContent = "Đã hoàn tất"
+            this.className = "btn-disabled-sm"
+            this.disabled = true
+            alert("✅ " + (data.message || "Đã duyệt hoàn cọc về ví của khách thành công!"))
+            loadWalletData()
+        } catch (e) {
+            alert("❌ Lỗi kết nối: " + e.message)
         }
-        this.textContent = "Đã hoàn tất"
-        this.className = "btn-disabled-sm"
-        this.disabled = true
     })
+}
+
+// TẢI VOUCHER TỪ CSDL MYSQL
+async function loadVouchersFromBackend() {
+    try {
+        var res = await fetch("/api/vouchers")
+        if (!res.ok) return
+        var list = await res.json()
+        if (Array.isArray(list) && list.length > 0) {
+            vouchersData = list
+            renderVouchers()
+            updateVoucherSelectDropdown()
+        }
+    } catch (e) {
+        console.warn("Lỗi tải voucher từ CSDL:", e.message)
+    }
+}
+
+function updateVoucherSelectDropdown() {
+    var vSelect = document.getElementById("voucherSelect")
+    if (!vSelect || vouchersData.length === 0) return
+    var curVal = vSelect.value
+    var html = '<option value="none" data-pct="0">Không áp dụng mã</option>'
+    for (var i = 0; i < vouchersData.length; i++) {
+        var v = vouchersData[i]
+        if (v.type !== "expired") {
+            var pctNum = Number(v.discount_percent) || Number(String(v.discount).replace(/[^0-9]/g, '')) || 0
+            html += '<option value="' + v.code + '" data-pct="' + pctNum + '">' + v.code + ' (' + v.discount + ')</option>'
+        }
+    }
+    vSelect.innerHTML = html
+    if (curVal) vSelect.value = curVal
 }
 
 function renderVouchers() {
     var container = document.getElementById("voucherListContainer")
+    if (!container) return
     var out = ""
     for (var i = 0; i < vouchersData.length; i++) {
         var v = vouchersData[i]
         var pillCls = (v.type == "active") ? "pill-status-active" : ((v.type == "warn") ? "pill-status-warn" : "pill-status-expired")
-        var delHtml = (isVoucherEditMode == true) ? '<button class="btn-delete-circle" data-idx="' + i + '">X</button>' : ""
+        var delHtml = (isVoucherEditMode == true) ? '<button class="btn-delete-circle" data-id="' + (v.voucher_id || '') + '" data-idx="' + i + '">X</button>' : ""
 
         out += '<div class="voucher-row">'
         out += '<strong>' + v.code + '</strong><span>' + v.uses + '</span><span>' + v.discount + '</span>'
@@ -1717,9 +2101,20 @@ function renderVouchers() {
 
     var delBtns = container.querySelectorAll(".btn-delete-circle")
     for (var d = 0; d < delBtns.length; d++) {
-        delBtns[d].addEventListener("click", function () {
-            vouchersData.splice(Number(this.getAttribute("data-idx")), 1)
-            renderVouchers()
+        delBtns[d].addEventListener("click", async function () {
+            var vId = this.getAttribute("data-id")
+            if (vId) {
+                if (!confirm("Bạn có chắc chắn muốn xóa voucher này khỏi CSDL?")) return
+                try {
+                    await fetch("/api/vouchers/" + vId, { method: "DELETE" })
+                    loadVouchersFromBackend()
+                } catch (e) {
+                    console.warn("Lỗi xóa voucher:", e.message)
+                }
+            } else {
+                vouchersData.splice(Number(this.getAttribute("data-idx")), 1)
+                renderVouchers()
+            }
         })
     }
 }
@@ -1746,46 +2141,193 @@ for (var p = 0; p < pctBtns.length; p++) {
     })
 }
 
-document.getElementById("btnSaveVoucher").addEventListener("click", function () {
-    var code = document.getElementById("newVoucherCode").value.trim() || "CONBO02"
+document.getElementById("btnSaveVoucher").addEventListener("click", async function () {
+    var code = document.getElementById("newVoucherCode").value.trim()
+    if (!code) {
+        alert("⚠️ Vui lòng nhập mã voucher!")
+        return
+    }
     var uses = Number(document.getElementById("newVoucherUses").value)
     if (isNaN(uses) || uses <= 0) uses = 100
-    var exp = document.getElementById("newVoucherExp").value.trim() || "29/01/2027"
+    var exp = document.getElementById("newVoucherExp").value.trim() || "2027-12-31"
+    var pct = Number(selectedModalPct.replace("%", "")) || 10
 
-    vouchersData.unshift({
-        code: code.toUpperCase(),
-        uses: uses,
-        discount: "Giảm " + selectedModalPct,
-        status: "Đang hoạt động",
-        type: "active",
-        exp: exp
-    })
-
-    renderVouchers()
-    document.getElementById("voucherModal").classList.add("hidden")
-    document.getElementById("newVoucherCode").value = ""
+    try {
+        var res = await fetch("/api/vouchers", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                code: code.toUpperCase(),
+                discount_percent: pct,
+                usage_limit: uses,
+                end_date: exp
+            })
+        })
+        var data = await res.json().catch(function() { return {} })
+        if (res.ok) {
+            alert("✅ " + (data.message || "Tạo voucher thành công!"))
+            await loadVouchersFromBackend()
+            document.getElementById("voucherModal").classList.add("hidden")
+            document.getElementById("newVoucherCode").value = ""
+        } else {
+            alert("⚠️ " + (data.message || "Tạo voucher thất bại!"))
+        }
+    } catch (e) {
+        alert("❌ Lỗi kết nối: " + e.message)
+    }
 })
+
+// =========================================================================
+// BÁO CÁO DOANH THU & BIỂU ĐỒ CỘT THEO NGÀY
+// =========================================================================
+async function loadDailyRevenueReport() {
+    var chartContainer = document.getElementById("revenueBarChart")
+    var tableContainer = document.getElementById("dailyRevenueList")
+    if (!chartContainer || !tableContainer) return
+
+    try {
+        var res = await fetch("/api/admin/reports/daily-revenue")
+        var data = []
+        if (res.ok) {
+            data = await res.json()
+        }
+        renderDailyRevenueUI(data)
+    } catch (e) {
+        console.warn("Lỗi tải báo cáo doanh thu:", e.message)
+        renderDailyRevenueUI([])
+    }
+}
+
+function renderDailyRevenueUI(data) {
+    var chartContainer = document.getElementById("revenueBarChart")
+    var tableContainer = document.getElementById("dailyRevenueList")
+    if (!chartContainer || !tableContainer) return
+
+    if (!Array.isArray(data) || data.length === 0) {
+        chartContainer.innerHTML = '<div style="margin: auto; color: #94a3b8; font-size: 13px; text-align: center; padding: 30px;">Chưa có dữ liệu kết toán đơn thuê. Sau khi khách thực hiện Check-out trả xe, biểu đồ và doanh thu sẽ tự động xuất hiện tại đây.</div>'
+        tableContainer.innerHTML = '<div style="padding: 24px; text-align: center; color: #94a3b8; font-size: 13px;">Hiện chưa có lịch sử doanh thu theo ngày nào được hoàn tất.</div>'
+        return
+    }
+
+    var chartData = data.slice().reverse()
+    var maxRevenue = Math.max.apply(Math, chartData.map(function(d) { return Number(d.net_revenue) || 0 }))
+    if (maxRevenue <= 0) maxRevenue = 1000000
+
+    var chartHtml = ""
+    for (var i = 0; i < chartData.length; i++) {
+        var item = chartData[i]
+        var net = Number(item.net_revenue) || 0
+        var gross = Number(item.gross_total) || 0
+        var deposit = Number(item.deposit_total) || 0
+        var heightPct = Math.max(16, Math.round((net / maxRevenue) * 120))
+
+        var netFormatted = (net >= 1000000) ? (net / 1000000).toFixed(1) + "M" : (net / 1000).toFixed(0) + "k"
+
+        chartHtml += '<div style="display: flex; flex-direction: column; align-items: center; justify-content: flex-end; flex: 1; min-width: 50px; height: 160px; position: relative;">'
+        chartHtml += '<div style="font-size: 11px; font-weight: 700; color: #0d74e7; margin-bottom: 6px;">' + netFormatted + '</div>'
+        chartHtml += '<div title="Ngày: ' + item.date_formatted + '&#10;Tổng thu: ' + gross.toLocaleString('vi-VN') + ' đ&#10;Cọc xe: ' + deposit.toLocaleString('vi-VN') + ' đ&#10;Thực nhận 90%: ' + net.toLocaleString('vi-VN') + ' đ" style="width: 34px; height: ' + heightPct + 'px; background: linear-gradient(180deg, #38bdf8 0%, #0284c7 100%); border-radius: 6px 6px 0 0; transition: height 0.3s ease; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(2, 132, 199, 0.2);"></div>'
+        chartHtml += '<div style="font-size: 11px; color: #64748b; margin-top: 8px; font-weight: 500;">' + item.date_formatted.split('/').slice(0, 2).join('/') + '</div>'
+        chartHtml += '</div>'
+    }
+    chartContainer.innerHTML = chartHtml
+
+    var tableHtml = ""
+    for (var j = 0; j < data.length; j++) {
+        var row = data[j]
+        var gTotal = Number(row.gross_total) || 0
+        var depTotal = Number(row.deposit_total) || 0
+        var nRev = Number(row.net_revenue) || 0
+        var pRev = Number(row.platform_revenue) || 0
+
+        tableHtml += '<div style="display: grid; grid-template-columns: 1.5fr 1fr 1.5fr 1.5fr 1.5fr 1.2fr; align-items: center; padding: 12px; border-bottom: 1px solid #f1f5f9; font-size: 13px; color: #334155;">'
+        tableHtml += '<span style="font-weight: 600; color: #0f172a;">📅 ' + row.date_formatted + '</span>'
+        tableHtml += '<span><span style="background: #e0f2fe; color: #0284c7; padding: 3px 8px; border-radius: 999px; font-weight: 600; font-size: 12px;">' + row.total_orders + ' đơn</span></span>'
+        tableHtml += '<span style="font-weight: 500;">' + gTotal.toLocaleString('vi-VN') + ' đ</span>'
+        tableHtml += '<span style="color: #64748b;">' + depTotal.toLocaleString('vi-VN') + ' đ</span>'
+        tableHtml += '<span style="color: #16a34a; font-weight: 700;">+' + nRev.toLocaleString('vi-VN') + ' đ</span>'
+        tableHtml += '<span style="color: #d97706; font-weight: 600;">' + pRev.toLocaleString('vi-VN') + ' đ</span>'
+        tableHtml += '</div>'
+    }
+    tableContainer.innerHTML = tableHtml
+}
+
+var btnRefRev = document.getElementById("btnRefreshDailyRevenue")
+if (btnRefRev) {
+    btnRefRev.addEventListener("click", function() {
+        loadDailyRevenueReport()
+    })
+}
+
+// TẢI DANH SÁCH TÀI KHOẢN TỪ BẢNG USERS CSDL
+async function loadAccountsFromBackend() {
+    try {
+        var res = await fetch("/api/admin/users")
+        if (!res.ok) return
+        var list = await res.json()
+        if (Array.isArray(list) && list.length > 0) {
+            accountsData = list.map(function(u) {
+                var sIdx = 0
+                if (u.status === "locked_15") sIdx = 1
+                else if (u.status === "locked_30") sIdx = 2
+                else if (u.status === "banned" || u.status === "inactive") sIdx = 3
+                return {
+                    id: String(u.id).padStart(8, "0"),
+                    userId: u.id,
+                    username: u.username || u.fullName,
+                    phone: u.phone,
+                    email: u.email,
+                    pass: "**************",
+                    status: u.status,
+                    statusIndex: sIdx,
+                    role: u.role
+                }
+            })
+            renderAccounts()
+        }
+    } catch (e) {
+        console.warn("Lỗi tải tài khoản người dùng:", e.message)
+    }
+}
 
 function renderAccounts() {
     var container = document.getElementById("accountListContainer")
+    if (!container) return
     var str = ""
     for (var i = 0; i < accountsData.length; i++) {
         var acc = accountsData[i]
-        var st = accountStates[acc.statusIndex]
+        var st = accountStates[acc.statusIndex] || accountStates[0]
         str += '<div class="account-row">'
         str += '<strong>' + acc.id + '</strong><span>' + acc.username + '</span><span>' + acc.phone + '</span>'
         str += '<span>' + acc.email + '</span><span>' + acc.pass + '</span>'
-        str += '<span><button class="acct-pill ' + st.cls + '" data-idx="' + i + '">' + st.label + '</button></span>'
+        str += '<span><button class="acct-pill ' + st.cls + '" data-idx="' + i + '" data-userid="' + (acc.userId || '') + '">' + st.label + '</button></span>'
         str += '</div>'
     }
     container.innerHTML = str
 
     var acctBtns = container.querySelectorAll(".acct-pill")
     for (var a = 0; a < acctBtns.length; a++) {
-        acctBtns[a].addEventListener("click", function () {
+        acctBtns[a].addEventListener("click", async function () {
             var idx = Number(this.getAttribute("data-idx"))
-            accountsData[idx].statusIndex = (accountsData[idx].statusIndex + 1) % accountStates.length
-            renderAccounts()
+            var acc = accountsData[idx]
+            var nextIdx = (acc.statusIndex + 1) % accountStates.length
+            var statusMap = ["active", "locked_15", "locked_30", "banned"]
+            var nextStatus = statusMap[nextIdx]
+
+            if (acc.userId) {
+                try {
+                    await fetch("/api/admin/users/" + acc.userId + "/status", {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ status: nextStatus, reason: "Admin thay đổi trạng thái tài khoản" })
+                    })
+                    loadAccountsFromBackend()
+                } catch (e) {
+                    console.warn("Lỗi cập nhật trạng thái tài khoản:", e.message)
+                }
+            } else {
+                acc.statusIndex = nextIdx
+                renderAccounts()
+            }
         })
     }
 }
@@ -1802,9 +2344,13 @@ renderVouchers()
 renderAccounts()
 
 fetchBikesFromBackend()
+loadVouchersFromBackend()
+loadAccountsFromBackend()
 if (isLoggedIn) {
     loadWalletData()
     fetchOwnerVehicles()
+    fetchMyBookingsFromBackend()
 }
 loadAdminPendingVehicles()
 loadAdminPendingDeposits()
+loadDailyRevenueReport()

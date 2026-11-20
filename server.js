@@ -18,13 +18,45 @@ app.get("/", (req, res) => {
     res.sendFile(path.join(frontEndPath, "index.html"));
 });
 
-// Gắn router Chủ xe (owner)
+// Gắn các router chuyển đổi từ Java Spring Boot sang Node.js
 try {
     const ownerRoutes = require("./source code/backend/owner/ownerRoutes");
     app.use("/api/owner", ownerRoutes);
     console.log("Đã kích hoạt thành công API Chủ xe (/api/owner)");
 } catch (err) {
-    console.warn("Chưa nạp được /api/owner (cần chạy 'npm.cmd install' để cài multer):", err.message);
+    console.warn("Chưa nạp được /api/owner:", err.message);
+}
+
+try {
+    const handoverRoutes = require("./source code/backend/handover/handoverRoutes");
+    app.use("/api/handover", handoverRoutes);
+    console.log("Đã kích hoạt thành công API Giao nhận xe (/api/handover)");
+} catch (err) {
+    console.warn("Chưa nạp được /api/handover:", err.message);
+}
+
+try {
+    const adminRoutes = require("./source code/backend/admin/adminRoutes");
+    app.use("/api/admin", adminRoutes);
+    console.log("Đã kích hoạt thành công API Quản trị (/api/admin)");
+} catch (err) {
+    console.warn("Chưa nạp được /api/admin:", err.message);
+}
+
+try {
+    const profileRoutes = require("./source code/backend/profile/profileRoutes");
+    app.use("/api/user", profileRoutes);
+    console.log("Đã kích hoạt thành công API Hồ sơ & eKYC (/api/user)");
+} catch (err) {
+    console.warn("Chưa nạp được /api/user:", err.message);
+}
+
+try {
+    const bookingRoutes = require("./source code/backend/booking/bookingRoutes");
+    app.use("/api", bookingRoutes);
+    console.log("Đã kích hoạt thành công API Đặt xe, Ví & Voucher (/api/bookings, /api/vouchers, /api/wallet/withdraw)");
+} catch (err) {
+    console.warn("Chưa nạp được /api/bookings:", err.message);
 }
 
 const pool = mysql.createPool({
@@ -89,7 +121,47 @@ async function initDatabaseSchema() {
                 CONSTRAINT fk_vehicle_files_vehicle FOREIGN KEY (vehicle_id) REFERENCES vehicles (vehicle_id) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         `);
-        console.log("-> Cấu trúc bảng vehicles & CSDL đã được kiểm tra và đồng bộ hoàn tất.");
+        // Đồng bộ cột cho bảng bookings nếu schema chưa có
+        const [bCols] = await pool.query("SHOW COLUMNS FROM bookings");
+        const existingBCols = new Set(bCols.map(c => c.Field));
+        if (!existingBCols.has("rental_type")) {
+            await pool.query("ALTER TABLE bookings ADD COLUMN rental_type VARCHAR(20) NOT NULL DEFAULT 'daily'");
+        }
+        if (!existingBCols.has("delivery_method")) {
+            await pool.query("ALTER TABLE bookings ADD COLUMN delivery_method VARCHAR(30) NOT NULL DEFAULT 'self_pickup'");
+        }
+        if (!existingBCols.has("delivery_address")) {
+            await pool.query("ALTER TABLE bookings ADD COLUMN delivery_address VARCHAR(255) DEFAULT NULL");
+        }
+        if (!existingBCols.has("delivery_fee")) {
+            await pool.query("ALTER TABLE bookings ADD COLUMN delivery_fee DOUBLE NOT NULL DEFAULT 0");
+        }
+        if (!existingBCols.has("deposit_status")) {
+            await pool.query("ALTER TABLE bookings ADD COLUMN deposit_status VARCHAR(30) NOT NULL DEFAULT 'held'");
+        }
+
+        // Đảm bảo tất cả user (kể cả Admin) đều có thể đóng vai trò người thuê xe
+        await pool.query("INSERT IGNORE INTO renters (user_id) SELECT user_id FROM users");
+
+        // Đồng bộ lại AUTO_INCREMENT tránh xung đột khóa chính từ dữ liệu seed
+        const pks = {
+            bookings: 'booking_id', transactions: 'transaction_id',
+            notifications: 'notification_id', wallets: 'wallet_id',
+            vehicles: 'vehicle_id', users: 'user_id'
+        };
+        for (const [tbl, pk] of Object.entries(pks)) {
+            try {
+                const [maxRows] = await pool.query(`SELECT COALESCE(MAX(${pk}), 0) AS maxId FROM ${tbl}`);
+                const maxId = maxRows[0].maxId;
+                const [status] = await pool.query(`SHOW TABLE STATUS LIKE '${tbl}'`);
+                const currAi = status[0] ? status[0].Auto_increment : null;
+                if (currAi && currAi <= maxId) {
+                    await pool.query(`ALTER TABLE ${tbl} AUTO_INCREMENT = ${maxId + 1}`);
+                }
+            } catch (err) {}
+        }
+
+        console.log("-> Cấu trúc bảng vehicles, bookings & CSDL đã được kiểm tra và đồng bộ hoàn tất.");
     } catch (e) {
         console.warn("Lưu ý initDatabaseSchema:", e.message);
     }
@@ -262,6 +334,17 @@ app.get("/api/owner/my-vehicles", async (req, res) => {
     }
 });
 
+// Helper: Lấy admin_id hợp lệ (đảm bảo thỏa mãn foreign key constraint với bảng admins)
+async function getValidAdminId(requestedId) {
+    const id = Number(requestedId);
+    if (id) {
+        const [rows] = await pool.query("SELECT user_id FROM admins WHERE user_id = ?", [id]);
+        if (rows.length > 0) return rows[0].user_id;
+    }
+    const [def] = await pool.query("SELECT user_id FROM admins ORDER BY user_id ASC LIMIT 1");
+    return def.length > 0 ? def[0].user_id : 6;
+}
+
 // Admin: Lấy danh sách xe đang chờ duyệt (approval_status = 'pending')
 app.get("/api/admin/vehicles/pending", async (req, res) => {
     try {
@@ -283,8 +366,8 @@ app.get("/api/admin/vehicles/pending", async (req, res) => {
 // Admin: Phê duyệt xe lên sàn (chuyển sang 'approved' và 'available')
 app.post("/api/admin/vehicles/:id/approve", async (req, res) => {
     const vehicleId = Number(req.params.id);
-    const adminId = Number(req.body.admin_id) || 6;
     try {
+        const adminId = await getValidAdminId(req.body.admin_id);
         const [result] = await pool.query(
             `UPDATE vehicles 
              SET approval_status = 'approved', availability_status = 'available', approved_by = ?
@@ -294,9 +377,31 @@ app.post("/api/admin/vehicles/:id/approve", async (req, res) => {
         if (result.affectedRows === 0) {
             return res.status(404).json({ message: "Không tìm thấy xe hoặc xe không tồn tại!" });
         }
-        res.json({ ok: true, message: "Đã duyệt xe lên sàn thành công! Khách thuê có thể thấy xe này trên trang chủ." });
+        res.json({ ok: true, message: `Đã duyệt xe #${vehicleId} lên sàn thành công! Khách thuê có thể thấy xe này trên trang chủ.` });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        console.error("Lỗi duyệt xe:", err);
+        res.status(500).json({ ok: false, message: "Lỗi duyệt xe: " + err.message, error: err.message });
+    }
+});
+
+// Admin: Phê duyệt TẤT CẢ xe đang chờ duyệt lên sàn
+app.post("/api/admin/vehicles/approve-all", async (req, res) => {
+    try {
+        const adminId = await getValidAdminId(req.body.admin_id);
+        const [result] = await pool.query(
+            `UPDATE vehicles 
+             SET approval_status = 'approved', availability_status = 'available', approved_by = ?
+             WHERE approval_status = 'pending'`,
+            [adminId]
+        );
+        res.json({ 
+            ok: true, 
+            count: result.affectedRows, 
+            message: `Đã duyệt thành công ${result.affectedRows} xe lên sàn! Tất cả xe đã sẵn sàng cho khách thuê.` 
+        });
+    } catch (err) {
+        console.error("Lỗi duyệt tất cả xe:", err);
+        res.status(500).json({ ok: false, message: "Lỗi duyệt tất cả xe: " + err.message, error: err.message });
     }
 });
 

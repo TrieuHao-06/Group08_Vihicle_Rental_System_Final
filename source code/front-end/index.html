@@ -37,6 +37,10 @@
                         <button type="button" class="user-dropdown-item logout-item" id="btnDropdownLogout">Đăng xuất</button>
                     </div>
                 </div>
+                <!-- NÚT CHUYỂN ĐỔI VAI TRÒ (USER <-> ADMIN) -->
+                <button type="button" class="btn-role-toggle" id="btnRoleToggle" title="Bấm để chuyển đổi vai trò Người dùng (User) và Quản trị viên (Admin)">
+                    <span id="roleBadgeIcon">👤</span> Chế độ: <strong id="roleBadgeText">Khách thuê (User)</strong>
+                </button>
                 <button class="btn-top-admin" id="btnTopAdmin">Admin</button>
             </div>
         </div>
@@ -643,7 +647,10 @@
             <div class="card">
                 <div class="voucher-header-bar">
                     <h2 class="section-title mb-0">Duyệt Xe Máy Ký Gửi Mới</h2>
-                    <button class="btn-grey-pill" id="btnRefreshAdminVehicles">Làm mới</button>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn-primary-sm" id="btnApproveAllVehicles" onclick="handleApproveAllVehicles()">Duyệt tất cả xe</button>
+                        <button class="btn-grey-pill" id="btnRefreshAdminVehicles">Làm mới</button>
+                    </div>
                 </div>
                 <div class="admin-approve-head">
                     <span>Phân loại</span>
@@ -690,6 +697,41 @@
                     <span><span class="badge-info-sm" id="disputeBadge">Chờ quyết toán</span></span>
                     <button class="btn-secondary-sm" id="btnRefundDeposit">Hoàn cọc 300.000đ về Ví</button>
                 </div>
+            </div>
+
+            <!-- BẢNG DOANH THU & BIỂU ĐỒ CỘT -->
+            <div class="card" id="revenueReportCard">
+                <div class="voucher-header-bar">
+                    <div>
+                        <h2 class="section-title mb-0">Báo Cáo &amp; Thống Kê Doanh Thu Theo Ngày</h2>
+                        <p class="section-sub" style="margin-top: 4px; margin-bottom: 0;">
+                            Doanh thu thực nhận sau khi hoàn tất Check-out = <strong>(Tổng thu được - Cọc xe) × 90%</strong> (10% hoa hồng nền tảng).
+                        </p>
+                    </div>
+                    <button class="btn-grey-pill" id="btnRefreshDailyRevenue">Cập nhật doanh thu</button>
+                </div>
+
+                <!-- BIỂU ĐỒ CỘT DOANH THU -->
+                <div class="revenue-chart-wrap" style="margin-top: 20px; padding: 20px; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                        <span style="font-weight: 600; color: #1e293b; font-size: 14px;">📊 Biểu đồ cột: Doanh thu thực nhận mỗi ngày (VND)</span>
+                        <span style="font-size: 12px; color: #64748b;">(Cột xanh: Doanh thu 90% • Cột tím nhạt: Tiền cọc xe)</span>
+                    </div>
+                    <div id="revenueBarChart" style="display: flex; align-items: flex-end; gap: 18px; min-height: 180px; padding: 20px 10px 10px 10px; border-bottom: 2px solid #cbd5e1; overflow-x: auto;">
+                        <!-- Các cột biểu đồ sẽ được render bằng JS -->
+                    </div>
+                </div>
+
+                <!-- BẢNG CHI TIẾT DOANH THU -->
+                <div class="revenue-table-head" style="display: grid; grid-template-columns: 1.5fr 1fr 1.5fr 1.5fr 1.5fr 1.2fr; font-weight: 600; padding: 12px; background: #f1f5f9; border-radius: 8px; margin-top: 16px; font-size: 13px; color: #334155;">
+                    <span>Ngày kết toán</span>
+                    <span>Số đơn</span>
+                    <span>Tổng tiền thu</span>
+                    <span>Tiền cọc giữ</span>
+                    <span>Doanh thu nhận (90%)</span>
+                    <span>Hoa hồng sàn (10%)</span>
+                </div>
+                <div id="dailyRevenueList"></div>
             </div>
 
             <div class="card">
@@ -853,7 +895,7 @@
 
             <div class="modal-form-row">
                 <label>Ngày hết hạn</label>
-                <input type="text" class="modal-input" id="newVoucherExp" placeholder="29/01/2027">
+                <input type="date" class="modal-input" id="newVoucherExp" value="2027-12-31">
             </div>
 
             <div class="modal-actions">
