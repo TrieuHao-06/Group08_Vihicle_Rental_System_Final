@@ -18,20 +18,20 @@ public final class OwnerDto {
      */
     public record VehicleForm(String brand, String model, String plate, String type, String cc, String fuel,
                               String hourPrice, String dayPrice, String deposit,
-                              String availFrom, String availTo) {
+                              String availFrom, String availTo, String area) {
 
         /** Dùng cho form multipart (đăng ký xe có upload file) */
         public static VehicleForm fromParams(Map<String, String> p) {
             return new VehicleForm(p.get("brand"), p.get("model"), p.get("plate"), p.get("type"),
                     p.get("cc"), p.get("fuel"), p.get("hourPrice"), p.get("dayPrice"), p.get("deposit"),
-                    p.get("availFrom"), p.get("availTo"));
+                    p.get("availFrom"), p.get("availTo"), p.get("area"));
         }
     }
 
     /** Tên field khớp với những gì xecuaban.js đang dùng; approval/availability viết thường */
     public record VehicleResponse(Long id, String brand, String model, String plate, String type, String cc,
                                   String fuel, long hourPrice, long dayPrice, long deposit,
-                                  String availFrom, String availTo, String approval, String availability) {
+                                  String availFrom, String availTo, String approval, String availability, String area) {
 
         static VehicleResponse of(OwnerVehicle v) {
             return new VehicleResponse(v.getId(), v.getBrand(), v.getModel(), v.getPlate(), v.getType(),
@@ -39,7 +39,8 @@ public final class OwnerDto {
                     v.getAvailFrom() == null ? null : v.getAvailFrom().toString(),
                     v.getAvailTo() == null ? null : v.getAvailTo().toString(),
                     lower(v.getApprovalStatus()),
-                    v.getAvailability() == null ? "available" : v.getAvailability().name().toLowerCase(Locale.ROOT));
+                    v.getAvailability() == null ? "available" : v.getAvailability().name().toLowerCase(Locale.ROOT),
+                    v.getArea() == null ? "Quận 1" : v.getArea());
         }
     }
 

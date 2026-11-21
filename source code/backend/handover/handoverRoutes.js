@@ -136,13 +136,37 @@ router.post("/reports", wrap(async (req, res) => {
                 // Mở lại trạng thái sẵn sàng cho xe để khách có thể đặt lại từ đầu theo quy trình mới
                 await conn.query("UPDATE vehicles SET availability_status = 'available' WHERE vehicle_id = ?", [booking.vehicle_id]);
 
-                // 5. YÊU CẦU: Tính toán doanh thu theo công thức: (Tổng thu được - Cọc xe) * 90%
+                // 5. YÊU CẦU: Hoàn cọc tự động cho người đặt & Tính doanh thu chủ xe: Tiền thuê * 90%
                 const gross = Number(booking.total_amount) || 0;
                 const deposit = Number(booking.deposit_amount) || 0;
-                const rentalAmount = Math.max(0, gross - deposit);
+                const rentalAmount = (gross > deposit) ? (gross - deposit) : gross;
                 const netRevenue = Math.round(rentalAmount * 0.9);
 
-                // Lấy chủ sở hữu xe và cộng tiền vào ví chủ xe
+                // Hoàn cọc tự động vào tài khoản của người đặt xe
+                const renterId = booking.renter_id;
+                const refundDeposit = deposit > 0 ? deposit : 300000;
+
+                await conn.query("UPDATE bookings SET deposit_status = 'refunded' WHERE booking_id = ?", [bId]);
+
+                if (renterId && refundDeposit > 0) {
+                    await conn.query("INSERT IGNORE INTO wallets (user_id, balance) VALUES (?, 0)", [renterId]);
+                    await conn.query("UPDATE wallets SET balance = balance + ? WHERE user_id = ?", [refundDeposit, renterId]);
+
+                    const [renterWallet] = await conn.query("SELECT wallet_id FROM wallets WHERE user_id = ?", [renterId]);
+                    if (renterWallet.length > 0) {
+                        await conn.query(`
+                            INSERT INTO transactions (wallet_id, booking_id, amount, type, status, description, created_at)
+                            VALUES (?, ?, ?, 'deposit_refund', 'completed', ?, NOW())
+                        `, [
+                            renterWallet[0].wallet_id,
+                            bId,
+                            refundDeposit,
+                            `Hoàn tiền cọc tự động đơn #${cleanCode}`
+                        ]);
+                    }
+                }
+
+                // Lấy chủ sở hữu xe và cộng doanh thu (tiền thuê * 90%) vào ví chủ xe
                 const [vehRows] = await conn.query("SELECT owner_id, brand, model FROM vehicles WHERE vehicle_id = ?", [booking.vehicle_id]);
                 if (vehRows.length > 0) {
                     const ownerId = vehRows[0].owner_id;
@@ -158,7 +182,7 @@ router.post("/reports", wrap(async (req, res) => {
                             wRows[0].wallet_id,
                             bId,
                             netRevenue,
-                            `Cộng doanh thu đơn #${cleanCode} (${vehRows[0].brand} ${vehRows[0].model}): (${gross.toLocaleString('vi-VN')}đ - ${deposit.toLocaleString('vi-VN')}đ cọc) x 90%`
+                            `Cộng doanh thu đơn #${cleanCode} (${vehRows[0].brand} ${vehRows[0].model}): Tiền thuê ${rentalAmount.toLocaleString('vi-VN')}đ x 90%`
                         ]);
                     }
                 }

@@ -108,6 +108,18 @@ async function initDatabaseSchema() {
             await pool.query("ALTER TABLE vehicles ADD COLUMN availability_status VARCHAR(30) NOT NULL DEFAULT 'available'");
             console.log("-> Đã bổ sung cột availability_status vào bảng vehicles");
         }
+        if (!existingCols.has("area")) {
+            await pool.query("ALTER TABLE vehicles ADD COLUMN area VARCHAR(100) NOT NULL DEFAULT 'Quận 1'");
+            console.log("-> Đã bổ sung cột area vào bảng vehicles");
+            const sampleAreas = ["Quận 1", "Quận 3", "Quận 4", "Quận 5", "Quận 7", "Quận Phú Nhuận", "Quận Bình Thạnh", "Quận Gò Vấp", "TP. Thủ Đức"];
+            const [allVehicles] = await pool.query("SELECT vehicle_id FROM vehicles ORDER BY vehicle_id ASC");
+            for (let idx = 0; idx < allVehicles.length; idx++) {
+                await pool.query("UPDATE vehicles SET area = ? WHERE vehicle_id = ?", [sampleAreas[idx % sampleAreas.length], allVehicles[idx].vehicle_id]);
+            }
+            console.log("-> Đã phân bổ khu vực thực tế cho các xe trong CSDL");
+        } else {
+            await pool.query("UPDATE vehicles SET area = 'Quận 1' WHERE area IS NULL OR area = ''");
+        }
 
         // Tạo bảng vehicle_files nếu chưa có
         await pool.query(`
@@ -158,7 +170,7 @@ async function initDatabaseSchema() {
                 if (currAi && currAi <= maxId) {
                     await pool.query(`ALTER TABLE ${tbl} AUTO_INCREMENT = ${maxId + 1}`);
                 }
-            } catch (err) {}
+            } catch (err) { }
         }
 
         console.log("-> Cấu trúc bảng vehicles, bookings & CSDL đã được kiểm tra và đồng bộ hoàn tất.");
@@ -202,6 +214,7 @@ app.get("/api/vehicles", async (req, res) => {
                     COALESCE(v.vehicle_type, 'Xe tay ga') AS type,
                     COALESCE(v.engine_cc, '110cc') AS cc,
                     COALESCE(v.fuel_type, 'Xăng') AS fuel,
+                    COALESCE(v.area, 'Quận 1') AS area,
                     v.license_plate,
                     COALESCE(v.price_per_hour, ROUND(v.price_per_day / 6, -3)) AS hourPrice,
                     v.price_per_day AS dayPrice,
@@ -220,7 +233,7 @@ app.get("/api/vehicles", async (req, res) => {
 
 // Người dùng gửi yêu cầu ký gửi thêm xe mới (trạng thái ban đầu: pending - Chờ Admin duyệt)
 app.post("/api/vehicles/consign", async (req, res) => {
-    const { user_id, brand, model, vehicle_type, engine_cc, fuel_type, hour_price, day_price, license_plate } = req.body || {};
+    const { user_id, brand, model, vehicle_type, engine_cc, fuel_type, hour_price, day_price, license_plate, area } = req.body || {};
     const hPrice = Number(hour_price);
     const dPrice = Number(day_price);
     if (!user_id || !brand || !model || !license_plate || !hPrice || !dPrice) {
@@ -293,6 +306,11 @@ app.post("/api/vehicles/consign", async (req, res) => {
             values.push("unavailable");
             placeholders.push("?");
         }
+        if (existingCols.has("area")) {
+            fields.push("area");
+            values.push((area || "Quận 1").trim());
+            placeholders.push("?");
+        }
 
         const [ins] = await conn.query(
             `INSERT INTO vehicles (${fields.join(", ")}) VALUES (${placeholders.join(", ")})`,
@@ -321,6 +339,7 @@ app.get("/api/owner/my-vehicles", async (req, res) => {
         const [rows] = await pool.query(
             `SELECT vehicle_id AS id, brand, model, CONCAT(brand, ' ', model) AS name,
                     vehicle_type AS type, engine_cc AS cc, fuel_type AS fuel, license_plate,
+                    COALESCE(area, 'Quận 1') AS area,
                     price_per_hour AS hourPrice, price_per_day AS dayPrice, deposit_amount AS deposit,
                     approval_status, availability_status
              FROM vehicles
@@ -329,6 +348,31 @@ app.get("/api/owner/my-vehicles", async (req, res) => {
             [userId]
         );
         res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Thống kê số chuyến hoàn tất và Doanh thu ròng cho chủ xe (Công thức: Tiền thuê * 90%)
+app.get("/api/owner/revenue-stats", async (req, res) => {
+    try {
+        const userId = Number(req.query.user_id);
+        if (!userId) {
+            return res.json({ completed_trips: 0, net_revenue: 0 });
+        }
+        const [rows] = await pool.query(`
+            SELECT 
+                COUNT(b.booking_id) AS completed_trips,
+                COALESCE(SUM(ROUND((CASE WHEN b.total_amount > b.deposit_amount THEN (b.total_amount - b.deposit_amount) ELSE b.total_amount END) * 0.9)), 0) AS net_revenue
+            FROM bookings b
+            JOIN vehicles v ON b.vehicle_id = v.vehicle_id
+            WHERE v.owner_id = ? AND b.status = 'completed'
+        `, [userId]);
+
+        res.json({
+            completed_trips: Number(rows[0]?.completed_trips) || 0,
+            net_revenue: Number(rows[0]?.net_revenue) || 0
+        });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -351,6 +395,7 @@ app.get("/api/admin/vehicles/pending", async (req, res) => {
         const [rows] = await pool.query(
             `SELECT v.vehicle_id, v.owner_id, u.full_name AS owner_name, u.phone AS owner_phone,
                     v.brand, v.model, v.license_plate, v.vehicle_type, v.engine_cc, v.fuel_type,
+                    COALESCE(v.area, 'Quận 1') AS area,
                     v.price_per_hour, v.price_per_day, v.deposit_amount, v.approval_status
              FROM vehicles v
              JOIN users u ON v.owner_id = u.user_id
@@ -394,10 +439,10 @@ app.post("/api/admin/vehicles/approve-all", async (req, res) => {
              WHERE approval_status = 'pending'`,
             [adminId]
         );
-        res.json({ 
-            ok: true, 
-            count: result.affectedRows, 
-            message: `Đã duyệt thành công ${result.affectedRows} xe lên sàn! Tất cả xe đã sẵn sàng cho khách thuê.` 
+        res.json({
+            ok: true,
+            count: result.affectedRows,
+            message: `Đã duyệt thành công ${result.affectedRows} xe lên sàn! Tất cả xe đã sẵn sàng cho khách thuê.`
         });
     } catch (err) {
         console.error("Lỗi duyệt tất cả xe:", err);
@@ -649,8 +694,8 @@ app.post("/api/user/change-password", async (req, res) => {
         const hashClean = String(user.password_hash).trim();
 
         if (hashClean !== oldClean) {
-            return res.status(400).json({ 
-                message: `Mật khẩu hiện tại không chính xác!` 
+            return res.status(400).json({
+                message: `Mật khẩu hiện tại không chính xác!`
             });
         }
 
@@ -667,6 +712,67 @@ app.post("/api/user/change-password", async (req, res) => {
     }
 });
 
+// Hàm kiểm tra trùng lặp email và số điện thoại chi tiết khi đăng ký tài khoản
+async function checkRegistrationDuplicates(db, email, phone) {
+    const cleanEmail = (email || "").trim();
+    const cleanPhone = (phone || "").trim();
+    const normPhone = cleanPhone.replace(/[\s\-\.]/g, "").replace(/^\+84/, "0");
+
+    let emailMatches = [];
+    if (cleanEmail) {
+        const [rows] = await db.query(
+            "SELECT user_id, email FROM users WHERE LOWER(email) = LOWER(?) LIMIT 1",
+            [cleanEmail]
+        );
+        emailMatches = rows;
+    }
+
+    let phoneMatches = [];
+    if (cleanPhone) {
+        const [rows] = await db.query(
+            "SELECT user_id, phone FROM users WHERE phone = ? OR REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '+84', '0') = ? LIMIT 1",
+            [cleanPhone, normPhone]
+        );
+        phoneMatches = rows;
+    }
+
+    const isEmailDuplicate = emailMatches.length > 0;
+    const isPhoneDuplicate = phoneMatches.length > 0;
+
+    let duplicateFields = [];
+    let validFields = [];
+    let message = "";
+
+    if (isEmailDuplicate && isPhoneDuplicate) {
+        duplicateFields = ["email", "phone"];
+        message = `❌ Trùng cả Email và Số điện thoại:\n` +
+            `• Email "${cleanEmail}" đã được sử dụng bởi tài khoản khác (cần đổi email mới).\n` +
+            `• Số điện thoại "${cleanPhone}" đã được sử dụng bởi tài khoản khác (cần đổi số điện thoại mới).`;
+
+    } else if (isEmailDuplicate) {
+        duplicateFields = ["email"];
+        validFields = ["phone"];
+        message = `❌ Email "${cleanEmail}" đã bị trùng (đã tồn tại trên hệ thống)!`;
+    } else if (isPhoneDuplicate) {
+        duplicateFields = ["phone"];
+        validFields = ["email"];
+        message = `❌ Số điện thoại "${cleanPhone}" đã bị trùng (đã tồn tại trên hệ thống)!`;
+    }
+
+    return {
+        hasDuplicate: isEmailDuplicate || isPhoneDuplicate,
+        isEmailDuplicate,
+        isPhoneDuplicate,
+        duplicateFields,
+        validFields,
+        duplicate_fields: duplicateFields,
+        valid_fields: validFields,
+        email: cleanEmail,
+        phone: cleanPhone,
+        message
+    };
+}
+
 // Đăng ký tài khoản người thuê mới
 app.post("/api/auth/register", async (req, res) => {
     const { full_name, email, phone, password } = req.body || {};
@@ -677,17 +783,29 @@ app.post("/api/auth/register", async (req, res) => {
         return res.status(400).json({ message: "Mật khẩu phải có ít nhất 8 ký tự!" });
     }
 
+    const cleanPhone = (phone || "").trim();
+    if (!cleanPhone || /\s/.test(cleanPhone) || !/^0[0-9]{9}$/.test(cleanPhone)) {
+        return res.status(400).json({
+            message: "Số điện thoại không hợp lệ! Bắt buộc phải có đúng 10 chữ số (0-9), bắt đầu bằng số 0 và không có khoảng trống."
+        });
+    }
+
     const conn = await pool.getConnection();
     try {
         await conn.beginTransaction();
 
-        const [existing] = await conn.query(
-            "SELECT user_id FROM users WHERE email = ? OR phone = ? LIMIT 1",
-            [email.trim(), phone.trim()]
-        );
-        if (existing.length > 0) {
+        const dupCheck = await checkRegistrationDuplicates(conn, email, phone);
+        if (dupCheck.hasDuplicate) {
             await conn.rollback();
-            return res.status(409).json({ message: "Email hoặc số điện thoại đã được đăng ký!" });
+            return res.status(409).json({
+                message: dupCheck.message,
+                duplicate_fields: dupCheck.duplicateFields,
+                valid_fields: dupCheck.validFields,
+                isEmailDuplicate: dupCheck.isEmailDuplicate,
+                isPhoneDuplicate: dupCheck.isPhoneDuplicate,
+                email: dupCheck.email,
+                phone: dupCheck.phone
+            });
         }
 
         const [userResult] = await conn.query(
@@ -706,6 +824,17 @@ app.post("/api/auth/register", async (req, res) => {
         res.status(500).json({ message: "Lỗi hệ thống: " + err.message });
     } finally {
         conn.release();
+    }
+});
+
+// API kiểm tra trùng lặp email / số điện thoại trước khi submit
+app.post("/api/auth/check-duplicate", async (req, res) => {
+    const { email, phone } = req.body || {};
+    try {
+        const dupCheck = await checkRegistrationDuplicates(pool, email, phone);
+        res.json(dupCheck);
+    } catch (err) {
+        res.status(500).json({ message: "Lỗi kiểm tra trùng lặp: " + err.message });
     }
 });
 

@@ -461,14 +461,17 @@ router.post("/withdrawals/:id/reject", wrap(async (req, res) => {
 
 // GET /api/admin/reports/revenue - Báo cáo tổng thể hệ thống
 router.get("/reports/revenue", wrap(async (req, res) => {
-    // 1. Tổng chuyến hoàn thành
-    const [trips] = await pool.query(
-        "SELECT COUNT(*) AS totalCompleted, COALESCE(SUM(total_amount), 0) AS grossRevenue FROM bookings WHERE status = 'completed'"
-    );
+    // 1. Tổng chuyến hoàn thành & tiền thuê
+    const [trips] = await pool.query(`
+        SELECT COUNT(*) AS totalCompleted,
+               COALESCE(SUM(CASE WHEN total_amount > deposit_amount THEN (total_amount - deposit_amount) ELSE total_amount END), 0) AS rentalTotal,
+               COALESCE(SUM(total_amount), 0) AS grossRevenue
+        FROM bookings WHERE status = 'completed'
+    `);
 
     // 2. Tổng cọc đã hoàn
     const [refunds] = await pool.query(
-        "SELECT COALESCE(SUM(deposit_amount), 0) AS totalRefunded FROM bookings WHERE deposit_status = 'approved_refund'"
+        "SELECT COALESCE(SUM(deposit_amount), 0) AS totalRefunded FROM bookings WHERE deposit_status IN ('approved_refund', 'refunded')"
     );
 
     // 3. Tổng cọc đang giữ
@@ -484,14 +487,15 @@ router.get("/reports/revenue", wrap(async (req, res) => {
             (SELECT COUNT(*) FROM vehicles WHERE approval_status = 'pending') AS pendingVehicles
     `);
 
-    const gross = Number(trips[0].grossRevenue);
-    const platformFee = Math.round(gross * COMMISSION_RATE);
-    const ownerNet = gross - platformFee;
+    const rentalGross = Number(trips[0].rentalTotal);
+    const platformFee = Math.round(rentalGross * COMMISSION_RATE);
+    const ownerNet = rentalGross - platformFee;
 
     res.json({
         period: req.query.period || "Toàn thời gian",
         totalCompletedTrips: Number(trips[0].totalCompleted),
-        grossRevenue: gross,
+        grossRevenue: Number(trips[0].grossRevenue),
+        rentalRevenue: rentalGross,
         commissionRate: COMMISSION_RATE,
         platformRevenue: platformFee,
         ownerNetRevenue: ownerNet,
@@ -512,9 +516,9 @@ router.get("/reports/daily-revenue", wrap(async (req, res) => {
             COUNT(b.booking_id) AS total_orders,
             COALESCE(SUM(b.total_amount), 0) AS gross_total,
             COALESCE(SUM(b.deposit_amount), 0) AS deposit_total,
-            COALESCE(SUM(GREATEST(0, b.total_amount - b.deposit_amount)), 0) AS rental_total,
-            COALESCE(SUM(ROUND(GREATEST(0, b.total_amount - b.deposit_amount) * 0.9)), 0) AS net_revenue,
-            COALESCE(SUM(ROUND(GREATEST(0, b.total_amount - b.deposit_amount) * 0.1)), 0) AS platform_revenue
+            COALESCE(SUM(CASE WHEN b.total_amount > b.deposit_amount THEN (b.total_amount - b.deposit_amount) ELSE b.total_amount END), 0) AS rental_total,
+            COALESCE(SUM(ROUND((CASE WHEN b.total_amount > b.deposit_amount THEN (b.total_amount - b.deposit_amount) ELSE b.total_amount END) * 0.9)), 0) AS net_revenue,
+            COALESCE(SUM(ROUND((CASE WHEN b.total_amount > b.deposit_amount THEN (b.total_amount - b.deposit_amount) ELSE b.total_amount END) * 0.1)), 0) AS platform_revenue
         FROM bookings b
         WHERE b.status = 'completed'
         GROUP BY DATE_FORMAT(b.end_date, '%Y-%m-%d'), DATE_FORMAT(b.end_date, '%d/%m/%Y')

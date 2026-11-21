@@ -47,6 +47,9 @@ public class OwnerVehicle {
     @Column(name = "fuel_type", length = 30)
     private String fuel;
 
+    @Column(name = "area", length = 100)
+    private String area;
+
     @Column(name = "price_per_hour")
     private Long hourPrice;
 
@@ -92,6 +95,8 @@ public class OwnerVehicle {
     public void setCc(String cc) { this.cc = cc; }
     public String getFuel() { return fuel; }
     public void setFuel(String fuel) { this.fuel = fuel; }
+    public String getArea() { return area; }
+    public void setArea(String area) { this.area = area; }
     public Long getHourPrice() { return hourPrice; }
     public void setHourPrice(Long hourPrice) { this.hourPrice = hourPrice; }
     public Long getDayPrice() { return dayPrice; }

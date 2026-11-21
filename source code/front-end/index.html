@@ -25,8 +25,8 @@
                 <span class="nav-divider"></span>
                 <button class="nav-tab" data-target="tab7">Xe đã đặt</button>
                 <button class="nav-tab" data-target="tab4">Xe của bạn</button>
-                <span class="nav-divider" id="adminNavDivider"></span>
-                <button class="nav-tab nav-tab-admin" data-target="tab5" id="navTabAdmin">⚡ Quản trị</button>
+                <span class="nav-divider" id="adminNavDivider" style="display: none;"></span>
+                <button class="nav-tab nav-tab-admin" data-target="tab5" id="navTabAdmin" style="display: none;">⚡ Quản trị</button>
             </nav>
 
             <div class="top-actions">
@@ -155,6 +155,9 @@
                     <div class="form-group mt-16">
                         <label id="durationLabel">Số ngày thuê</label>
                         <input type="number" min="1" class="input-soft" id="rentDuration" value="1">
+                        <div id="durationErrorMsg" class="input-error-hint hidden" style="color: #ef4444; font-size: 11.5px; margin-top: 5px; font-weight: 500;">
+                            ⚠️ Số ngày thuê phải lớn hơn 0. Vui lòng nhập lại!
+                        </div>
                     </div>
 
                     <div class="form-group mt-16">
@@ -441,7 +444,10 @@
                         <h2 class="section-title mb-0">Danh sách Xe đã đặt của bạn</h2>
                         <p class="section-sub" style="margin-top: 4px; margin-bottom: 0;">Các đơn xe hoàn tất thanh toán ở mục Đặt xe sẽ hiển thị tại đây và tự động đồng bộ sang mục Giao nhận xe.</p>
                     </div>
-                    <button class="btn-primary-pill" onclick="switchTab('tab1')">+ Đặt thêm xe</button>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn-secondary-pill" id="btnOpenBookingHistory" style="display: inline-flex; align-items: center; gap: 6px;">📜 Lịch sử đặt xe (<span id="historyCountBadge">0</span>)</button>
+                        <button class="btn-primary-pill" onclick="switchTab('tab1')">+ Đặt thêm xe</button>
+                    </div>
                 </div>
 
                 <div class="booked-table-head">
@@ -616,6 +622,21 @@
                         </div>
                     </div>
 
+                    <div class="form-group mt-12">
+                        <label for="ownArea">Khu vực giao / nhận xe *</label>
+                        <select class="input-soft" id="ownArea">
+                            <option value="Quận 1" selected>Quận 1</option>
+                            <option value="Quận 3">Quận 3</option>
+                            <option value="Quận 4">Quận 4</option>
+                            <option value="Quận 5">Quận 5</option>
+                            <option value="Quận 7">Quận 7</option>
+                            <option value="Quận Phú Nhuận">Quận Phú Nhuận</option>
+                            <option value="Quận Bình Thạnh">Quận Bình Thạnh</option>
+                            <option value="Quận Gò Vấp">Quận Gò Vấp</option>
+                            <option value="TP. Thủ Đức">TP. Thủ Đức</option>
+                        </select>
+                    </div>
+
                     <button class="btn-primary-full mt-16" id="btnSubmitConsign">Gửi hồ sơ ký gửi xe lên Admin</button>
                 </div>
 
@@ -623,12 +644,12 @@
                     <h2 class="section-title">Quản lý lịch xe trống &amp; Doanh thu của bạn</h2>
                     <div class="grid-2">
                         <div class="stat-box">
-                            <span class="stat-label">Tổng chuyến hoàn tất tháng 11</span>
-                            <strong class="stat-val-dark">36 chuyến</strong>
+                            <span class="stat-label" id="ownerStatMonthLabel">Tổng chuyến hoàn tất tháng 11</span>
+                            <strong class="stat-val-dark" id="ownerCompletedTrips">0 chuyến</strong>
                         </div>
                         <div class="stat-box">
                             <span class="stat-label">Doanh thu ròng chủ xe</span>
-                            <strong class="stat-val-green">6.450.000<u>đ</u></strong>
+                            <strong class="stat-val-green" id="ownerNetRevenue">0<u>đ</u></strong>
                         </div>
                     </div>
 
@@ -828,12 +849,18 @@
 
                         <div class="login-row">
                             <label>Email</label>
-                            <input type="email" class="login-input" id="registerEmail" placeholder="example@gmail.com">
+                            <div class="login-input-col">
+                                <input type="email" class="login-input" id="registerEmail" placeholder="example@gmail.com">
+                                <div id="registerEmailFeedback" class="input-error-hint" style="display:none;"></div>
+                            </div>
                         </div>
 
                         <div class="login-row">
                             <label>Số điện thoại</label>
-                            <input type="tel" class="login-input" id="registerPhone" placeholder="+84">
+                            <div class="login-input-col">
+                                <input type="tel" class="login-input" id="registerPhone" placeholder="0xxxxxxxxx" maxlength="10">
+                                <div id="registerPhoneFeedback" class="input-error-hint" style="display:none;"></div>
+                            </div>
                         </div>
 
                         <div class="login-row">
@@ -948,6 +975,31 @@
             <div class="modal-actions">
                 <button type="button" class="btn-modal-cancel" id="btnCancelChangePass">Hủy</button>
                 <button type="button" class="btn-modal-save" id="btnSubmitChangePass">Lưu mật khẩu mới</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL LỊCH SỬ ĐẶT XE (CÁC ĐƠN ĐÃ TRẢ XE) -->
+    <div class="modal-backdrop hidden" id="bookingHistoryModal">
+        <div class="modal-card" style="max-width: 860px; width: 95%;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h3 class="modal-title" style="margin-bottom: 0;">📜 Lịch sử đặt xe (Các đơn đã trả xe)</h3>
+                <button type="button" class="btn-grey-pill" id="btnCloseBookingHistory" style="padding: 4px 12px; font-size: 13px;">✕ Đóng</button>
+            </div>
+            <p style="font-size: 13px; color: #64748b; margin-top: -6px; margin-bottom: 16px;">Những đơn thuê xe bạn đã hoàn tất quy trình Check-out và trả xe thành công được lưu trữ tại đây.</p>
+
+            <div class="history-table-head">
+                <span>Mã đơn</span>
+                <span>Thông tin xe &amp; Khu vực</span>
+                <span>Gói thuê &amp; Lịch trình</span>
+                <span>Tổng tiền</span>
+                <span>Trạng thái</span>
+            </div>
+
+            <div id="bookingHistoryContainer" style="max-height: 400px; overflow-y: auto; margin-top: 8px;"></div>
+
+            <div class="modal-actions" style="margin-top: 16px;">
+                <button type="button" class="btn-primary-pill" id="btnBottomCloseHistory">Đóng</button>
             </div>
         </div>
     </div>

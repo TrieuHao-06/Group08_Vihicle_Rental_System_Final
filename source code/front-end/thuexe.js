@@ -385,6 +385,7 @@ function updateRoleModeUI() {
             toggleBtn.style.background = "#eff6ff"
         }
         if (navTabAdmin) {
+            navTabAdmin.style.display = "inline-flex"
             navTabAdmin.innerHTML = "⚡ Quản trị"
             navTabAdmin.classList.remove("locked")
             navTabAdmin.title = "Khu vực Quản trị viên (Đang mở khóa)"
@@ -412,15 +413,20 @@ function updateRoleModeUI() {
             toggleBtn.style.color = "#475569"
             toggleBtn.style.background = "#fff"
         }
+        // Ở chế độ User: Nút quản trị và thanh ngăn cách bị ẩn hoàn toàn và không thể tương tác
         if (navTabAdmin) {
-            navTabAdmin.innerHTML = "🔒 Quản trị"
+            navTabAdmin.style.display = "none"
             navTabAdmin.classList.add("locked")
-            navTabAdmin.title = "Khu vực Quản trị viên (Bị khóa ở chế độ User - hãy bấm nút đổi vai trò sang Admin để mở)"
         }
-        if (adminDivider) adminDivider.style.display = "inline-block"
+        if (adminDivider) {
+            adminDivider.style.display = "none"
+        }
         if (adminBtn) {
-            adminBtn.innerHTML = "🔒 Admin"
             adminBtn.style.display = "none"
+        }
+        // Nếu đang ở Tab 5 mà chuyển về chế độ User thì lập tức chuyển về Tab 1
+        if (tab5Panel && tab5Panel.classList.contains("active")) {
+            switchTab("tab1")
         }
         if (tab5Panel) {
             var lockedNotice = document.getElementById("adminLockedOverlay")
@@ -584,8 +590,42 @@ function updateBookingSummary() {
     document.getElementById("pkgHourText").textContent = (bike.hourPrice / 1000) + "K / giờ"
     document.getElementById("pkgDayText").textContent = (bike.dayPrice / 1000) + "K / ngày"
 
-    var rawDur = Number(document.getElementById("rentDuration").value)
-    var duration = (rawDur > 1) ? rawDur : 1
+    var durTitle = (rentMode == "day") ? "Số ngày thuê" : "Số giờ thuê"
+    var unitName = (rentMode == "day") ? "Theo ngày" : "Theo giờ"
+    var unitSuffix = (rentMode == "day") ? "ngày" : "giờ"
+    var durLabelEl = document.getElementById("durationLabel")
+    if (durLabelEl) durLabelEl.textContent = durTitle
+
+    var durInput = document.getElementById("rentDuration")
+    var durErr = document.getElementById("durationErrorMsg")
+    var durValStr = durInput ? durInput.value.trim() : ""
+    var rawDur = Number(durValStr)
+
+    // Kiểm tra nếu số giờ hoặc số ngày thuê bé hơn hoặc bằng 0
+    if (durValStr === "" || isNaN(rawDur) || rawDur <= 0) {
+        if (durErr) {
+            durErr.textContent = "⚠️ " + durTitle + " phải lớn hơn 0. Vui lòng nhập lại!"
+            durErr.classList.remove("hidden")
+        }
+        if (durInput) {
+            durInput.style.border = "1.5px solid #ef4444"
+            durInput.style.background = "#fef2f2"
+        }
+        document.getElementById("sumBaseLabel").textContent = "Gói cước thuê: " + durTitle + " không hợp lệ (≤ 0)"
+        document.getElementById("sumBaseVal").textContent = "0đ"
+        document.getElementById("sumDiscountVal").textContent = "0đ"
+        document.getElementById("sumTotalVal").textContent = "0đ"
+        currentBookingTotal = 0
+        return
+    } else {
+        if (durErr) durErr.classList.add("hidden")
+        if (durInput) {
+            durInput.style.border = ""
+            durInput.style.background = ""
+        }
+    }
+
+    var duration = rawDur
     var vSelect = document.getElementById("voucherSelect")
     var voucherPct = 0
     if (vSelect && vSelect.selectedIndex >= 0) {
@@ -595,17 +635,13 @@ function updateBookingSummary() {
     var shipFee = Number(document.getElementById("pickupMethod").value) || 0
 
     var unitPrice = (rentMode == "day") ? bike.dayPrice : bike.hourPrice
-    var unitName = (rentMode == "day") ? "Theo ngày" : "Theo giờ"
-    var unitSuffix = (rentMode == "day") ? "ngày" : "giờ"
-    var durTitle = (rentMode == "day") ? "Số ngày thuê" : "Số giờ thuê"
 
     var baseCost = unitPrice * duration
     var discount = Math.round((baseCost * voucherPct) / 100)
-    var deposit = 300000
+    var deposit = (bike && bike.deposit) ? Number(bike.deposit) : 300000
     var total = baseCost + shipFee - discount + deposit
     currentBookingTotal = total
 
-    document.getElementById("durationLabel").textContent = durTitle
     document.getElementById("sumBaseLabel").textContent = "Gói cước thuê: " + unitName + " × " + duration + " " + unitSuffix
     document.getElementById("sumBaseVal").textContent = formatVND(baseCost)
     document.getElementById("sumShipLabel").textContent = (shipFee == 0) ? "Phí giao xe: Tự lấy tại điểm" : "Phí giao xe: Giao tận nơi"
@@ -640,55 +676,134 @@ for (var s = 0; s < sumInputIds.length; s++) {
     document.getElementById(sumInputIds[s]).addEventListener("change", updateBookingSummary)
 }
 
-// RENDER TAB 7: DANH SÁCH XE ĐÃ ĐẶT
+// RENDER TAB 7: DANH SÁCH XE ĐÃ ĐẶT (TÁCH BIỆT ĐƠN HOẠT ĐỘNG VÀ LỊCH SỬ ĐÃ TRẢ XE)
 function renderBookedBikes() {
     var container = document.getElementById("bookedBikesContainer")
+    var historyContainer = document.getElementById("bookingHistoryContainer")
+    var historyCountBadge = document.getElementById("historyCountBadge")
     if (!container) return
 
-    if (bookedOrders.length === 0) {
-        container.innerHTML = '<div class="empty-booked-box">Bạn chưa đặt chiếc xe nào. Hãy sang tab <strong>Đặt xe</strong> để chọn và thanh toán xe nhé!</div>'
-        return
-    }
-
-    var html = ""
+    // Tách riêng: Đơn đang hoạt động (chờ duyệt, đang thuê) vs Đơn đã hoàn tất (Đã trả xe)
+    var activeOrders = []
+    var historyOrders = []
     for (var i = 0; i < bookedOrders.length; i++) {
-        var o = bookedOrders[i]
-        var badgeCls = "badge-warn-sm"
-        if (o.status === "Đang thuê") badgeCls = "badge-info-sm"
-        else if (o.status === "Đã trả xe") badgeCls = "badge-success"
-
-        html += '<div class="booked-table-row">'
-        html += '<strong>#' + o.id + '</strong>'
-        html += '<div><strong>' + o.bikeName + '</strong><div style="font-size: 11px; color: #64748b;">Khu vực: ' + o.area + '</div></div>'
-        html += '<div><span>' + o.packageText + '</span><div style="font-size: 11px; color: #64748b;">' + o.pickupTime + ' → ' + o.returnTime + '</div></div>'
-        html += '<strong style="color: #0d74e7;">' + formatVND(o.totalPrice) + '</strong>'
-        html += '<span><span class="' + badgeCls + '">' + o.status + '</span></span>'
-        if (o.status === "Đã trả xe" || o.status === "completed") {
-            html += '<button class="btn-disabled-sm" disabled style="background:#f1f5f9; color:#94a3b8; border:1px solid #cbd5e1; cursor:not-allowed; padding: 6px 12px; border-radius: 6px; font-size: 12px;" title="Chuyến đi đã hoàn tất trả xe và khóa giao nhận">🔒 Đã khóa (Đã trả xe)</button>'
+        var ord = bookedOrders[i]
+        if (ord.status === "Đã trả xe" || ord.status === "completed") {
+            historyOrders.push(ord)
         } else {
-            html += '<button class="btn-primary-sm go-handover-btn" data-id="' + o.id + '">Giao nhận xe</button>'
+            activeOrders.push(ord)
         }
-        html += '</div>'
     }
-    container.innerHTML = html
 
-    var btns = container.querySelectorAll(".go-handover-btn")
-    for (var b = 0; b < btns.length; b++) {
-        btns[b].addEventListener("click", function () {
-            var ordId = this.getAttribute("data-id")
-            switchTab("tab2")
-            var rSel = document.getElementById("hoOrderInput")
-            if (rSel) {
-                for (var k = 0; k < rSel.options.length; k++) {
-                    if (rSel.options[k].value.indexOf("#" + ordId) !== -1) {
-                        rSel.selectedIndex = k
-                        rSel.dispatchEvent(new Event("change"))
-                        break
+    if (historyCountBadge) {
+        historyCountBadge.textContent = historyOrders.length
+    }
+
+    // 1. Hiển thị các đơn xe đang hoạt động
+    if (activeOrders.length === 0) {
+        container.innerHTML = '<div class="empty-booked-box">Hiện không có đơn xe nào đang thuê hoặc chờ nhận xe. Bạn có thể bấm <strong>"+ Đặt thêm xe"</strong> để đặt xe mới, hoặc bấm <strong>"📜 Lịch sử đặt xe"</strong> để xem các đơn đã trả xe.</div>'
+    } else {
+        var html = ""
+        for (var j = 0; j < activeOrders.length; j++) {
+            var o = activeOrders[j]
+            var badgeCls = "badge-warn-sm"
+            if (o.status === "Đang thuê") badgeCls = "badge-info-sm"
+            var btnText = (o.status === "Đang thuê") ? "Check out" : "Check in"
+
+            html += '<div class="booked-table-row">'
+            html += '<strong>#' + o.id + '</strong>'
+            html += '<div><strong>' + o.bikeName + '</strong><div style="font-size: 11px; color: #64748b;">Khu vực: ' + o.area + '</div></div>'
+            html += '<div><span>' + o.packageText + '</span><div style="font-size: 11px; color: #64748b;">' + o.pickupTime + ' → ' + o.returnTime + '</div></div>'
+            html += '<strong style="color: #0d74e7;">' + formatVND(o.totalPrice) + '</strong>'
+            html += '<span><span class="' + badgeCls + '">' + o.status + '</span></span>'
+            html += '<button class="btn-primary-sm go-handover-btn" data-id="' + o.id + '" data-status="' + o.status + '">' + btnText + '</button>'
+            html += '</div>'
+        }
+        container.innerHTML = html
+
+        var btns = container.querySelectorAll(".go-handover-btn")
+        for (var b = 0; b < btns.length; b++) {
+            btns[b].addEventListener("click", function () {
+                var ordId = this.getAttribute("data-id")
+                var status = this.getAttribute("data-status") || ""
+
+                // Chuyển sang giao diện Giao nhận xe (tab2)
+                switchTab("tab2")
+
+                // Tự động chọn đúng phân quyền là Người thuê
+                var roleRadio = document.querySelector('input[name="roleType"][value="Khách thuê"]')
+                if (roleRadio) {
+                    roleRadio.checked = true
+                    roleRadio.dispatchEvent(new Event("change"))
+                }
+
+                // Tự động chọn đúng quy trình Check-in hoặc Check-out tương ứng
+                var txVal = (status === "Đang thuê") ? "Check-out" : "Check-in"
+                var txRadio = document.querySelector('input[name="txType"][value="' + txVal + '"]')
+                if (txRadio) {
+                    txRadio.checked = true
+                    txRadio.dispatchEvent(new Event("change"))
+                }
+
+                // Tự động chọn đúng mã đơn xe vừa bấm Check in / Check out
+                var rSel = document.getElementById("hoOrderInput")
+                if (rSel) {
+                    for (var k = 0; k < rSel.options.length; k++) {
+                        if (rSel.options[k].value.indexOf("#" + ordId) !== -1) {
+                            rSel.selectedIndex = k
+                            rSel.dispatchEvent(new Event("change"))
+                            break
+                        }
                     }
                 }
-            }
-        })
+
+                window.scrollTo({ top: 0, behavior: "smooth" })
+            })
+        }
     }
+
+    // 2. Hiển thị các đơn trong Popup "Lịch sử đặt xe"
+    if (historyContainer) {
+        if (historyOrders.length === 0) {
+            historyContainer.innerHTML = '<div class="empty-booked-box" style="padding: 30px;">Bạn chưa có đơn xe nào hoàn tất trả xe trong lịch sử.</div>'
+        } else {
+            var hHtml = ""
+            for (var h = 0; h < historyOrders.length; h++) {
+                var ho = historyOrders[h]
+                hHtml += '<div class="history-table-row">'
+                hHtml += '<strong>#' + ho.id + '</strong>'
+                hHtml += '<div><strong>' + ho.bikeName + '</strong><div style="font-size: 11px; color: #64748b;">Khu vực: ' + ho.area + '</div></div>'
+                hHtml += '<div><span>' + ho.packageText + '</span><div style="font-size: 11px; color: #64748b;">' + ho.pickupTime + ' → ' + ho.returnTime + '</div></div>'
+                hHtml += '<strong style="color: #10b981;">' + formatVND(ho.totalPrice) + '</strong>'
+                hHtml += '<span><span class="badge-success">✓ Đã trả xe</span></span>'
+                hHtml += '</div>'
+            }
+            historyContainer.innerHTML = hHtml
+        }
+    }
+}
+
+// Bắt sự kiện đóng/mở Modal Lịch sử đặt xe
+var btnOpenHistory = document.getElementById("btnOpenBookingHistory")
+if (btnOpenHistory != null) {
+    btnOpenHistory.addEventListener("click", function () {
+        var modal = document.getElementById("bookingHistoryModal")
+        if (modal) modal.classList.remove("hidden")
+    })
+}
+var btnCloseHistory = document.getElementById("btnCloseBookingHistory")
+if (btnCloseHistory != null) {
+    btnCloseHistory.addEventListener("click", function () {
+        var modal = document.getElementById("bookingHistoryModal")
+        if (modal) modal.classList.add("hidden")
+    })
+}
+var btnBottomCloseHistory = document.getElementById("btnBottomCloseHistory")
+if (btnBottomCloseHistory != null) {
+    btnBottomCloseHistory.addEventListener("click", function () {
+        var modal = document.getElementById("bookingHistoryModal")
+        if (modal) modal.classList.add("hidden")
+    })
 }
 
 // TẢI DANH SÁCH ĐƠN XE ĐÃ ĐẶT TỪ CSDL MYSQL
@@ -722,8 +837,26 @@ document.getElementById("btnBookNow").addEventListener("click", async function (
     }
 
     var bike = timXeTheoId(selectedBikeId);
-    var rawDur = Number(document.getElementById("rentDuration").value);
-    var duration = (rawDur > 1) ? rawDur : 1;
+    var durInput = document.getElementById("rentDuration");
+    var durVal = durInput ? durInput.value.trim() : "";
+    var rawDur = Number(durVal);
+    var durUnit = (rentMode === "day") ? "ngày" : "giờ";
+
+    if (!durVal || isNaN(rawDur) || rawDur <= 0) {
+        alert("❌ Lỗi thời gian thuê: Số " + durUnit + " thuê phải lớn hơn 0!\nVui lòng kiểm tra và nhập lại.");
+        if (durInput) {
+            durInput.focus();
+            durInput.style.border = "1.5px solid #ef4444";
+            durInput.style.background = "#fef2f2";
+        }
+        var durErr = document.getElementById("durationErrorMsg");
+        if (durErr) {
+            durErr.textContent = "⚠️ Số " + durUnit + " thuê phải lớn hơn 0. Vui lòng nhập lại!";
+            durErr.classList.remove("hidden");
+        }
+        return;
+    }
+    var duration = rawDur;
     var pTime = (document.getElementById("pickup-datetime").value || "2026-11-04T08:00");
     var rTime = (document.getElementById("return-datetime").value || "2026-11-05T08:00");
     var vSelect = document.getElementById("voucherSelect");
@@ -1047,8 +1180,23 @@ document.getElementById("btnExecHandover").addEventListener("click", function ()
         }
     }
 
-    // Dùng tên xe làm khóa đối chiếu chung nếu chủ xe chọn xe chưa gắn mã #BK
-    var sessionKey = (orderCode ? orderCode : bikeName) + "_" + txType
+    // 3. YÊU CẦU: CHỈ SỐ ODOMETER LÚC CHECK OUT LUÔN LỚN HƠN HOẶC BẰNG LÚC CHECK IN
+    var orderKey = orderCode || bikeName
+    var checkInOdo = null
+    if (matchedOrder && matchedOrder.checkInOdo) {
+        checkInOdo = Number(matchedOrder.checkInOdo)
+    } else if (orderKey && localStorage.getItem("checkInOdo_" + orderKey)) {
+        checkInOdo = Number(localStorage.getItem("checkInOdo_" + orderKey))
+    } else if (matchedOrder && matchedOrder.odo) {
+        checkInOdo = Number(matchedOrder.odo)
+    } else {
+        var rSelEl = document.getElementById("hoOrderInput")
+        if (rSelEl && rSelEl.selectedIndex >= 0) {
+            var dataOdo = Number(rSelEl.options[rSelEl.selectedIndex].getAttribute("data-odo"))
+            if (dataOdo) checkInOdo = dataOdo
+        }
+    }
+    if (!checkInOdo) checkInOdo = 8420
 
     var rOdo = parseNum(document.getElementById("hoOdoInput").value, 8420)
     var rFuel = parseNum(document.getElementById("hoFuelInput").value, 90)
@@ -1059,6 +1207,17 @@ document.getElementById("btnExecHandover").addEventListener("click", function ()
     var oFuel = parseNum(document.getElementById("hoOwnerFuelInput").value, 90)
     var oNote = document.getElementById("hoOwnerNoteInput").value.trim() || "Chủ xe đã xác nhận"
     var oImg = ownerUploadedName || "anh_chuxe.jpg"
+
+    if (txType === "Check-out") {
+        var currentInputOdo = (roleVal === "Khách thuê") ? rOdo : oOdo
+        if (currentInputOdo < checkInOdo) {
+            alert("❌ LỖI ODOMETER CHECK-OUT:\nChỉ số Odometer lúc check out (" + currentInputOdo.toLocaleString("vi-VN") + " km) phải lớn hơn hoặc bằng lúc check in (" + checkInOdo.toLocaleString("vi-VN") + " km)!\nVui lòng kiểm tra và nhập lại số km hợp lệ.")
+            return
+        }
+    }
+
+    // Dùng tên xe làm khóa đối chiếu chung nếu chủ xe chọn xe chưa gắn mã #BK
+    var sessionKey = (orderCode ? orderCode : bikeName) + "_" + txType
 
     if (!handoverSessions[sessionKey]) {
         handoverSessions[sessionKey] = { renter: null, owner: null, bikeName: bikeName, orderCode: orderCode }
@@ -1157,6 +1316,12 @@ document.getElementById("btnExecHandover").addEventListener("click", function ()
             list.prepend(row)
         }
 
+        // Nếu là Check-in thành công: lưu Odometer check-in để đối chiếu khi check-out
+        if (txType === "Check-in") {
+            if (matchedOrder) matchedOrder.checkInOdo = rSub.odo
+            if (orderKey) localStorage.setItem("checkInOdo_" + orderKey, String(rSub.odo))
+        }
+
         // Cập nhật trạng thái trong bookedOrders (Tab Xe đã đặt)
         var gross = matchedOrder ? matchedOrder.totalPrice : 440000;
         var deposit = 300000;
@@ -1166,6 +1331,9 @@ document.getElementById("btnExecHandover").addEventListener("click", function ()
         for (var op = 0; op < bookedOrders.length; op++) {
             if (bookedOrders[op].bikeName === bikeName || ("#" + bookedOrders[op].id) === orderCode) {
                 bookedOrders[op].status = (txType === "Check-in") ? "Đang thuê" : "Đã trả xe"
+                if (txType === "Check-in") {
+                    bookedOrders[op].checkInOdo = rSub.odo
+                }
                 break
             }
         }
@@ -1174,13 +1342,11 @@ document.getElementById("btnExecHandover").addEventListener("click", function ()
         renderOwnerOrders()
 
         if (txType === "Check-out") {
-            alert("🎉 ĐỐI CHIẾU THÀNH CÔNG — HOÀN TẤT CHECK-OUT (TRẢ XE)!\n" +
-                  "• Xe: " + labelDisplay + "\n" +
-                  "• Trạng thái: ĐÃ TRẢ XE & KHÓA THAO TÁC.\n" +
-                  "• CÔNG THỨC DOANH THU: (Tổng thu " + formatVND(gross) + " - Cọc xe " + formatVND(deposit) + ") × 90%\n" +
-                  "👉 DOANH THU THỰC NHẬN CỦA CHỦ XE: +" + formatVND(netRevenue) + " (Hoa hồng nền tảng 10%: " + formatVND(rentalFee - netRevenue) + ").\n" +
-                  "Xe đã sẵn sàng cho quy trình mới: Khách có thể đặt xe và check-in lại từ đầu.");
+            alert("đã check out thành công")
             if (typeof loadDailyRevenueReport === "function") loadDailyRevenueReport();
+            if (typeof loadOwnerRevenueStats === "function") loadOwnerRevenueStats();
+            if (typeof loadWalletData === "function") loadWalletData();
+            if (typeof fetchMyBookingsFromBackend === "function") fetchMyBookingsFromBackend();
         } else {
             alert("🎉 ĐỐI CHIẾU THÀNH CÔNG — HOÀN TẤT CHECK-IN!\nXe: " + labelDisplay + "\nKhách đã nhận xe thành công. Đơn chuyển sang trạng thái 'Đang thuê'. Giờ đây bạn đã có thể thực hiện Check-out khi trả xe.");
         }
@@ -1458,6 +1624,273 @@ if (btnBackToLogin != null) {
     })
 }
 
+function resetRegisterFeedback() {
+    var emailInput = document.getElementById("registerEmail")
+    var phoneInput = document.getElementById("registerPhone")
+    var emailFeedback = document.getElementById("registerEmailFeedback")
+    var phoneFeedback = document.getElementById("registerPhoneFeedback")
+
+    if (emailInput) {
+        emailInput.style.border = "none"
+        emailInput.style.backgroundColor = "#EEF2F6"
+    }
+    if (phoneInput) {
+        phoneInput.style.border = "none"
+        phoneInput.style.backgroundColor = "#EEF2F6"
+    }
+    if (emailFeedback) {
+        emailFeedback.style.display = "none"
+        emailFeedback.innerHTML = ""
+    }
+    if (phoneFeedback) {
+        phoneFeedback.style.display = "none"
+        phoneFeedback.innerHTML = ""
+    }
+}
+
+var emailDebounceTimer = null
+var phoneDebounceTimer = null
+
+async function checkEmailRealtime() {
+    var emailInput = document.getElementById("registerEmail")
+    var feedback = document.getElementById("registerEmailFeedback")
+    if (!emailInput) return
+
+    var val = emailInput.value.trim()
+    if (!val) {
+        emailInput.style.border = "none"
+        emailInput.style.backgroundColor = "#EEF2F6"
+        if (feedback) { feedback.style.display = "none"; feedback.innerHTML = "" }
+        return
+    }
+
+    var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(val)) {
+        emailInput.style.border = "1.5px solid #ef4444"
+        emailInput.style.backgroundColor = "#fef2f2"
+        if (feedback) {
+            feedback.style.display = "block"
+            feedback.innerHTML = "❌ Định dạng email chưa hợp lệ"
+        }
+        return
+    }
+
+    var isDuplicate = false
+    try {
+        var res = await fetch("/api/auth/check-duplicate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: val })
+        })
+        if (res.ok) {
+            var data = await res.json()
+            isDuplicate = !!data.isEmailDuplicate
+        } else {
+            var uRes = await fetch("/api/admin/users")
+            if (uRes.ok) {
+                var uList = await uRes.json()
+                isDuplicate = Array.isArray(uList) && uList.some(function(u) {
+                    return u.email && u.email.trim().toLowerCase() === val.toLowerCase()
+                })
+            }
+        }
+    } catch (e) {
+        if (Array.isArray(accountsData) && accountsData.length > 0) {
+            isDuplicate = accountsData.some(function(u) {
+                return u.email && u.email.trim().toLowerCase() === val.toLowerCase()
+            })
+        }
+    }
+
+    if (isDuplicate) {
+        emailInput.style.border = "1.5px solid #ef4444"
+        emailInput.style.backgroundColor = "#fef2f2"
+        if (feedback) {
+            feedback.style.display = "block"
+            feedback.innerHTML = "❌ Email này đã tồn tại trên hệ thống (hãy đổi email khác)"
+        }
+    } else {
+        // HỢP LỆ: Chuyển ô sang màu xanh, KHÔNG hiển thị thông báo
+        emailInput.style.border = "1.5px solid #22c55e"
+        emailInput.style.backgroundColor = "#f0fdf4"
+        if (feedback) {
+            feedback.style.display = "none"
+            feedback.innerHTML = ""
+        }
+    }
+}
+
+async function checkPhoneRealtime() {
+    var phoneInput = document.getElementById("registerPhone")
+    var feedback = document.getElementById("registerPhoneFeedback")
+    if (!phoneInput) return
+
+    var val = phoneInput.value
+    if (!val) {
+        phoneInput.style.border = "none"
+        phoneInput.style.backgroundColor = "#EEF2F6"
+        if (feedback) { feedback.style.display = "none"; feedback.innerHTML = "" }
+        return
+    }
+
+    // 1. Không cho phép khoảng trống
+    if (/\s/.test(val)) {
+        phoneInput.style.border = "1.5px solid #ef4444"
+        phoneInput.style.backgroundColor = "#fef2f2"
+        if (feedback) {
+            feedback.style.display = "block"
+            feedback.innerHTML = "❌ Số điện thoại không được chứa khoảng trống"
+        }
+        return
+    }
+
+    // 2. Chỉ được phép có kiểu dữ liệu số từ 0-9
+    if (!/^[0-9]+$/.test(val)) {
+        phoneInput.style.border = "1.5px solid #ef4444"
+        phoneInput.style.backgroundColor = "#fef2f2"
+        if (feedback) {
+            feedback.style.display = "block"
+            feedback.innerHTML = "❌ Chỉ được phép nhập chữ số từ 0-9"
+        }
+        return
+    }
+
+    // 3. Số đầu tiên bắt buộc là số 0
+    if (val[0] !== "0") {
+        phoneInput.style.border = "1.5px solid #ef4444"
+        phoneInput.style.backgroundColor = "#fef2f2"
+        if (feedback) {
+            feedback.style.display = "block"
+            feedback.innerHTML = "❌ Số đầu tiên bắt buộc phải là số 0"
+        }
+        return
+    }
+
+    // 4. Bắt buộc phải có đúng 10 chữ số
+    if (val.length !== 10) {
+        phoneInput.style.border = "1.5px solid #ef4444"
+        phoneInput.style.backgroundColor = "#fef2f2"
+        if (feedback) {
+            feedback.style.display = "block"
+            feedback.innerHTML = "❌ Số điện thoại phải gồm đúng 10 chữ số (bắt đầu bằng 0)"
+        }
+        return
+    }
+
+    // 5. Kiểm tra trùng lặp trên CSDL
+    var isDuplicate = false
+    try {
+        var res = await fetch("/api/auth/check-duplicate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ phone: val })
+        })
+        if (res.ok) {
+            var data = await res.json()
+            isDuplicate = !!data.isPhoneDuplicate
+        } else {
+            var uRes = await fetch("/api/admin/users")
+            if (uRes.ok) {
+                var uList = await uRes.json()
+                isDuplicate = Array.isArray(uList) && uList.some(function(u) {
+                    return u.phone && u.phone.trim() === val
+                })
+            }
+        }
+    } catch (e) {
+        if (Array.isArray(accountsData) && accountsData.length > 0) {
+            isDuplicate = accountsData.some(function(u) {
+                return u.phone && u.phone.trim() === val
+            })
+        }
+    }
+
+    if (isDuplicate) {
+        phoneInput.style.border = "1.5px solid #ef4444"
+        phoneInput.style.backgroundColor = "#fef2f2"
+        if (feedback) {
+            feedback.style.display = "block"
+            feedback.innerHTML = "❌ Số điện thoại này đã tồn tại trên hệ thống (hãy đổi số khác)"
+        }
+    } else {
+        // HỢP LỆ: Chuyển ô sang màu xanh, KHÔNG hiển thị thông báo
+        phoneInput.style.border = "1.5px solid #22c55e"
+        phoneInput.style.backgroundColor = "#f0fdf4"
+        if (feedback) {
+            feedback.style.display = "none"
+            feedback.innerHTML = ""
+        }
+    }
+}
+
+var regEmailEl = document.getElementById("registerEmail")
+if (regEmailEl) {
+    regEmailEl.addEventListener("input", function() {
+        this.style.border = "none"
+        this.style.backgroundColor = "#EEF2F6"
+        var fb = document.getElementById("registerEmailFeedback")
+        if (fb) fb.style.display = "none"
+        clearTimeout(emailDebounceTimer)
+        emailDebounceTimer = setTimeout(checkEmailRealtime, 400)
+    })
+    regEmailEl.addEventListener("blur", function() {
+        clearTimeout(emailDebounceTimer)
+        checkEmailRealtime()
+    })
+}
+
+var regPhoneEl = document.getElementById("registerPhone")
+if (regPhoneEl) {
+    // Chặn phím space (khoảng trống) ngay khi gõ
+    regPhoneEl.addEventListener("keydown", function(e) {
+        if (e.key === " " || e.code === "Space") {
+            e.preventDefault()
+        }
+    })
+
+    // Xử lý dán (paste): tự động làm sạch chỉ giữ 0-9, bắt đầu bằng 0, tối đa 10 số
+    regPhoneEl.addEventListener("paste", function(e) {
+        e.preventDefault()
+        var text = (e.clipboardData || window.clipboardData).getData("text") || ""
+        var sanitized = text.replace(/\s+/g, "").replace(/[^0-9]/g, "")
+        if (sanitized.length > 0 && sanitized[0] !== "0") {
+            sanitized = "0" + sanitized.replace(/^0*/, "")
+        }
+        this.value = sanitized.substring(0, 10)
+        this.dispatchEvent(new Event("input"))
+    })
+
+    regPhoneEl.addEventListener("input", function() {
+        var rawVal = this.value
+        // Loại bỏ khoảng trắng và mọi ký tự không phải số (0-9)
+        var sanitized = rawVal.replace(/\s+/g, "").replace(/[^0-9]/g, "")
+        // Số đầu tiên bắt buộc là số 0
+        if (sanitized.length > 0 && sanitized[0] !== "0") {
+            sanitized = "0" + sanitized.replace(/^0*/, "")
+        }
+        // Tối đa 10 chữ số
+        if (sanitized.length > 10) {
+            sanitized = sanitized.substring(0, 10)
+        }
+        if (this.value !== sanitized) {
+            this.value = sanitized
+        }
+
+        this.style.border = "none"
+        this.style.backgroundColor = "#EEF2F6"
+        var fb = document.getElementById("registerPhoneFeedback")
+        if (fb) fb.style.display = "none"
+
+        clearTimeout(phoneDebounceTimer)
+        phoneDebounceTimer = setTimeout(checkPhoneRealtime, 400)
+    })
+
+    regPhoneEl.addEventListener("blur", function() {
+        clearTimeout(phoneDebounceTimer)
+        checkPhoneRealtime()
+    })
+}
+
 var btnSubmitRegister = document.getElementById("btnSubmitRegister")
 if (btnSubmitRegister != null) {
     btnSubmitRegister.addEventListener("click", async function () {
@@ -1469,6 +1902,18 @@ if (btnSubmitRegister != null) {
 
         if (!fullName || !email || !phone || !password) {
             alert("Vui lòng nhập đầy đủ thông tin!")
+            return
+        }
+
+        // Kiểm tra chặt chẽ số điện thoại: chỉ chữ số (0-9), bắt đầu bằng 0, không có khoảng trống, đủ 10 số
+        if (/\s/.test(phone) || !/^[0-9]+$/.test(phone) || phone[0] !== "0" || phone.length !== 10) {
+            alert("❌ Số điện thoại không hợp lệ!\n• Chỉ được phép chứa chữ số từ 0-9\n• Số đầu tiên bắt buộc phải là số 0\n• Không được chứa khoảng trống\n• Phải có đúng 10 chữ số.")
+            var pInput = document.getElementById("registerPhone")
+            if (pInput) {
+                pInput.style.border = "1.5px solid #ef4444"
+                pInput.style.backgroundColor = "#fef2f2"
+                pInput.focus()
+            }
             return
         }
         if (password.length < 8) {
@@ -1488,11 +1933,101 @@ if (btnSubmitRegister != null) {
             })
             var data = await res.json().catch(function () { return {} })
             if (!res.ok) {
-                alert(data.message || ("Đăng ký thất bại (HTTP " + res.status + ")!"))
+                var duplicate_fields = data.duplicate_fields || []
+                var valid_fields = data.valid_fields || []
+                var errorMsg = data.message || ("Đăng ký thất bại (HTTP " + res.status + ")!")
+
+                // NẾU BACKEND CHƯA CẬP NHẬT TRƯỜNG DUPLICATE_FIELDS: TỰ ĐỐI CHIẾU DỮ LIỆU TÀI KHOẢN
+                if (duplicate_fields.length === 0 && res.status === 409) {
+                    try {
+                        var usersRes = await fetch("/api/admin/users")
+                        if (usersRes.ok) {
+                            var uList = await usersRes.json()
+                            if (Array.isArray(uList) && uList.length > 0) {
+                                var isEmailDup = uList.some(function(u) { return u.email && u.email.trim().toLowerCase() === email.toLowerCase() })
+                                var isPhoneDup = uList.some(function(u) { return u.phone && u.phone.trim() === phone })
+
+                                if (isEmailDup && isPhoneDup) {
+                                    duplicate_fields = ["email", "phone"]
+                                    valid_fields = []
+                                    errorMsg = "❌ Trùng cả Email và Số điện thoại:\n• Email \"" + email + "\" đã được sử dụng.\n• Số điện thoại \"" + phone + "\" đã được sử dụng.\n👉 Cả 2 thông tin đều không thể giữ lại, vui lòng đổi mới cả hai!"
+                                } else if (isEmailDup) {
+                                    duplicate_fields = ["email"]
+                                    valid_fields = ["phone"]
+                                    errorMsg = "❌ Email \"" + email + "\" đã bị trùng (đã tồn tại trên hệ thống)!\n✅ Số điện thoại \"" + phone + "\" HỢP LỆ và CÓ THỂ GIỮ LẠI để tiếp tục đăng ký.\n👉 Bạn chỉ cần thay đổi địa chỉ Email khác."
+                                } else if (isPhoneDup) {
+                                    duplicate_fields = ["phone"]
+                                    valid_fields = ["email"]
+                                    errorMsg = "❌ Số điện thoại \"" + phone + "\" đã bị trùng (đã tồn tại trên hệ thống)!\n✅ Email \"" + email + "\" HỢP LỆ và CÓ THỂ GIỮ LẠI để tiếp tục đăng ký.\n👉 Bạn chỉ cần thay đổi Số điện thoại khác."
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        console.warn("Lỗi kiểm tra fallback:", e)
+                    }
+                }
+
+                var emailInput = document.getElementById("registerEmail")
+                var phoneInput = document.getElementById("registerPhone")
+                var emailFeedback = document.getElementById("registerEmailFeedback")
+                var phoneFeedback = document.getElementById("registerPhoneFeedback")
+
+                // Xử lý phản hồi Email: Khi hợp lệ chỉ đổi màu xanh KHÔNG hiện text, khi lỗi hiện text nhỏ gọn
+                if (duplicate_fields.includes("email")) {
+                    if (emailInput) {
+                        emailInput.style.border = "1.5px solid #ef4444"
+                        emailInput.style.backgroundColor = "#fef2f2"
+                    }
+                    if (emailFeedback) {
+                        emailFeedback.style.display = "block"
+                        emailFeedback.innerHTML = "❌ Email này đã tồn tại trên hệ thống (hãy đổi email khác)"
+                    }
+                } else if (valid_fields.includes("email")) {
+                    if (emailInput) {
+                        emailInput.style.border = "1.5px solid #22c55e"
+                        emailInput.style.backgroundColor = "#f0fdf4"
+                    }
+                    if (emailFeedback) {
+                        emailFeedback.style.display = "none"
+                        emailFeedback.innerHTML = ""
+                    }
+                }
+
+                // Xử lý phản hồi Số điện thoại: Khi hợp lệ chỉ đổi màu xanh KHÔNG hiện text, khi lỗi hiện text nhỏ gọn
+                if (duplicate_fields.includes("phone")) {
+                    if (phoneInput) {
+                        phoneInput.style.border = "1.5px solid #ef4444"
+                        phoneInput.style.backgroundColor = "#fef2f2"
+                    }
+                    if (phoneFeedback) {
+                        phoneFeedback.style.display = "block"
+                        phoneFeedback.innerHTML = "❌ Số điện thoại đã được đăng ký (hãy đổi số khác)"
+                    }
+                } else if (valid_fields.includes("phone")) {
+                    if (phoneInput) {
+                        phoneInput.style.border = "1.5px solid #22c55e"
+                        phoneInput.style.backgroundColor = "#f0fdf4"
+                    }
+                    if (phoneFeedback) {
+                        phoneFeedback.style.display = "none"
+                        phoneFeedback.innerHTML = ""
+                    }
+                }
+
+                // Tự động focus vào ô đầu tiên bị trùng
+                if (duplicate_fields.includes("email") && emailInput) {
+                    emailInput.focus()
+                    emailInput.select()
+                } else if (duplicate_fields.includes("phone") && phoneInput) {
+                    phoneInput.focus()
+                    phoneInput.select()
+                }
+
+                alert(errorMsg)
                 return
             }
 
-            alert("Đăng ký thành công! Vui lòng đăng nhập.")
+            alert("✅ Đăng ký thành công! Vui lòng đăng nhập.")
             document.getElementById("loginUsername").value = email
             document.getElementById("loginPassword").value = ""
             switchTab("tab6")
@@ -1715,7 +2250,7 @@ async function fetchBikesFromBackend() {
                     hourPrice: Number(v.hourPrice) || 30000,
                     dayPrice: Number(v.dayPrice) || 180000,
                     deposit: Number(v.deposit) || 300000,
-                    area: areas[idx % areas.length],
+                    area: v.area || areas[idx % areas.length],
                     owner: v.owner || "Chủ xe",
                     license_plate: v.license_plate
                 }
@@ -1788,7 +2323,7 @@ async function fetchOwnerVehicles() {
 
             html += '<div class="owner-table-row">'
             html += '<strong>' + v.name + '</strong>'
-            html += '<span>' + v.license_plate + '</span>'
+            html += '<span>' + v.license_plate + '<br><small style="color: #64748b; font-size: 11px;">📍 ' + (v.area || 'Quận 1') + '</small></span>'
             html += '<span>' + badgeHtml + '</span>'
             html += btnHtml
             html += '</div>'
@@ -1799,8 +2334,43 @@ async function fetchOwnerVehicles() {
         for (var b = 0; b < btns.length; b++) {
             bindScheduleToggle(btns[b])
         }
+
+        // Tải số liệu doanh thu động của chủ xe
+        await loadOwnerRevenueStats()
     } catch (e) {
         console.warn("Lỗi load danh sách xe chủ:", e.message)
+    }
+}
+
+// Tải dữ liệu Doanh thu & Chuyến hoàn tất động cho Chủ xe (Công thức: Tiền thuê * 90%)
+async function loadOwnerRevenueStats() {
+    var tripEl = document.getElementById("ownerCompletedTrips")
+    var revEl = document.getElementById("ownerNetRevenue")
+    var monthEl = document.getElementById("ownerStatMonthLabel")
+    if (!tripEl || !revEl) return
+
+    if (monthEl) {
+        var currentMonth = new Date().getMonth() + 1
+        monthEl.textContent = "Tổng chuyến hoàn tất tháng " + currentMonth
+    }
+
+    if (!isLoggedIn || !currentUserId) {
+        tripEl.textContent = "0 chuyến"
+        revEl.innerHTML = "0<u>đ</u>"
+        return
+    }
+
+    try {
+        var res = await fetch("/api/owner/revenue-stats?user_id=" + currentUserId)
+        if (!res.ok) return
+        var data = await res.json()
+        var trips = Number(data.completed_trips) || 0
+        var net = Number(data.net_revenue) || 0
+
+        tripEl.textContent = trips + " chuyến"
+        revEl.innerHTML = formatVND(net).replace("đ", "<u>đ</u>")
+    } catch (e) {
+        console.warn("Lỗi tải thống kê doanh thu chủ xe:", e.message)
     }
 }
 
@@ -1822,6 +2392,7 @@ if (btnSubmitConsign != null) {
         var hourPrice = (document.getElementById("ownHourPrice") ? document.getElementById("ownHourPrice").value.trim() : "")
         var dayPrice = (document.getElementById("ownDayPrice") ? document.getElementById("ownDayPrice").value.trim() : "")
         var plate = (document.getElementById("ownPlate") ? document.getElementById("ownPlate").value.trim() : "")
+        var area = (document.getElementById("ownArea") ? document.getElementById("ownArea").value.trim() : "Quận 1")
 
         if (!brand || !model || !plate || !hourPrice || !dayPrice) {
             alert("❌ Vui lòng nhập đầy đủ thông tin: Hãng xe, Tên mẫu xe, Giá thuê theo giờ, Giá theo ngày và Biển số xe!")
@@ -1844,7 +2415,8 @@ if (btnSubmitConsign != null) {
                     fuel_type: fuel || "Xăng",
                     hour_price: Number(hourPrice),
                     day_price: Number(dayPrice),
-                    license_plate: plate
+                    license_plate: plate,
+                    area: area || "Quận 1"
                 })
             })
             var data = await res.json().catch(function () { return {} })
@@ -1864,6 +2436,7 @@ if (btnSubmitConsign != null) {
             if (document.getElementById("ownHourPrice")) document.getElementById("ownHourPrice").value = ""
             if (document.getElementById("ownDayPrice")) document.getElementById("ownDayPrice").value = ""
             if (document.getElementById("ownPlate")) document.getElementById("ownPlate").value = ""
+            if (document.getElementById("ownArea")) document.getElementById("ownArea").selectedIndex = 0
 
             fetchOwnerVehicles()
         } catch (err) {
@@ -1895,7 +2468,7 @@ async function loadAdminPendingVehicles() {
             var v = list[i]
             html += '<div class="admin-approve-row">'
             html += '<strong>Xe ký gửi: ' + v.brand + ' ' + v.model + '</strong>'
-            html += '<span>Biển số: <strong>' + v.license_plate + '</strong> • ' + (v.vehicle_type || 'Xe tay ga') + ' • ' + (v.engine_cc || '110cc') + ' • Giá: ' + formatVND(v.price_per_day) + '/ngày • Chủ xe: ' + v.owner_name + ' (' + v.owner_phone + ')</span>'
+            html += '<span>Biển số: <strong>' + v.license_plate + '</strong> • ' + (v.vehicle_type || 'Xe tay ga') + ' • ' + (v.engine_cc || '110cc') + ' • Khu vực: <strong>' + (v.area || 'Quận 1') + '</strong> • Giá: ' + formatVND(v.price_per_day) + '/ngày • Chủ xe: ' + v.owner_name + ' (' + v.owner_phone + ')</span>'
             html += '<span><span class="badge-warn-sm">Chờ duyệt</span></span>'
             html += '<div style="display: flex; gap: 6px;">'
             html += '<button class="btn-primary-sm" onclick="handleApproveVehicle(' + v.vehicle_id + ')">Duyệt lên sàn</button>'

@@ -99,7 +99,7 @@ public class OwnerService {
     /** Kết quả sau khi kiểm tra form: đã là số/ngày thật */
     private record Parsed(String brand, String model, String plate, String plateKey, String type, String cc,
                           String fuel, long hourPrice, long dayPrice, long deposit,
-                          LocalDate from, LocalDate to) {}
+                          LocalDate from, LocalDate to, String area) {}
 
     /** Giống validate() bên xecuaban.js, nhưng server PHẢI kiểm tra lại vì FE có thể bị bỏ qua */
     private Parsed parse(VehicleForm f) {
@@ -134,7 +134,8 @@ public class OwnerService {
         String type = trim(f.type()).isEmpty() ? "Xe tay ga" : trim(f.type());
         String cc = trim(f.cc()).isEmpty() ? "110cc" : trim(f.cc());
         String fuel = trim(f.fuel()).isEmpty() ? "Xăng" : trim(f.fuel());
-        return new Parsed(brand, model, plate, plateKeyOf(plate), type, cc, fuel, hour, day, deposit, from, to);
+        String area = trim(f.area()).isEmpty() ? "Quận 1" : trim(f.area());
+        return new Parsed(brand, model, plate, plateKeyOf(plate), type, cc, fuel, hour, day, deposit, from, to, area);
     }
 
     private void apply(OwnerVehicle v, Parsed p) {
@@ -150,6 +151,7 @@ public class OwnerService {
         v.setDeposit(p.deposit());
         v.setAvailFrom(p.from());
         v.setAvailTo(p.to());
+        v.setArea(p.area());
     }
 
     private static ApiException duplicatePlate(String plate) {

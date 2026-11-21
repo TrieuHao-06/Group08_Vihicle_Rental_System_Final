@@ -45,15 +45,29 @@ public class AuthService {
             this.role = role;
         }
 
-        public int getUserId() { return userId; }
-        public String getFullName() { return fullName; }
-        public String getEmail() { return email; }
-        public String getPhone() { return phone; }
-        public String getRole() { return role; }
+        public int getUserId() {
+            return userId;
+        }
+
+        public String getFullName() {
+            return fullName;
+        }
+
+        public String getEmail() {
+            return email;
+        }
+
+        public String getPhone() {
+            return phone;
+        }
+
+        public String getRole() {
+            return role;
+        }
 
         @Override
         public String toString() {
-            return "ID=" + userId + " | Họ tên: " + fullName + " | Email: " + email 
+            return "ID=" + userId + " | Họ tên: " + fullName + " | Email: " + email
                     + " | SĐT: " + phone + " | Vai trò: " + role;
         }
     }
@@ -85,7 +99,17 @@ public class AuthService {
             return false;
         }
 
-        String checkSql = "SELECT user_id FROM users WHERE email = ? OR phone = ? LIMIT 1";
+        // Kiểm tra chặt chẽ số điện thoại: 10 chữ số (0-9), bắt đầu bằng 0, không có
+        // khoảng trống
+        String cleanPhone = phone.trim();
+        if (cleanPhone.contains(" ") || !cleanPhone.matches("^0[0-9]{9}$")) {
+            System.out.println(
+                    "❌ Lỗi: Số điện thoại không hợp lệ! Bắt buộc phải có đúng 10 chữ số (0-9), bắt đầu bằng số 0 và không có khoảng trống.");
+            return false;
+        }
+
+        String checkEmailSql = "SELECT user_id FROM users WHERE email = ? LIMIT 1";
+        String checkPhoneSql = "SELECT user_id FROM users WHERE phone = ? LIMIT 1";
         String insertUserSql = "INSERT INTO users (full_name, email, phone, password_hash, status) VALUES (?, ?, ?, ?, 'active')";
         String insertRenterSql = "INSERT INTO renters (user_id) VALUES (?)";
         String insertWalletSql = "INSERT INTO wallets (user_id, balance) VALUES (?, 0)";
@@ -95,17 +119,44 @@ public class AuthService {
             conn = getConnection();
             conn.setAutoCommit(false); // Dùng Transaction để đảm bảo tính toàn vẹn
 
-            // 1. Đối chiếu xem email hoặc số điện thoại đã tồn tại trong database chưa
-            try (PreparedStatement checkStmt = conn.prepareStatement(checkSql)) {
-                checkStmt.setString(1, email.trim());
-                checkStmt.setString(2, phone.trim());
-                try (ResultSet rs = checkStmt.executeQuery()) {
+            // 1. Đối chiếu riêng rẽ xem email và số điện thoại cái nào đã tồn tại trong
+            // database
+            boolean isEmailDuplicate = false;
+            boolean isPhoneDuplicate = false;
+
+            try (PreparedStatement checkEmailStmt = conn.prepareStatement(checkEmailSql)) {
+                checkEmailStmt.setString(1, email.trim());
+                try (ResultSet rs = checkEmailStmt.executeQuery()) {
                     if (rs.next()) {
-                        System.out.println("❌ Lỗi: Email hoặc số điện thoại đã được đăng ký trong hệ thống!");
-                        conn.rollback();
-                        return false;
+                        isEmailDuplicate = true;
                     }
                 }
+            }
+
+            try (PreparedStatement checkPhoneStmt = conn.prepareStatement(checkPhoneSql)) {
+                checkPhoneStmt.setString(1, phone.trim());
+                try (ResultSet rs = checkPhoneStmt.executeQuery()) {
+                    if (rs.next()) {
+                        isPhoneDuplicate = true;
+                    }
+                }
+            }
+
+            if (isEmailDuplicate || isPhoneDuplicate) {
+                conn.rollback();
+                if (isEmailDuplicate && isPhoneDuplicate) {
+                    System.out.println("❌ Lỗi: Cả Email [" + email.trim() + "] và Số điện thoại [" + phone.trim()
+                            + "] đều đã tồn tại trên hệ thống! Vui lòng đổi mới cả hai.");
+                } else if (isEmailDuplicate) {
+                    System.out.println("❌ Lỗi: Email [" + email.trim() + "] đã bị trùng trên hệ thống!");
+                    System.out.println("✅ Số điện thoại [" + phone.trim()
+                            + "] HỢP LỆ và có thể GIỮ LẠI để tiếp tục đăng ký. Bạn chỉ cần đổi sang Email khác.");
+                } else {
+                    System.out.println("❌ Lỗi: Số điện thoại [" + phone.trim() + "] đã bị trùng trên hệ thống!");
+                    System.out.println("✅ Email [" + email.trim()
+                            + "] HỢP LỆ và có thể GIỮ LẠI để tiếp tục đăng ký. Bạn chỉ cần đổi sang Số điện thoại khác.");
+                }
+                return false;
             }
 
             // 2. Nạp dữ liệu vào bảng users
@@ -126,7 +177,8 @@ public class AuthService {
                 }
             }
 
-            // 3. Nạp dữ liệu kế thừa vào bảng renters (mặc định người đăng ký mới là người thuê)
+            // 3. Nạp dữ liệu kế thừa vào bảng renters (mặc định người đăng ký mới là người
+            // thuê)
             try (PreparedStatement renterStmt = conn.prepareStatement(insertRenterSql)) {
                 renterStmt.setInt(1, newUserId);
                 renterStmt.executeUpdate();
@@ -145,7 +197,10 @@ public class AuthService {
         } catch (SQLException e) {
             System.out.println("❌ Lỗi Database khi đăng ký: " + e.getMessage());
             if (conn != null) {
-                try { conn.rollback(); } catch (SQLException ex) { /* ignore */ }
+                try {
+                    conn.rollback();
+                } catch (SQLException ex) {
+                    /* ignore */ }
             }
             return false;
         } finally {
@@ -153,14 +208,16 @@ public class AuthService {
                 try {
                     conn.setAutoCommit(true);
                     conn.close();
-                } catch (SQLException ignored) {}
+                } catch (SQLException ignored) {
+                }
             }
         }
     }
 
     /**
      * 2. CHỨC NĂNG ĐĂNG NHẬP
-     * Đối chiếu thông tin (email hoặc số điện thoại) và mật khẩu với dữ liệu trong database.
+     * Đối chiếu thông tin (email hoặc số điện thoại) và mật khẩu với dữ liệu trong
+     * database.
      * Xác định vai trò: ADMIN, OWNER hoặc RENTER.
      */
     public static boolean login(String identifier, String password) {
@@ -171,15 +228,15 @@ public class AuthService {
         }
 
         String sql = "SELECT u.user_id, u.full_name, u.email, u.phone, u.password_hash, u.status, "
-                   + "       a.admin_level, vo.bank_account "
-                   + "FROM users u "
-                   + "LEFT JOIN admins a ON u.user_id = a.user_id "
-                   + "LEFT JOIN vehicle_owners vo ON u.user_id = vo.user_id "
-                   + "WHERE u.email = ? OR u.phone = ? "
-                   + "LIMIT 1";
+                + "       a.admin_level, vo.bank_account "
+                + "FROM users u "
+                + "LEFT JOIN admins a ON u.user_id = a.user_id "
+                + "LEFT JOIN vehicle_owners vo ON u.user_id = vo.user_id "
+                + "WHERE u.email = ? OR u.phone = ? "
+                + "LIMIT 1";
 
         try (Connection conn = getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+                PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setString(1, identifier.trim());
             stmt.setString(2, identifier.trim());
@@ -218,8 +275,7 @@ public class AuthService {
                         rs.getString("full_name"),
                         rs.getString("email"),
                         rs.getString("phone"),
-                        role
-                );
+                        role);
 
                 System.out.println("🎉 Đăng nhập thành công!");
                 System.out.println(">> Xin chào: " + currentUser.getFullName() + " [" + currentUser.getRole() + "]");
@@ -263,7 +319,8 @@ public class AuthService {
         while (running) {
             System.out.println("\n----------------- MENU CHỨC NĂNG -----------------");
             if (currentUser != null) {
-                System.out.println("👤 Đang đăng nhập: " + currentUser.getFullName() + " | Quyền: " + currentUser.getRole());
+                System.out.println(
+                        "👤 Đang đăng nhập: " + currentUser.getFullName() + " | Quyền: " + currentUser.getRole());
             } else {
                 System.out.println("👤 Trạng thái: Chưa đăng nhập");
             }
@@ -278,7 +335,8 @@ public class AuthService {
             switch (choice) {
                 case "1":
                     if (currentUser != null) {
-                        System.out.println("⚠️ Bạn đang đăng nhập tài khoản: " + currentUser.getFullName() + ". Hãy đăng xuất trước!");
+                        System.out.println("⚠️ Bạn đang đăng nhập tài khoản: " + currentUser.getFullName()
+                                + ". Hãy đăng xuất trước!");
                         break;
                     }
                     System.out.print("Nhập Email hoặc Số điện thoại: ");
