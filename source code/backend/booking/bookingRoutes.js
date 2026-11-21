@@ -269,8 +269,10 @@ router.get("/vouchers", wrap(async (req, res) => {
             discount: `Giảm ${v.discount_percent}%`,
             discount_percent: v.discount_percent,
             status: statusText,
+            raw_status: v.status,
             type,
-            exp: v.exp
+            exp: v.exp,
+            expRaw: v.expRaw
         };
     });
 
@@ -322,6 +324,58 @@ router.post("/vouchers", wrap(async (req, res) => {
     });
 }));
 
+// PUT /api/vouchers/:id - Cập nhật chỉnh sửa voucher (Thay đổi tất cả TRỪ mã code)
+router.put("/vouchers/:id", wrap(async (req, res) => {
+    const vId = Number(req.params.id);
+    const { discount_percent, usage_limit, end_date, status } = req.body || {};
+
+    if (!vId) {
+        return res.status(400).json({ message: "Thiếu ID voucher cần chỉnh sửa!" });
+    }
+
+    const [vouchers] = await pool.query("SELECT * FROM vouchers WHERE voucher_id = ?", [vId]);
+    if (vouchers.length === 0) {
+        return res.status(404).json({ message: "Không tìm thấy voucher trong CSDL!" });
+    }
+    const old = vouchers[0];
+
+    const pct = (discount_percent !== undefined && discount_percent !== null && Number(discount_percent) > 0)
+        ? Number(discount_percent)
+        : old.discount_percent;
+
+    const limit = (usage_limit !== undefined && usage_limit !== null && Number(usage_limit) >= 0)
+        ? Number(usage_limit)
+        : old.usage_limit;
+
+    let expDate = old.end_date;
+    if (end_date) {
+        const rawDate = String(end_date).trim();
+        if (rawDate.includes("/")) {
+            const parts = rawDate.split("/");
+            if (parts.length === 3) {
+                expDate = `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")} 23:59:59`;
+            }
+        } else if (rawDate.length === 10) {
+            expDate = `${rawDate} 23:59:59`;
+        } else {
+            expDate = rawDate;
+        }
+    }
+
+    const newStatus = status ? String(status).trim().toLowerCase() : old.status;
+
+    // Cập nhật CSDL: Giữ nguyên mã code của voucher
+    await pool.query(
+        "UPDATE vouchers SET discount_percent = ?, usage_limit = ?, end_date = ?, status = ? WHERE voucher_id = ?",
+        [pct, limit, expDate, newStatus, vId]
+    );
+
+    res.json({
+        ok: true,
+        message: `Đã cập nhật thành công voucher "${old.code}" (Giảm ${pct}%, Lượt dùng: ${limit})!`
+    });
+}));
+
 // DELETE /api/vouchers/:id - Xóa hoặc vô hiệu hóa voucher
 router.delete("/vouchers/:id", wrap(async (req, res) => {
     const vId = Number(req.params.id);
@@ -367,13 +421,25 @@ router.post("/vouchers/apply", wrap(async (req, res) => {
 // POST /api/wallet/withdraw - Gửi yêu cầu rút tiền về ngân hàng
 router.post("/wallet/withdraw", wrap(async (req, res) => {
     const userId = Number(req.body.user_id || req.get("x-user-id"));
-    const { amount, bank_info } = req.body || {};
+    const { amount, bank_name, account_no, account_holder, bank_info } = req.body || {};
 
     const numAmt = Number(amount);
     if (!userId || !numAmt || numAmt <= 0) {
         return res.status(400).json({ message: "Số tiền rút không hợp lệ!" });
     }
-    const bank = String(bank_info || "Tài khoản ngân hàng liên kết").trim();
+
+    const bName = String(bank_name || "").trim();
+    const accNo = String(account_no || "").trim();
+    const holder = String(account_holder || "").trim().toUpperCase();
+
+    let fullBankInfo = "";
+    if (bName && accNo) {
+        fullBankInfo = `${bName} - STK: ${accNo}${holder ? ' - Chủ TK: ' + holder : ''}`;
+    } else if (bank_info) {
+        fullBankInfo = String(bank_info).trim();
+    } else {
+        return res.status(400).json({ message: "Vui lòng nhập đầy đủ tên ngân hàng và số tài khoản nhận tiền!" });
+    }
 
     const conn = await pool.getConnection();
     try {
@@ -386,42 +452,40 @@ router.post("/wallet/withdraw", wrap(async (req, res) => {
         if (numAmt > Number(wallet.balance)) {
             await conn.rollback();
             return res.status(400).json({
-                message: `Số dư khả dụng (${Number(wallet.balance).toLocaleString("vi-VN")}đ) không đủ để rút ${numAmt.toLocaleString("vi-VN")}đ!`
+                message: `Số dư khả dụng (${Number(wallet.balance).toLocaleString("vi-VN")}đ) không đủ để yêu cầu rút ${numAmt.toLocaleString("vi-VN")}đ!`
             });
         }
 
-        // Tạm giữ số tiền rút
-        await conn.query("UPDATE wallets SET balance = balance - ? WHERE wallet_id = ?", [numAmt, wallet.wallet_id]);
-
-        // Tạo yêu cầu rút tiền vào withdrawal_requests
+        // KHÔNG TRỪ TIỀN VÍ NGAY LẬP TỨC (Theo yêu cầu: Tiền chỉ bị trừ sau khi Admin duyệt đơn)
+        // Tạo yêu cầu rút tiền vào withdrawal_requests với trạng thái 'pending'
         const [wRes] = await conn.query(
             "INSERT INTO withdrawal_requests (wallet_id, amount, bank_info, status, requested_at) VALUES (?, ?, ?, 'pending', NOW())",
-            [wallet.wallet_id, numAmt, bank]
+            [wallet.wallet_id, numAmt, fullBankInfo]
         );
 
-        // Ghi transaction trạng thái pending
+        // Ghi transaction trạng thái pending (chờ admin duyệt)
         await conn.query(`
             INSERT INTO transactions (wallet_id, amount, type, status, description, created_at)
             VALUES (?, ?, 'withdraw', 'pending', ?, NOW())
         `, [
             wallet.wallet_id,
             -numAmt,
-            `Rút tiền về ${bank} (Chờ Admin duyệt)`
+            `Yêu cầu rút tiền về ${fullBankInfo} (Chờ Admin duyệt)`
         ]);
 
         await notify(
             conn,
             userId,
-            "Yêu cầu rút tiền đang chờ duyệt",
-            `Yêu cầu rút ${numAmt.toLocaleString("vi-VN")}đ về ${bank} của bạn đã được gửi. Quản trị viên sẽ xử lý trong 24h.`
+            "Yêu cầu rút tiền đã được tiếp nhận",
+            `Yêu cầu rút ${numAmt.toLocaleString("vi-VN")}đ về ${fullBankInfo} của bạn đã được gửi lên hệ thống. Tiền trong ví sẽ được trừ sau khi Admin phê duyệt thành công.`
         );
 
         await conn.commit();
         res.status(201).json({
             ok: true,
             request_id: wRes.insertId,
-            remaining_balance: Number(wallet.balance) - numAmt,
-            message: `Đã gửi yêu cầu rút ${numAmt.toLocaleString("vi-VN")}đ thành công. Vui lòng chờ Admin phê duyệt!`
+            current_balance: Number(wallet.balance),
+            message: `Đã gửi yêu cầu rút ${numAmt.toLocaleString("vi-VN")}đ thành công. Vui lòng chờ Admin phê duyệt để trừ tiền và hoàn tất giải ngân!`
         });
     } catch (e) {
         await conn.rollback();

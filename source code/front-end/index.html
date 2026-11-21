@@ -754,6 +754,28 @@
                 <div id="adminPendingDepositList"></div>
             </div>
 
+            <!-- DUYỆT YÊU CẦU RÚT TIỀN VỀ NGÂN HÀNG -->
+            <div class="card">
+                <div class="voucher-header-bar">
+                    <div>
+                        <h2 class="section-title mb-0">Duyệt Yêu Cầu Rút Tiền Về Ngân Hàng</h2>
+                        <p class="section-sub" style="margin-top: 4px; margin-bottom: 0;">
+                            Xem xét thông tin ngân hàng thụ hưởng và phê duyệt lệnh rút tiền. Khi Admin bấm <strong>Duyệt lệnh rút</strong>, tiền trong ví của người dùng sẽ bị trừ tương ứng.
+                        </p>
+                    </div>
+                    <button class="btn-grey-pill" id="btnRefreshAdminWithdrawals">🔄 Làm mới</button>
+                </div>
+                <div class="admin-approve-head">
+                    <span>Mã Yêu Cầu / Người rút</span>
+                    <span>Số tiền &amp; Thông tin Ngân hàng thụ hưởng</span>
+                    <span>Trạng thái</span>
+                    <span style="text-align: right;">Hành động</span>
+                </div>
+                <div id="adminWithdrawalList">
+                    <div style="text-align: center; padding: 25px; color: #64748b; font-size: 13px;">Đang tải danh sách yêu cầu rút tiền...</div>
+                </div>
+            </div>
+
             <div class="card">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                     <div>
@@ -782,6 +804,27 @@
                         không giữ tiền cọc)</span>
                     <span><span class="badge-success">Tự động hoàn 100%</span></span>
                     <button class="btn-disabled-sm" disabled>Đã kích hoạt tự động</button>
+                </div>
+            </div>
+
+            <!-- XỬ LÝ TRANH CHẤP & BÁO CÁO SỰ CỐ -->
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <div>
+                        <h2 class="section-title mb-0">Xử lý Tranh chấp &amp; Báo cáo Sự cố Giao nhận</h2>
+                        <p class="section-sub" style="margin-top: 4px; margin-bottom: 0;">Danh sách sự cố phát sinh, hư hỏng trầy xước do Khách thuê gửi báo cáo lên hệ thống CSDL.</p>
+                    </div>
+                    <button class="btn-secondary-pill" id="btnRefreshAdminIncidents"
+                        style="padding: 4px 14px; font-size: 12px;">🔄 Làm mới</button>
+                </div>
+                <div class="admin-approve-head">
+                    <span>Mã Sự cố / Đơn</span>
+                    <span>Chi tiết sự cố &amp; Phí dự kiến</span>
+                    <span>Trạng thái</span>
+                    <span style="text-align: right;">Hành động</span>
+                </div>
+                <div id="adminIncidentListContainer">
+                    <div style="text-align: center; padding: 25px; color: #64748b; font-size: 13px;">Đang tải danh sách sự cố...</div>
                 </div>
             </div>
 
@@ -1013,6 +1056,60 @@
         </div>
     </div>
 
+    <!-- MODAL CHỈNH SỬA VOUCHER (ĐƯỢC SỬA TẤT CẢ TRỪ MÃ VOUCHER) -->
+    <div class="modal-backdrop hidden" id="editVoucherModal">
+        <div class="modal-card">
+            <h3 class="modal-title">✏️ Chỉnh sửa Voucher: <span id="editVoucherCodeDisplay" class="text-green-bold"></span></h3>
+
+            <input type="hidden" id="editVoucherId">
+
+            <div class="modal-form-row">
+                <label>Mã Voucher (Cố định, không thể thay đổi)</label>
+                <input type="text" class="modal-input" id="editVoucherCode" disabled readonly
+                    style="background: #e2e8f0; color: #475569; font-weight: 700; cursor: not-allowed; border: 1.5px dashed #94a3b8;">
+                <span style="font-size: 11px; color: #64748b; margin-top: 3px; display: block;">🔒 Mã voucher là định danh cố định không thể chỉnh sửa.</span>
+            </div>
+
+            <div class="modal-form-row">
+                <label>Số lần dùng (Lượt dùng tối đa / còn lại)</label>
+                <input type="number" class="modal-input focus-ring" id="editVoucherUses" min="0">
+            </div>
+
+            <div class="modal-form-row">
+                <label>Mức giảm giá (%)</label>
+                <div class="percent-selector" id="editPercentSelector" style="margin-bottom: 8px;">
+                    <button type="button" class="pct-btn" data-pct="5%">5%</button>
+                    <button type="button" class="pct-btn" data-pct="10%">10%</button>
+                    <button type="button" class="pct-btn" data-pct="20%">20%</button>
+                    <button type="button" class="pct-btn" data-pct="25%">25%</button>
+                    <button type="button" class="pct-btn" data-pct="30%">30%</button>
+                    <button type="button" class="pct-btn" data-pct="50%">50%</button>
+                    <button type="button" class="pct-btn" data-pct="75%">75%</button>
+                    <button type="button" class="pct-btn" data-pct="80%">80%</button>
+                </div>
+                <input type="number" class="modal-input" id="editVoucherPctInput" placeholder="Hoặc nhập phần trăm giảm (1 - 99)" min="1" max="99">
+            </div>
+
+            <div class="modal-form-row">
+                <label>Trạng thái hoạt động</label>
+                <select class="modal-input" id="editVoucherStatusSelect">
+                    <option value="active">Đang hoạt động</option>
+                    <option value="expired">Hết hạn / Tạm ngưng</option>
+                </select>
+            </div>
+
+            <div class="modal-form-row">
+                <label>Ngày hết hạn</label>
+                <input type="date" class="modal-input" id="editVoucherExp">
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn-modal-cancel" id="btnCloseEditVoucherModal">Hủy</button>
+                <button type="button" class="btn-modal-save" id="btnSaveEditVoucher">Lưu thay đổi</button>
+            </div>
+        </div>
+    </div>
+
     <!-- MODAL NẠP TIỀN QR -->
     <div class="modal-backdrop hidden" id="qrDepositModal">
         <div class="modal-card qr-modal-card">
@@ -1084,6 +1181,64 @@
 
             <div class="modal-actions" style="margin-top: 16px;">
                 <button type="button" class="btn-primary-pill" id="btnBottomCloseHistory">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL RÚT TIỀN VỀ TÀI KHOẢN NGÂN HÀNG -->
+    <div class="modal-backdrop hidden" id="withdrawModal">
+        <div class="modal-card" style="max-width: 480px; width: 95%;">
+            <h3 class="modal-title">💳 Yêu Cầu Rút Tiền Về Ngân Hàng</h3>
+            <p class="section-sub" style="margin-top: -6px; margin-bottom: 14px; font-size: 13px;">
+                Số dư khả dụng hiện tại: <strong class="text-green" id="withdrawCurrentBalanceText">0đ</strong>
+            </p>
+
+            <div class="modal-form-row">
+                <label for="withdrawAmountInput">Số tiền muốn rút (VNĐ) *</label>
+                <input type="number" class="modal-input focus-ring" id="withdrawAmountInput" placeholder="VD: 500000" min="50000" step="10000">
+            </div>
+
+            <div class="modal-form-row">
+                <label for="withdrawBankSelect">Ngân hàng thụ hưởng *</label>
+                <select class="modal-input focus-ring" id="withdrawBankSelect">
+                    <option value="">-- Chọn ngân hàng thụ hưởng --</option>
+                    <option value="Vietcombank (VCB)">Vietcombank (VCB)</option>
+                    <option value="MB Bank (MB)">MB Bank (Ngân hàng Quân đội)</option>
+                    <option value="Techcombank (TCB)">Techcombank</option>
+                    <option value="VietinBank (CTG)">VietinBank</option>
+                    <option value="BIDV">BIDV (Đầu tư &amp; Phát triển)</option>
+                    <option value="Agribank">Agribank (Nông nghiệp)</option>
+                    <option value="ACB">ACB (Á Châu)</option>
+                    <option value="VPBank">VPBank (Việt Nam Thịnh Vượng)</option>
+                    <option value="TPBank">TPBank (Tiên Phong)</option>
+                    <option value="Sacombank">Sacombank</option>
+                    <option value="HDBank">HDBank</option>
+                    <option value="Khác">Ngân hàng khác</option>
+                </select>
+            </div>
+
+            <div class="modal-form-row hidden" id="withdrawOtherBankRow">
+                <label for="withdrawOtherBankInput">Tên ngân hàng khác *</label>
+                <input type="text" class="modal-input" id="withdrawOtherBankInput" placeholder="Nhập tên ngân hàng của bạn">
+            </div>
+
+            <div class="modal-form-row">
+                <label for="withdrawAccountNoInput">Số tài khoản ngân hàng *</label>
+                <input type="text" class="modal-input focus-ring" id="withdrawAccountNoInput" placeholder="VD: 012345678999">
+            </div>
+
+            <div class="modal-form-row">
+                <label for="withdrawAccountHolderInput">Tên chủ tài khoản (Viết hoa không dấu) *</label>
+                <input type="text" class="modal-input" id="withdrawAccountHolderInput" placeholder="VD: NGUYEN VAN A">
+            </div>
+
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; margin-top: 12px; font-size: 12px; color: #64748b; line-height: 1.5;">
+                ℹ️ <strong>Quy trình bảo đảm:</strong> Sau khi bạn gửi yêu cầu, đơn rút sẽ được gửi tới Admin duyệt. <strong>Tiền trong ví sẽ chỉ bị trừ sau khi Admin bấm Duyệt thành công</strong>.
+            </div>
+
+            <div class="modal-actions" style="margin-top: 16px;">
+                <button type="button" class="btn-modal-cancel" id="btnCancelWithdraw">Hủy</button>
+                <button type="button" class="btn-modal-save" id="btnSubmitWithdraw">Gửi yêu cầu rút tiền</button>
             </div>
         </div>
     </div>

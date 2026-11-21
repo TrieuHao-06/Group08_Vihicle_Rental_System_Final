@@ -243,6 +243,8 @@ function switchTab(targetId) {
         loadAdminPendingVehicles()
         loadAdminPendingDeposits()
         loadAdminKycList()
+        loadAdminIncidents()
+        loadAdminWithdrawals()
         if (typeof loadDailyRevenueReport === "function") loadDailyRevenueReport()
         loadVouchersFromBackend()
         loadAccountsFromBackend()
@@ -2269,42 +2271,122 @@ if (qrModalBackdrop != null) qrModalBackdrop.addEventListener("click", function 
     }
 })
 
-document.getElementById("btnWithdraw").addEventListener("click", async function () {
-    var amt = Number(document.getElementById("walletAmountInput").value) || 0
-    if (amt <= 0) {
-        alert("Vui lòng nhập số tiền rút hợp lệ!")
-        return
-    }
-    if (!isLoggedIn || !currentUserId) {
-        alert("🔒 Bạn cần đăng nhập tài khoản trước khi thực hiện rút tiền!")
-        switchTab("tab6")
-        return
-    }
-    if (amt > walletBalance) {
-        alert("Số tiền rút vượt quá số dư khả dụng (" + formatVND(walletBalance) + ")!")
-        return
-    }
+// Xử lý mở Modal rút tiền về ngân hàng
+var btnWithdraw = document.getElementById("btnWithdraw")
+var withdrawModal = document.getElementById("withdrawModal")
+var btnCancelWithdraw = document.getElementById("btnCancelWithdraw")
+var btnSubmitWithdraw = document.getElementById("btnSubmitWithdraw")
+var withdrawBankSelect = document.getElementById("withdrawBankSelect")
+var withdrawOtherBankRow = document.getElementById("withdrawOtherBankRow")
 
-    var bank = prompt("Nhập thông tin tài khoản ngân hàng nhận tiền:", "VCB - 0123456789 - " + currentUserName)
-    if (!bank) return
-
-    try {
-        var res = await fetch("/api/wallet/withdraw", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ user_id: currentUserId, amount: amt, bank_info: bank })
-        })
-        var data = await res.json().catch(function() { return {} })
-        if (res.ok) {
-            alert("✅ " + (data.message || "Đã gửi yêu cầu rút tiền thành công!"))
-            loadWalletData()
-        } else {
-            alert("⚠️ " + (data.message || "Rút tiền thất bại!"))
+if (btnWithdraw != null) {
+    btnWithdraw.addEventListener("click", function () {
+        if (!isLoggedIn || !currentUserId) {
+            alert("🔒 Bạn cần đăng nhập tài khoản trước khi thực hiện rút tiền!")
+            switchTab("tab6")
+            return
         }
-    } catch (e) {
-        alert("❌ Lỗi kết nối máy chủ: " + e.message)
-    }
-})
+        var curAmt = Number(document.getElementById("walletAmountInput") ? document.getElementById("walletAmountInput").value : 500000) || 500000
+        var balText = document.getElementById("withdrawCurrentBalanceText")
+        if (balText) balText.textContent = formatVND(walletBalance)
+
+        var amtInput = document.getElementById("withdrawAmountInput")
+        if (amtInput) {
+            amtInput.value = Math.min(curAmt, walletBalance > 0 ? walletBalance : curAmt)
+        }
+
+        var holderInput = document.getElementById("withdrawAccountHolderInput")
+        if (holderInput && !holderInput.value) {
+            holderInput.value = (currentUserName || "").toUpperCase()
+        }
+
+        if (withdrawModal) withdrawModal.classList.remove("hidden")
+    })
+}
+
+if (btnCancelWithdraw != null) {
+    btnCancelWithdraw.addEventListener("click", function () {
+        if (withdrawModal) withdrawModal.classList.add("hidden")
+    })
+}
+
+if (withdrawBankSelect != null) {
+    withdrawBankSelect.addEventListener("change", function () {
+        if (withdrawOtherBankRow) {
+            if (this.value === "Khác") {
+                withdrawOtherBankRow.classList.remove("hidden")
+            } else {
+                withdrawOtherBankRow.classList.add("hidden")
+            }
+        }
+    })
+}
+
+if (btnSubmitWithdraw != null) {
+    btnSubmitWithdraw.addEventListener("click", async function () {
+        var amt = Number(document.getElementById("withdrawAmountInput").value) || 0
+        if (amt <= 0) {
+            alert("⚠️ Vui lòng nhập số tiền rút hợp lệ (lớn hơn 0)!")
+            document.getElementById("withdrawAmountInput").focus()
+            return
+        }
+        if (amt > walletBalance) {
+            alert("⚠️ Số tiền rút (" + formatVND(amt) + ") vượt quá số dư khả dụng (" + formatVND(walletBalance) + ")!")
+            return
+        }
+
+        var bankVal = withdrawBankSelect ? withdrawBankSelect.value : ""
+        if (bankVal === "Khác") {
+            var otherB = document.getElementById("withdrawOtherBankInput")
+            bankVal = otherB ? otherB.value.trim() : ""
+        }
+        if (!bankVal) {
+            alert("⚠️ Vui lòng chọn hoặc nhập tên Ngân hàng thụ hưởng!")
+            if (withdrawBankSelect) withdrawBankSelect.focus()
+            return
+        }
+
+        var accNoInput = document.getElementById("withdrawAccountNoInput")
+        var accNo = accNoInput ? accNoInput.value.trim() : ""
+        if (!accNo) {
+            alert("⚠️ Vui lòng nhập Số tài khoản ngân hàng nhận tiền!")
+            if (accNoInput) accNoInput.focus()
+            return
+        }
+
+        var holderInput = document.getElementById("withdrawAccountHolderInput")
+        var holder = holderInput ? holderInput.value.trim().toUpperCase() : ""
+        if (!holder) {
+            alert("⚠️ Vui lòng nhập Tên chủ tài khoản ngân hàng!")
+            if (holderInput) holderInput.focus()
+            return
+        }
+
+        try {
+            var res = await fetch("/api/wallet/withdraw", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    user_id: currentUserId,
+                    amount: amt,
+                    bank_name: bankVal,
+                    account_no: accNo,
+                    account_holder: holder
+                })
+            })
+            var data = await res.json().catch(function() { return {} })
+            if (res.ok) {
+                alert("✅ " + (data.message || "Đã gửi yêu cầu rút tiền thành công! Vui lòng chờ Admin duyệt đơn."))
+                if (withdrawModal) withdrawModal.classList.add("hidden")
+                loadWalletData()
+            } else {
+                alert("⚠️ " + (data.message || "Không thể gửi yêu cầu rút tiền!"))
+            }
+        } catch (e) {
+            alert("❌ Lỗi kết nối máy chủ: " + e.message)
+        }
+    })
+}
 
 // =========================================================================
 // QUẢN LÝ eKYC THỰC TẾ: TẢI THÔNG TIN, CHỌN 1 HOẶC NHIỀU ẢNH & DUYỆT ADMIN
@@ -2522,7 +2604,10 @@ async function loadAdminKycList() {
 
     try {
         var res = await fetch("/api/admin/kyc")
-        if (!res.ok) return
+        if (!res.ok) {
+            container.innerHTML = '<div style="text-align: center; padding: 25px; color: #64748b; font-size: 13px;">Không thể tải danh sách eKYC từ máy chủ. Vui lòng bấm Làm mới.</div>'
+            return
+        }
         var list = await res.json()
 
         if (!Array.isArray(list) || list.length === 0) {
@@ -2607,6 +2692,8 @@ async function loadAdminKycList() {
                     if (r.ok) {
                         alert("✅ " + (d.message || "Đã duyệt eKYC thành công!"))
                         loadAdminKycList()
+        loadAdminIncidents()
+        loadAdminWithdrawals()
                     } else {
                         alert("⚠️ " + (d.message || "Duyệt thất bại!"))
                     }
@@ -2633,6 +2720,8 @@ async function loadAdminKycList() {
                     if (r.ok) {
                         alert("✅ " + (d.message || "Đã từ chối hồ sơ eKYC!"))
                         loadAdminKycList()
+        loadAdminIncidents()
+        loadAdminWithdrawals()
                     } else {
                         alert("⚠️ " + (d.message || "Từ chối thất bại!"))
                     }
@@ -2649,6 +2738,237 @@ async function loadAdminKycList() {
 var btnRefreshAdminKyc = document.getElementById("btnRefreshAdminKyc")
 if (btnRefreshAdminKyc) {
     btnRefreshAdminKyc.addEventListener("click", loadAdminKycList)
+}
+
+// Tải danh sách báo cáo sự cố & xử lý tranh chấp cho Quản trị viên (Tab 5)
+async function loadAdminIncidents() {
+    var container = document.getElementById("adminIncidentListContainer")
+    if (!container) return
+
+    try {
+        var res = await fetch("/api/admin/incidents")
+        if (!res.ok) {
+            container.innerHTML = '<div style="text-align: center; padding: 20px; color: #64748b; font-size: 13px;">Không thể tải danh sách sự cố từ máy chủ.</div>'
+            return
+        }
+        var list = await res.json()
+
+        if (!Array.isArray(list) || list.length === 0) {
+            container.innerHTML = '<div style="text-align: center; padding: 25px; color: #64748b; font-size: 13px;">Hiện chưa có báo cáo sự cố hay tranh chấp nào phát sinh.</div>'
+            return
+        }
+
+        var html = ""
+        for (var i = 0; i < list.length; i++) {
+            var inc = list[i]
+            var isPending = (inc.status === "PENDING")
+            var isResolved = (inc.status === "RESOLVED")
+
+            var statusBadge = '<span class="badge-warn-sm" style="background: #fef3c7; color: #d97706;">Chờ xử lý</span>'
+            if (isResolved) {
+                statusBadge = '<span class="badge-success">Đã giải quyết</span>'
+            } else if (inc.status === "REJECTED") {
+                statusBadge = '<span class="badge-warn-sm" style="background: #fee2e2; color: #ef4444;">Đã bác bỏ</span>'
+            }
+
+            var actionHtml = ""
+            if (isPending) {
+                actionHtml = '<div style="display: flex; gap: 6px; justify-content: flex-end;">' +
+                    '<button type="button" class="btn-primary-xs btn-resolve-incident" data-id="' + inc.incident_id + '">Duyệt xử lý</button>' +
+                    '<button type="button" class="btn-danger-xs btn-reject-incident" data-id="' + inc.incident_id + '">Bác bỏ</button>' +
+                    '</div>'
+            } else if (isResolved) {
+                actionHtml = '<button type="button" class="btn-disabled-sm" disabled style="float: right;">Đã xử lý</button>'
+            } else {
+                actionHtml = '<button type="button" class="btn-disabled-sm" disabled style="color: #ef4444; float: right;">Đã bác bỏ</button>'
+            }
+
+            html += '<div class="admin-approve-row">'
+            html += '<div><strong>Sự cố #' + inc.incident_id + '</strong><div style="font-size: 11px; color: #64748b;">Đơn: <strong>' + (inc.booking_code || "—") + '</strong> • ' + (inc.role || "Khách thuê") + '</div></div>'
+            html += '<div>' +
+                '<strong style="color: #dc2626;">' + (inc.description || "Không có mô tả") + '</strong>' +
+                '<div style="font-size: 11.5px; color: #475569; margin-top: 2px;">Phí dự kiến: <strong style="color: #b45309;">' + Number(inc.estimated_cost || 0).toLocaleString("vi-VN") + ' đ</strong> • ' + (inc.transaction_type || "Check-out") + ' (' + (inc.created_at || "") + ')</div>' +
+                '</div>'
+            html += '<div>' + statusBadge + '</div>'
+            html += '<div>' + actionHtml + '</div>'
+            html += '</div>'
+        }
+        container.innerHTML = html
+
+        // Bắt sự kiện Duyệt giải quyết sự cố
+        var resBtns = container.querySelectorAll(".btn-resolve-incident")
+        for (var r = 0; r < resBtns.length; r++) {
+            resBtns[r].addEventListener("click", async function () {
+                var incId = this.getAttribute("data-id")
+                if (!confirm("Bạn có chắc chắn muốn XÁC NHẬN GIẢI QUYẾT sự cố/tranh chấp này không?")) return
+                try {
+                    var resp = await fetch("/api/admin/incidents/" + incId + "/resolve", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ action: "RESOLVED" })
+                    })
+                    var d = await resp.json().catch(function() { return {} })
+                    if (resp.ok) {
+                        alert("✅ " + (d.message || "Đã giải quyết sự cố!"))
+                        loadAdminIncidents()
+                    } else {
+                        alert("⚠️ " + (d.message || "Thao tác thất bại!"))
+                    }
+                } catch (err) {
+                    alert("❌ Lỗi: " + err.message)
+                }
+            })
+        }
+
+        // Bắt sự kiện Bác bỏ sự cố
+        var rejBtns = container.querySelectorAll(".btn-reject-incident")
+        for (var j = 0; j < rejBtns.length; j++) {
+            rejBtns[j].addEventListener("click", async function () {
+                var incId = this.getAttribute("data-id")
+                if (!confirm("Bạn có chắc chắn muốn BÁC BỎ sự cố/tranh chấp này không?")) return
+                try {
+                    var resp = await fetch("/api/admin/incidents/" + incId + "/resolve", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ action: "REJECTED" })
+                    })
+                    var d = await resp.json().catch(function() { return {} })
+                    if (resp.ok) {
+                        alert("✅ " + (d.message || "Đã bác bỏ sự cố!"))
+                        loadAdminIncidents()
+                    } else {
+                        alert("⚠️ " + (d.message || "Thao tác thất bại!"))
+                    }
+                } catch (err) {
+                    alert("❌ Lỗi: " + err.message)
+                }
+            })
+        }
+    } catch (e) {
+        console.warn("Lỗi tải danh sách admin incidents:", e.message)
+    }
+}
+
+var btnRefreshAdminIncidents = document.getElementById("btnRefreshAdminIncidents")
+if (btnRefreshAdminIncidents) {
+    btnRefreshAdminIncidents.addEventListener("click", loadAdminIncidents)
+}
+
+// Tải danh sách yêu cầu rút tiền cho Quản trị viên (Tab 5)
+async function loadAdminWithdrawals() {
+    var container = document.getElementById("adminWithdrawalList")
+    if (!container) return
+
+    try {
+        var res = await fetch("/api/admin/withdrawals")
+        if (!res.ok) {
+            container.innerHTML = '<div style="text-align: center; padding: 25px; color: #64748b; font-size: 13px;">Không thể tải danh sách rút tiền từ máy chủ.</div>'
+            return
+        }
+        var list = await res.json()
+
+        if (!Array.isArray(list) || list.length === 0) {
+            container.innerHTML = '<div style="text-align: center; padding: 25px; color: #64748b; font-size: 13px;">Hiện chưa có yêu cầu rút tiền nào cần xử lý.</div>'
+            return
+        }
+
+        var html = ""
+        for (var i = 0; i < list.length; i++) {
+            var wr = list[i]
+            var isPending = (wr.status === "pending")
+            var isApproved = (wr.status === "approved")
+
+            var statusBadge = '<span class="badge-warn-sm" style="background: #fef3c7; color: #d97706;">Chờ duyệt</span>'
+            if (isApproved) {
+                statusBadge = '<span class="badge-success">Đã duyệt giải ngân</span>'
+            } else if (wr.status === "rejected") {
+                statusBadge = '<span class="badge-warn-sm" style="background: #fee2e2; color: #ef4444;">Bị từ chối</span>'
+            }
+
+            var actionHtml = ""
+            if (isPending) {
+                actionHtml = '<div style="display: flex; gap: 6px; justify-content: flex-end;">' +
+                    '<button type="button" class="btn-primary-xs btn-approve-withdraw" data-id="' + wr.request_id + '">Duyệt lệnh rút</button>' +
+                    '<button type="button" class="btn-danger-xs btn-reject-withdraw" data-id="' + wr.request_id + '">Từ chối</button>' +
+                    '</div>'
+            } else if (isApproved) {
+                actionHtml = '<button type="button" class="btn-disabled-sm" disabled style="float: right;">Đã giải ngân</button>'
+            } else {
+                actionHtml = '<button type="button" class="btn-disabled-sm" disabled style="color: #ef4444; float: right;">Đã từ chối</button>'
+            }
+
+            html += '<div class="admin-approve-row">'
+            html += '<div><strong>Lệnh rút #' + wr.request_id + '</strong><div style="font-size: 11px; color: #64748b;">' + (wr.full_name || "Người dùng") + ' • SĐT: ' + (wr.phone || "—") + '</div></div>'
+            html += '<div>' +
+                'Rút: <strong style="color: #0d74e7; font-size: 13.5px;">' + Number(wr.amount).toLocaleString("vi-VN") + ' đ</strong>' +
+                '<div style="font-size: 12px; color: #1e293b; margin-top: 2px;">🏦 ' + (wr.bank_info || "—") + '</div>' +
+                '<div style="font-size: 11px; color: #64748b; margin-top: 2px;">Số dư hiện tại: ' + Number(wr.current_balance || 0).toLocaleString("vi-VN") + ' đ • Yêu cầu lúc: ' + (wr.requested_at || "") + '</div>' +
+                '</div>'
+            html += '<div>' + statusBadge + '</div>'
+            html += '<div>' + actionHtml + '</div>'
+            html += '</div>'
+        }
+        container.innerHTML = html
+
+        // Bắt sự kiện Duyệt lệnh rút tiền (trừ tiền trong ví user)
+        var appBtns = container.querySelectorAll(".btn-approve-withdraw")
+        for (var a = 0; a < appBtns.length; a++) {
+            appBtns[a].addEventListener("click", async function () {
+                var reqId = this.getAttribute("data-id")
+                if (!confirm("Bạn có chắc chắn muốn PHÊ DUYỆT lệnh rút tiền #" + reqId + " này không?\n\n👉 Lưu ý: Tiền trong tài khoản ví người dùng sẽ bị trừ tương ứng ngay sau khi duyệt!")) return
+                try {
+                    var r = await fetch("/api/admin/withdrawals/" + reqId + "/approve", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ adminId: currentUserId || 6 })
+                    })
+                    var d = await r.json().catch(function() { return {} })
+                    if (r.ok) {
+                        alert("✅ " + (d.message || "Đã duyệt lệnh rút tiền thành công!"))
+                        loadAdminWithdrawals()
+                        if (typeof loadWalletData === "function") loadWalletData()
+                    } else {
+                        alert("⚠️ " + (d.message || "Duyệt thất bại!"))
+                    }
+                } catch (err) {
+                    alert("❌ Lỗi: " + err.message)
+                }
+            })
+        }
+
+        // Bắt sự kiện Từ chối lệnh rút tiền
+        var rejBtns = container.querySelectorAll(".btn-reject-withdraw")
+        for (var b = 0; b < rejBtns.length; b++) {
+            rejBtns[b].addEventListener("click", async function () {
+                var reqId = this.getAttribute("data-id")
+                var reason = prompt("Vui lòng nhập lý do từ chối lệnh rút tiền:", "Thông tin số tài khoản hoặc ngân hàng không chính xác")
+                if (reason === null) return
+                try {
+                    var r = await fetch("/api/admin/withdrawals/" + reqId + "/reject", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ adminId: currentUserId || 6, reason: reason })
+                    })
+                    var d = await r.json().catch(function() { return {} })
+                    if (r.ok) {
+                        alert("✅ " + (d.message || "Đã từ chối lệnh rút tiền!"))
+                        loadAdminWithdrawals()
+                    } else {
+                        alert("⚠️ " + (d.message || "Từ chối thất bại!"))
+                    }
+                } catch (err) {
+                    alert("❌ Lỗi: " + err.message)
+                }
+            })
+        }
+    } catch (e) {
+        console.warn("Lỗi tải danh sách admin withdrawals:", e.message)
+    }
+}
+
+var btnRefreshAdminWithdrawals = document.getElementById("btnRefreshAdminWithdrawals")
+if (btnRefreshAdminWithdrawals) {
+    btnRefreshAdminWithdrawals.addEventListener("click", loadAdminWithdrawals)
 }
 
 // Tải thông tin ví và lịch sử biến động từ CSDL
@@ -3146,18 +3466,25 @@ function renderVouchers() {
     for (var i = 0; i < vouchersData.length; i++) {
         var v = vouchersData[i]
         var pillCls = (v.type == "active") ? "pill-status-active" : ((v.type == "warn") ? "pill-status-warn" : "pill-status-expired")
-        var delHtml = (isVoucherEditMode == true) ? '<button class="btn-delete-circle" data-id="' + (v.voucher_id || '') + '" data-idx="' + i + '">X</button>' : ""
+        
+        var actionBtns = '<div style="display: flex; gap: 5px; justify-content: flex-end; align-items: center;">' +
+            '<button type="button" class="btn-edit-circle" data-id="' + (v.voucher_id || '') + '" data-idx="' + i + '" title="Chỉnh sửa voucher ' + v.code + '">✏️</button>' +
+            '<button type="button" class="btn-delete-circle" data-id="' + (v.voucher_id || '') + '" data-idx="' + i + '" title="Xóa voucher ' + v.code + '">X</button>' +
+            '</div>'
 
         out += '<div class="voucher-row">'
         out += '<strong>' + v.code + '</strong><span>' + v.uses + '</span><span>' + v.discount + '</span>'
-        out += '<span><span class="' + pillCls + '">' + v.status + '</span></span><span>' + v.exp + '</span><span>' + delHtml + '</span>'
+        out += '<span><span class="' + pillCls + '">' + v.status + '</span></span><span>' + v.exp + '</span>'
+        out += '<span>' + actionBtns + '</span>'
         out += '</div>'
     }
     container.innerHTML = out
 
+    // Bắt sự kiện Xóa voucher
     var delBtns = container.querySelectorAll(".btn-delete-circle")
     for (var d = 0; d < delBtns.length; d++) {
-        delBtns[d].addEventListener("click", async function () {
+        delBtns[d].addEventListener("click", async function (e) {
+            e.stopPropagation()
             var vId = this.getAttribute("data-id")
             if (vId) {
                 if (!confirm("Bạn có chắc chắn muốn xóa voucher này khỏi CSDL?")) return
@@ -3173,10 +3500,150 @@ function renderVouchers() {
             }
         })
     }
+
+    // Bắt sự kiện Mở Modal Chỉnh sửa voucher (Thay đổi tất cả TRỪ mã)
+    var editBtns = container.querySelectorAll(".btn-edit-circle")
+    for (var e = 0; e < editBtns.length; e++) {
+        editBtns[e].addEventListener("click", function (evt) {
+            evt.stopPropagation()
+            var idx = Number(this.getAttribute("data-idx"))
+            var v = vouchersData[idx]
+            if (!v) return
+
+            openEditVoucherModal(v)
+        })
+    }
+}
+
+// Hàm mở Modal Chỉnh sửa voucher
+function openEditVoucherModal(v) {
+    var modal = document.getElementById("editVoucherModal")
+    if (!modal) return
+
+    document.getElementById("editVoucherId").value = v.voucher_id || ""
+    document.getElementById("editVoucherCode").value = v.code || ""
+    document.getElementById("editVoucherCodeDisplay").textContent = v.code || ""
+    document.getElementById("editVoucherUses").value = (v.uses !== undefined ? v.uses : 100)
+
+    var pctVal = (v.discount_percent || parseInt(v.discount) || 10)
+    document.getElementById("editVoucherPctInput").value = pctVal
+
+    // Cập nhật trạng thái active cho nút %
+    var editPctBtns = document.querySelectorAll("#editPercentSelector .pct-btn")
+    for (var p = 0; p < editPctBtns.length; p++) {
+        var bPct = parseInt(editPctBtns[p].getAttribute("data-pct"))
+        if (bPct === pctVal) {
+            editPctBtns[p].classList.add("active")
+        } else {
+            editPctBtns[p].classList.remove("active")
+        }
+    }
+
+    // Trạng thái
+    var statusSel = document.getElementById("editVoucherStatusSelect")
+    if (statusSel) {
+        statusSel.value = (v.raw_status === "expired" || v.type === "expired") ? "expired" : "active"
+    }
+
+    // Ngày hết hạn
+    var expInput = document.getElementById("editVoucherExp")
+    if (expInput) {
+        if (v.expRaw) {
+            expInput.value = v.expRaw
+        } else if (v.exp && v.exp.includes("/")) {
+            var parts = v.exp.split("/")
+            if (parts.length === 3) {
+                expInput.value = parts[2] + "-" + parts[1].padStart(2, "0") + "-" + parts[0].padStart(2, "0")
+            }
+        } else {
+            expInput.value = "2027-12-31"
+        }
+    }
+
+    modal.classList.remove("hidden")
+}
+
+// Bắt sự kiện đóng Modal Chỉnh sửa
+var btnCloseEditVoucher = document.getElementById("btnCloseEditVoucherModal")
+if (btnCloseEditVoucher) {
+    btnCloseEditVoucher.addEventListener("click", function () {
+        document.getElementById("editVoucherModal").classList.add("hidden")
+    })
+}
+
+// Chọn % trong Modal Chỉnh sửa
+var editPctButtons = document.querySelectorAll("#editPercentSelector .pct-btn")
+for (var ep = 0; ep < editPctButtons.length; ep++) {
+    editPctButtons[ep].addEventListener("click", function () {
+        for (var x = 0; x < editPctButtons.length; x++) editPctButtons[x].classList.remove("active")
+        this.classList.add("active")
+        var num = parseInt(this.getAttribute("data-pct"))
+        var pctInp = document.getElementById("editVoucherPctInput")
+        if (pctInp) pctInp.value = num
+    })
+}
+
+// Lưu thay đổi Chỉnh sửa Voucher (Gọi PUT /api/vouchers/:id)
+var btnSaveEditVoucher = document.getElementById("btnSaveEditVoucher")
+if (btnSaveEditVoucher) {
+    btnSaveEditVoucher.addEventListener("click", async function () {
+        var vId = document.getElementById("editVoucherId").value
+        if (!vId) {
+            alert("⚠️ Không tìm thấy ID voucher!")
+            return
+        }
+
+        var uses = Number(document.getElementById("editVoucherUses").value)
+        if (isNaN(uses) || uses < 0) {
+            alert("⚠️ Số lần dùng không hợp lệ!")
+            document.getElementById("editVoucherUses").focus()
+            return
+        }
+
+        var pct = Number(document.getElementById("editVoucherPctInput").value)
+        if (isNaN(pct) || pct <= 0 || pct > 100) {
+            alert("⚠️ Phần trăm giảm giá phải từ 1% đến 100%!")
+            document.getElementById("editVoucherPctInput").focus()
+            return
+        }
+
+        var status = document.getElementById("editVoucherStatusSelect").value
+        var exp = document.getElementById("editVoucherExp").value.trim()
+        if (!exp) {
+            alert("⚠️ Vui lòng chọn ngày hết hạn của voucher!")
+            document.getElementById("editVoucherExp").focus()
+            return
+        }
+
+        try {
+            var res = await fetch("/api/vouchers/" + vId, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    discount_percent: pct,
+                    usage_limit: uses,
+                    end_date: exp,
+                    status: status
+                })
+            })
+            var data = await res.json().catch(function() { return {} })
+            if (res.ok) {
+                alert("✅ " + (data.message || "Đã cập nhật voucher thành công!"))
+                document.getElementById("editVoucherModal").classList.add("hidden")
+                loadVouchersFromBackend()
+            } else {
+                alert("⚠️ " + (data.message || "Cập nhật voucher thất bại!"))
+            }
+        } catch (err) {
+            alert("❌ Lỗi: " + err.message)
+        }
+    })
 }
 
 document.getElementById("btnToggleVoucherEdit").addEventListener("click", function () {
     isVoucherEditMode = !isVoucherEditMode
+    this.textContent = isVoucherEditMode ? "Hoàn tất" : "Chỉnh sửa"
+    this.className = isVoucherEditMode ? "btn-primary-pill" : "btn-grey-pill"
     renderVouchers()
 })
 

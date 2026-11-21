@@ -362,11 +362,19 @@ router.post("/reviews", wrap(async (req, res) => {
         }
         const b = bookings[0];
 
-        // Khách chỉ được đánh giá mỗi đơn 1 lần
+        // Nếu đơn đã có đánh giá thì cập nhật lại đánh giá mới
         const [existing] = await conn.query("SELECT review_id FROM reviews WHERE booking_id = ?", [bId]);
         if (existing.length > 0) {
-            await conn.rollback();
-            return res.status(409).json({ message: "Đơn đặt xe này đã được bạn gửi đánh giá trước đó rồi!" });
+            await conn.query(
+                "UPDATE reviews SET rating = ?, comment = ?, created_at = NOW() WHERE review_id = ?",
+                [rateNum, String(comment).trim(), existing[0].review_id]
+            );
+            await conn.commit();
+            return res.json({
+                ok: true,
+                reviewId: existing[0].review_id,
+                message: "Đã cập nhật thành công đánh giá chất lượng cho đơn hàng!"
+            });
         }
 
         const rId = Number(renterId) || b.renter_id;

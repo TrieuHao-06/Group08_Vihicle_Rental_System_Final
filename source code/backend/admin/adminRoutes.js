@@ -235,6 +235,30 @@ router.post("/kyc/:id/reject", wrap(async (req, res) => {
     }
 }));
 
+// GET /api/admin/incidents - Danh sách báo cáo sự cố & xử lý tranh chấp
+router.get("/incidents", wrap(async (req, res) => {
+    const [rows] = await pool.query(`
+        SELECT incident_id, booking_code, transaction_type, role, description, estimated_cost, status,
+               DATE_FORMAT(created_at, '%d/%m/%Y %H:%i') AS created_at
+        FROM handover_incidents
+        ORDER BY (status = 'PENDING') DESC, incident_id DESC
+    `);
+    res.json(rows);
+}));
+
+// POST /api/admin/incidents/:id/resolve - Phê duyệt giải quyết bồi thường hoặc bác bỏ
+router.post("/incidents/:id/resolve", wrap(async (req, res) => {
+    const incId = Number(req.params.id);
+    const { action } = req.body || {};
+    const newStatus = (action === "REJECTED") ? "REJECTED" : "RESOLVED";
+
+    await pool.query("UPDATE handover_incidents SET status = ? WHERE incident_id = ?", [newStatus, incId]);
+    res.json({
+        ok: true,
+        message: `Đã cập nhật trạng thái sự cố #${incId} thành: ${newStatus === 'RESOLVED' ? 'Đã giải quyết bồi thường' : 'Đã bác bỏ tranh chấp'}`
+    });
+}));
+
 /* =========================================================================
    3. DUYỆT HOÀN CỌC & TRANH CHẤP (Chuyển từ AdminFinanceController.java)
    ========================================================================= */
@@ -359,22 +383,23 @@ router.post("/refunds/:id/reject", wrap(async (req, res) => {
    4. DUYỆT RÚT TIỀN (Chuyển từ AdminFinanceController.java)
    ========================================================================= */
 
-// GET /api/admin/withdrawals - Danh sách yêu cầu rút tiền đang chờ duyệt
+// GET /api/admin/withdrawals - Danh sách yêu cầu rút tiền
 router.get("/withdrawals", wrap(async (req, res) => {
     const [rows] = await pool.query(`
         SELECT wr.request_id, wr.wallet_id, wr.amount, wr.bank_info, wr.status,
                DATE_FORMAT(wr.requested_at, '%d/%m/%Y %H:%i') AS requested_at,
-               u.user_id, u.full_name, u.phone, u.email
+               DATE_FORMAT(wr.processed_at, '%d/%m/%Y %H:%i') AS processed_at,
+               u.user_id, u.full_name, u.phone, u.email,
+               COALESCE(w.balance, 0) AS current_balance
         FROM withdrawal_requests wr
         JOIN wallets w ON wr.wallet_id = w.wallet_id
         JOIN users u ON w.user_id = u.user_id
-        WHERE wr.status = 'pending'
-        ORDER BY wr.request_id DESC
+        ORDER BY (wr.status = 'pending') DESC, wr.request_id DESC
     `);
     res.json(rows);
 }));
 
-// POST /api/admin/withdrawals/:id/approve - Duyệt lệnh rút tiền
+// POST /api/admin/withdrawals/:id/approve - Duyệt lệnh rút tiền (TRỪ TIỀN TRONG VÍ CỦA USER KHI DUYỆT)
 router.post("/withdrawals/:id/approve", wrap(async (req, res) => {
     const reqId = Number(req.params.id);
     const conn = await pool.getConnection();
@@ -383,7 +408,9 @@ router.post("/withdrawals/:id/approve", wrap(async (req, res) => {
         await conn.beginTransaction();
 
         const [reqs] = await conn.query(
-            "SELECT wr.request_id, wr.wallet_id, wr.amount, wr.status, w.user_id FROM withdrawal_requests wr JOIN wallets w ON wr.wallet_id = w.wallet_id WHERE wr.request_id = ? AND wr.status = 'pending' FOR UPDATE",
+            "SELECT wr.request_id, wr.wallet_id, wr.amount, wr.bank_info, wr.status, w.user_id, w.balance " +
+            "FROM withdrawal_requests wr JOIN wallets w ON wr.wallet_id = w.wallet_id " +
+            "WHERE wr.request_id = ? AND wr.status = 'pending' FOR UPDATE",
             [reqId]
         );
         if (reqs.length === 0) {
@@ -392,28 +419,43 @@ router.post("/withdrawals/:id/approve", wrap(async (req, res) => {
         }
         const wReq = reqs[0];
 
+        // Kiểm tra số dư ví hiện tại của người dùng trước khi trừ
+        if (Number(wReq.balance) < Number(wReq.amount)) {
+            await conn.rollback();
+            return res.status(400).json({
+                message: `Số dư ví của người dùng hiện tại (${Number(wReq.balance).toLocaleString("vi-VN")}đ) không đủ để trừ số tiền rút ${Number(wReq.amount).toLocaleString("vi-VN")}đ!`
+            });
+        }
+
+        // BÂY GIỜ MỚI CHÍNH THỨC TRỪ TIỀN VÍ CỦA USER
+        await conn.query("UPDATE wallets SET balance = balance - ? WHERE wallet_id = ?", [wReq.amount, wReq.wallet_id]);
+
         // Đổi trạng thái yêu cầu rút
         await conn.query(
             "UPDATE withdrawal_requests SET status = 'approved', approved_by = ?, processed_at = NOW() WHERE request_id = ?",
             [adminId, reqId]
         );
 
-        // Ghi / Cập nhật transaction
+        // Cập nhật transaction thành completed
         await conn.query(
-            `INSERT INTO transactions (wallet_id, amount, type, status, description, created_at)
-             VALUES (?, ?, 'withdraw', 'completed', ?, NOW())`,
-            [wReq.wallet_id, -wReq.amount, `Rút tiền về tài khoản ngân hàng (Admin đã duyệt)`]
+            `UPDATE transactions SET status = 'completed', description = CONCAT(description, ' (Admin đã duyệt - Đã trừ ví)')
+             WHERE wallet_id = ? AND type = 'withdraw' AND status = 'pending' AND amount = ?
+             ORDER BY transaction_id DESC LIMIT 1`,
+            [wReq.wallet_id, -wReq.amount]
         );
 
         await notify(
             conn,
             wReq.user_id,
-            "Rút tiền thành công",
-            `Yêu cầu rút ${Number(wReq.amount).toLocaleString("vi-VN")}đ của bạn đã được Admin phê duyệt và chuyển khoản thành công.`
+            "Rút tiền thành công - Đã trừ tiền ví",
+            `Yêu cầu rút ${Number(wReq.amount).toLocaleString("vi-VN")}đ về ${wReq.bank_info} của bạn đã được Admin phê duyệt. Số tiền đã được trừ vào tài khoản ví.`
         );
 
         await conn.commit();
-        res.json({ ok: true, message: `Đã duyệt yêu cầu rút ${Number(wReq.amount).toLocaleString("vi-VN")}đ thành công!` });
+        res.json({
+            ok: true,
+            message: `Đã duyệt yêu cầu rút ${Number(wReq.amount).toLocaleString("vi-VN")}đ thành công. Tiền trong ví người dùng đã bị trừ tương ứng!`
+        });
     } catch (e) {
         await conn.rollback();
         throw e;
@@ -422,7 +464,7 @@ router.post("/withdrawals/:id/approve", wrap(async (req, res) => {
     }
 }));
 
-// POST /api/admin/withdrawals/:id/reject - Từ chối lệnh rút tiền -> hoàn tiền lại vào ví
+// POST /api/admin/withdrawals/:id/reject - Từ chối lệnh rút tiền (Giữ nguyên số dư vì lúc gửi chưa bị trừ)
 router.post("/withdrawals/:id/reject", wrap(async (req, res) => {
     const reqId = Number(req.params.id);
     const { reason, adminId } = req.body || {};
@@ -433,7 +475,7 @@ router.post("/withdrawals/:id/reject", wrap(async (req, res) => {
         await conn.beginTransaction();
 
         const [reqs] = await conn.query(
-            "SELECT wr.request_id, wr.wallet_id, wr.amount, wr.status, w.user_id FROM withdrawal_requests wr JOIN wallets w ON wr.wallet_id = w.wallet_id WHERE wr.request_id = ? AND wr.status = 'pending' FOR UPDATE",
+            "SELECT wr.request_id, wr.wallet_id, wr.amount, wr.bank_info, wr.status, w.user_id FROM withdrawal_requests wr JOIN wallets w ON wr.wallet_id = w.wallet_id WHERE wr.request_id = ? AND wr.status = 'pending' FOR UPDATE",
             [reqId]
         );
         if (reqs.length === 0) {
@@ -447,19 +489,24 @@ router.post("/withdrawals/:id/reject", wrap(async (req, res) => {
             [adminUid, reqId]
         );
 
-        // Hoàn lại tiền vào ví
-        await conn.query("UPDATE wallets SET balance = balance + ? WHERE wallet_id = ?", [wReq.amount, wReq.wallet_id]);
+        // Đánh dấu transaction là failed
+        await conn.query(
+            `UPDATE transactions SET status = 'failed', description = CONCAT(description, ' (Admin từ chối)')
+             WHERE wallet_id = ? AND type = 'withdraw' AND status = 'pending' AND amount = ?
+             ORDER BY transaction_id DESC LIMIT 1`,
+            [wReq.wallet_id, -wReq.amount]
+        );
 
         const note = reason ? ` Lý do: ${reason}` : "";
         await notify(
             conn,
             wReq.user_id,
             "Yêu cầu rút tiền bị từ chối",
-            `Yêu cầu rút ${Number(wReq.amount).toLocaleString("vi-VN")}đ của bạn đã bị từ chối.${note}. Số tiền đã được hoàn lại vào ví của bạn.`
+            `Yêu cầu rút ${Number(wReq.amount).toLocaleString("vi-VN")}đ về ${wReq.bank_info} của bạn đã bị từ chối.${note}. Số dư ví của bạn được giữ nguyên không đổi.`
         );
 
         await conn.commit();
-        res.json({ ok: true, message: "Đã từ chối yêu cầu rút tiền và hoàn tiền về ví cho người dùng." });
+        res.json({ ok: true, message: "Đã từ chối yêu cầu rút tiền. Số dư ví người dùng được giữ nguyên." });
     } catch (e) {
         await conn.rollback();
         throw e;
