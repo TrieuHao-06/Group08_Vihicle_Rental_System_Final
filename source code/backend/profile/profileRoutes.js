@@ -112,7 +112,7 @@ router.put("/profile", wrap(async (req, res) => {
 // POST /api/user/kyc - Nộp giấy tờ tùy thân CCCD / GPLX
 router.post("/kyc", wrap(async (req, res) => {
     const userId = Number(req.body.user_id || req.get("x-user-id"));
-    const { type, document_no, image_url } = req.body || {};
+    const { type, document_no, image_url, images, full_name, phone } = req.body || {};
 
     if (!userId) {
         return res.status(400).json({ message: "Vui lòng đăng nhập để nộp eKYC!" });
@@ -123,7 +123,15 @@ router.post("/kyc", wrap(async (req, res) => {
 
     const cleanType = String(type).trim().toUpperCase();
     const cleanDocNo = String(document_no).trim();
-    const cleanImg = String(image_url || `uploads/kyc/${cleanType.toLowerCase()}_user${userId}.jpg`).trim();
+
+    let cleanImg = "";
+    if (Array.isArray(images) && images.length > 0) {
+        cleanImg = images.filter(Boolean).map(s => String(s).trim()).join(";");
+    } else if (image_url) {
+        cleanImg = String(image_url).trim();
+    } else {
+        cleanImg = `uploads/kyc/${cleanType.toLowerCase()}_user${userId}.jpg`;
+    }
 
     const conn = await pool.getConnection();
     try {
@@ -135,21 +143,22 @@ router.post("/kyc", wrap(async (req, res) => {
             [userId, cleanType, cleanDocNo, cleanImg]
         );
 
-        // Đánh dấu users.kyc_status = 'pending'
-        if (cleanType === "CCCD") {
-            await conn.query(
-                "UPDATE users SET kyc_status = 'pending', identity_card_no = ? WHERE user_id = ?",
-                [cleanDocNo, userId]
-            );
-        } else {
-            await conn.query("UPDATE users SET kyc_status = 'pending' WHERE user_id = ?", [userId]);
-        }
+        // Đánh dấu users.kyc_status = 'pending' và cập nhật thông tin
+        await conn.query(
+            `UPDATE users SET kyc_status = 'pending',
+                             identity_card_no = ?,
+                             full_name = COALESCE(?, full_name),
+                             phone = COALESCE(?, phone)
+             WHERE user_id = ?`,
+            [cleanDocNo, full_name ? String(full_name).trim() : null, phone ? String(phone).trim() : null, userId]
+        );
 
         // Tự động phát sinh thông báo cho người dùng
+        const numPhotos = cleanImg ? cleanImg.split(";").length : 1;
         await conn.query(
             `INSERT INTO notifications (user_id, title, content, is_read)
              VALUES (?, 'Hồ sơ eKYC đã được tiếp nhận', ?, FALSE)`,
-            [userId, `Hồ sơ ${cleanType} (số ${cleanDocNo}) của bạn đã được gửi. Quản trị viên sẽ phê duyệt trong 24h.`]
+            [userId, `Hồ sơ ${cleanType} (số ${cleanDocNo}) đính kèm ${numPhotos} ảnh minh chứng của bạn đã được gửi. Quản trị viên sẽ phê duyệt trong 24h.`]
         );
 
         await conn.commit();

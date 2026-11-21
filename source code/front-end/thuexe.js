@@ -242,9 +242,12 @@ function switchTab(targetId) {
         if (typeof updateRoleModeUI === "function") updateRoleModeUI()
         loadAdminPendingVehicles()
         loadAdminPendingDeposits()
+        loadAdminKycList()
         if (typeof loadDailyRevenueReport === "function") loadDailyRevenueReport()
         loadVouchersFromBackend()
         loadAccountsFromBackend()
+    } else if (targetId === "tab6") {
+        loadUserProfileData()
     } else if (targetId === "tab7") {
         renderBookedBikes()
     }
@@ -258,10 +261,7 @@ function updateAuthUI() {
     var roleLbl = document.getElementById("dropdownRoleLabel")
     var barIn = document.getElementById("sessionBarLoggedIn")
     var barOut = document.getElementById("sessionBarLoggedOut")
-    var fileIn = document.getElementById("ekycFileLoggedIn")
-    var fileOut = document.getElementById("ekycFileLoggedOut")
     var userTxt = document.getElementById("sessionUserText")
-    var ekycName = document.getElementById("ekycFullName")
 
     if (isLoggedIn == true) {
         if (btnAcc != null) btnAcc.classList.remove("hidden")
@@ -273,10 +273,8 @@ function updateAuthUI() {
         if (roleLbl != null) roleLbl.textContent = "Vai trò: " + currentUserRole
         if (barIn != null) barIn.classList.remove("hidden")
         if (barOut != null) barOut.classList.add("hidden")
-        if (fileIn != null) fileIn.classList.remove("hidden")
-        if (fileOut != null) fileOut.classList.add("hidden")
         if (userTxt != null) userTxt.textContent = currentUserName
-        if (ekycName != null) ekycName.value = currentUserName
+        loadUserProfileData()
     } else {
         if (btnAcc != null) btnAcc.classList.add("hidden")
         if (btnLogin != null) {
@@ -286,8 +284,6 @@ function updateAuthUI() {
         if (dropdown != null) dropdown.classList.add("hidden")
         if (barIn != null) barIn.classList.add("hidden")
         if (barOut != null) barOut.classList.remove("hidden")
-        if (fileIn != null) fileIn.classList.add("hidden")
-        if (fileOut != null) fileOut.classList.remove("hidden")
     }
 }
 
@@ -534,9 +530,20 @@ function renderBikes() {
         var btnCls = (xe.id == selectedBikeId) ? "btn-select-bike selected" : "btn-select-bike"
         var btnText = (xe.id == selectedBikeId) ? "Đang chọn xe này" : "Chọn xe này"
 
+        var ratingVal = (xe.avg_rating !== undefined && xe.avg_rating !== null && Number(xe.avg_rating) > 0)
+            ? Number(xe.avg_rating).toFixed(1)
+            : "0.0";
+        var countReview = Number(xe.total_reviews) || 0;
+        var reviewTooltip = countReview > 0
+            ? ('Đánh giá trung bình: ' + ratingVal + ' sao (' + countReview + ' lượt đánh giá)')
+            : 'Chưa có đánh giá nào (Mặc định: 0.0 sao)';
+
         htmlStr += '<div class="bike-card" data-id="' + xe.id + '" style="cursor: pointer;">'
         htmlStr += '<div class="bike-banner">'
-        htmlStr += '<div class="bike-banner-top"><span class="badge-brand">' + xe.brand + '</span></div>'
+        htmlStr += '<div class="bike-banner-top">'
+        htmlStr += '<span class="badge-brand">' + xe.brand + '</span>'
+        htmlStr += '<span class="badge-rating" title="' + reviewTooltip + '"><span class="star-icon">★</span> ' + ratingVal + '</span>'
+        htmlStr += '</div>'
         htmlStr += '<div class="bike-banner-center"><div class="bike-banner-title">' + xe.name + '</div></div>'
         htmlStr += '</div>'
         htmlStr += '<div class="bike-card-title">' + xe.name + '</div>'
@@ -638,7 +645,7 @@ function updateBookingSummary() {
 
     var baseCost = unitPrice * duration
     var discount = Math.round((baseCost * voucherPct) / 100)
-    var deposit = (bike && bike.deposit) ? Number(bike.deposit) : 300000
+    var deposit = 300000
     var total = baseCost + shipFee - discount + deposit
     currentBookingTotal = total
 
@@ -647,6 +654,8 @@ function updateBookingSummary() {
     document.getElementById("sumShipLabel").textContent = (shipFee == 0) ? "Phí giao xe: Tự lấy tại điểm" : "Phí giao xe: Giao tận nơi"
     document.getElementById("sumShipVal").textContent = formatVND(shipFee)
     document.getElementById("sumDiscountVal").textContent = "-" + formatVND(discount)
+    var sumDepEl = document.getElementById("sumDepositVal")
+    if (sumDepEl) sumDepEl.textContent = formatVND(deposit)
     document.getElementById("sumTotalVal").textContent = formatVND(total)
 }
 
@@ -776,9 +785,60 @@ function renderBookedBikes() {
                 hHtml += '<div><span>' + ho.packageText + '</span><div style="font-size: 11px; color: #64748b;">' + ho.pickupTime + ' → ' + ho.returnTime + '</div></div>'
                 hHtml += '<strong style="color: #10b981;">' + formatVND(ho.totalPrice) + '</strong>'
                 hHtml += '<span><span class="badge-success">✓ Đã trả xe</span></span>'
+                hHtml += '<div style="display: flex; gap: 6px; justify-content: flex-end;">'
+                hHtml += '<button type="button" class="btn-primary-xs history-review-btn" data-id="' + ho.id + '" title="Gửi đánh giá sao cho đơn này">⭐ Đánh giá</button>'
+                hHtml += '<button type="button" class="btn-danger-xs history-incident-btn" data-id="' + ho.id + '" title="Báo cáo sự cố cho đơn này">⚠️ Báo sự cố</button>'
+                hHtml += '</div>'
                 hHtml += '</div>'
             }
             historyContainer.innerHTML = hHtml
+
+            // Bắt sự kiện click Đánh giá từ Lịch sử xe đã đặt
+            var revBtns = historyContainer.querySelectorAll(".history-review-btn")
+            for (var rb = 0; rb < revBtns.length; rb++) {
+                revBtns[rb].addEventListener("click", function () {
+                    var orderId = this.getAttribute("data-id")
+                    var modal = document.getElementById("bookingHistoryModal")
+                    if (modal) modal.classList.add("hidden")
+                    switchTab("tab2")
+                    var revSel = document.getElementById("reviewOrderSelect")
+                    if (revSel) {
+                        for (var k = 0; k < revSel.options.length; k++) {
+                            if (revSel.options[k].value.indexOf(orderId) !== -1) {
+                                revSel.selectedIndex = k
+                                revSel.dispatchEvent(new Event("change"))
+                                break
+                            }
+                        }
+                    }
+                    var reviewCard = document.getElementById("reviewTextInput") ? document.getElementById("reviewTextInput").closest(".card") : null
+                    if (reviewCard) reviewCard.scrollIntoView({ behavior: "smooth", block: "center" })
+                })
+            }
+
+            // Bắt sự kiện click Báo cáo sự cố từ Lịch sử xe đã đặt
+            var incBtns = historyContainer.querySelectorAll(".history-incident-btn")
+            for (var ib = 0; ib < incBtns.length; ib++) {
+                incBtns[ib].addEventListener("click", function () {
+                    var orderId = this.getAttribute("data-id")
+                    var modal = document.getElementById("bookingHistoryModal")
+                    if (modal) modal.classList.add("hidden")
+                    switchTab("tab2")
+                    var incBox = document.getElementById("incidentBox")
+                    if (incBox) incBox.classList.remove("hidden")
+                    var incSel = document.getElementById("incidentOrderSelect")
+                    if (incSel) {
+                        for (var m = 0; m < incSel.options.length; m++) {
+                            if (incSel.options[m].value.indexOf(orderId) !== -1) {
+                                incSel.selectedIndex = m
+                                incSel.dispatchEvent(new Event("change"))
+                                break
+                            }
+                        }
+                    }
+                    if (incBox) incBox.scrollIntoView({ behavior: "smooth", block: "center" })
+                })
+            }
         }
     }
 }
@@ -884,7 +944,7 @@ document.getElementById("btnBookNow").addEventListener("click", async function (
                 end_date: rTime.replace("T", " ") + (rTime.length === 16 ? ":00" : ""),
                 voucher_code: (vCode !== "none" && vCode) ? vCode : null,
                 total_amount: currentBookingTotal,
-                deposit_amount: bike.deposit || 300000
+                deposit_amount: 300000
             })
         });
         var data = await res.json().catch(function() { return {}; });
@@ -951,8 +1011,50 @@ function getOwnerBikesFromTab4() {
 }
 
 // 2. Render dropdown cho NGƯỜI THUÊ — CHỈ LẤY TỪ MỤC "XE ĐÃ ĐẶT" (bookedOrders)
+function renderIncidentAndReviewOrderDropdowns() {
+    var incSel = document.getElementById("incidentOrderSelect");
+    var revSel = document.getElementById("reviewOrderSelect");
+
+    // Lọc theo ID Lịch sử xe đã đặt (các đơn đã hoàn tất / đã trả xe)
+    var historyList = [];
+    if (Array.isArray(bookedOrders)) {
+        historyList = bookedOrders.filter(function (o) {
+            return o.status === "Đã trả xe" || o.status === "completed";
+        });
+    }
+
+    if (incSel) {
+        if (historyList.length === 0) {
+            incSel.innerHTML = '<option value="">-- Chưa có đơn nào trong Lịch sử xe đã đặt --</option>';
+        } else {
+            var htmlInc = '<option value="">-- Chọn ID từ Lịch sử xe đã đặt --</option>';
+            for (var i = 0; i < historyList.length; i++) {
+                var o = historyList[i];
+                var code = o.id ? (String(o.id).startsWith("BK") ? ("#" + o.id) : (String(o.id).startsWith("#") ? o.id : ("#" + o.id))) : ("#BK" + String(o.booking_id || (i+1)).padStart(4, "0"));
+                htmlInc += '<option value="' + code + '">' + code + ' — ' + o.bikeName + ' (Đã trả xe)</option>';
+            }
+            incSel.innerHTML = htmlInc;
+        }
+    }
+
+    if (revSel) {
+        if (historyList.length === 0) {
+            revSel.innerHTML = '<option value="">-- Chưa có đơn nào trong Lịch sử xe đã đặt để đánh giá --</option>';
+        } else {
+            var htmlRev = '<option value="">-- Chọn ID từ Lịch sử xe đã đặt cần đánh giá --</option>';
+            for (var j = 0; j < historyList.length; j++) {
+                var bo = historyList[j];
+                var bCode = bo.id ? (String(bo.id).startsWith("BK") ? ("#" + bo.id) : (String(bo.id).startsWith("#") ? bo.id : ("#" + bo.id))) : ("#BK" + String(bo.booking_id || (j+1)).padStart(4, "0"));
+                htmlRev += '<option value="' + bCode + '">' + bCode + ' — ' + bo.bikeName + ' (Đã trả xe)</option>';
+            }
+            revSel.innerHTML = htmlRev;
+        }
+    }
+}
+
 function renderRenterOrders() {
     var renterSel = document.getElementById("hoOrderInput")
+    renderIncidentAndReviewOrderDropdowns()
     if (!renterSel) return
 
     if (bookedOrders.length === 0) {
@@ -1274,7 +1376,9 @@ document.getElementById("btnExecHandover").addEventListener("click", function ()
             elBadgeStatus.textContent = "⏳ Chờ Chủ xe"; elBadgeStatus.className = "compare-badge waiting"
             elBanner.className = "compare-result-banner waiting"
             elBanner.innerHTML = "⏳ <strong>Đã tiếp nhận biên bản " + txType + " từ Khách thuê.</strong> Vui lòng chuyển sang vai trò <strong>'Chủ xe'</strong> để gửi thông số đối chiếu 2 chiều."
-            alert("📤 ĐÃ GHI NHẬN BIÊN BẢN TỪ KHÁCH THUÊ VÀ ĐỒNG BỘ CSDL!\n• Xe: " + labelDisplay + "\n• Odo: " + rSub.odo + " km | Xăng: " + rSub.fuel + "%\n👉 Vui lòng chuyển sang vai trò 'Chủ xe' để đối chiếu.")
+            if (txType !== "Check-out") {
+                alert("📤 ĐÃ GHI NHẬN BIÊN BẢN TỪ KHÁCH THUÊ VÀ ĐỒNG BỘ CSDL!\n• Xe: " + labelDisplay + "\n• Odo: " + rSub.odo + " km | Xăng: " + rSub.fuel + "%\n👉 Vui lòng chuyển sang vai trò 'Chủ xe' để đối chiếu.")
+            }
         } else {
             elBadgeOwner.textContent = "Đã gửi"; elBadgeOwner.className = "badge-success"
             elStatusOwner.textContent = "Đã gửi lúc " + oSub.time + " (Odo: " + oSub.odo.toLocaleString("vi-VN") + " km | Xăng: " + oSub.fuel + "%)"
@@ -1284,7 +1388,9 @@ document.getElementById("btnExecHandover").addEventListener("click", function ()
             elBadgeStatus.textContent = "⏳ Chờ Khách thuê"; elBadgeStatus.className = "compare-badge waiting"
             elBanner.className = "compare-result-banner waiting"
             elBanner.innerHTML = "⏳ <strong>Đã tiếp nhận biên bản " + txType + " từ Chủ xe.</strong> Vui lòng chuyển sang vai trò <strong>'Người thuê'</strong> để gửi thông số đối chiếu 2 chiều."
-            alert("📤 ĐÃ GHI NHẬN BIÊN BẢN TỪ CHỦ XE VÀ ĐỒNG BỘ CSDL!\n• Xe: " + labelDisplay + "\n• Odo: " + oSub.odo + " km | Xăng: " + oSub.fuel + "%\n👉 Vui lòng chuyển sang vai trò 'Người thuê' để đối chiếu.")
+            if (txType !== "Check-out") {
+                alert("📤 ĐÃ GHI NHẬN BIÊN BẢN TỪ CHỦ XE VÀ ĐỒNG BỘ CSDL!\n• Xe: " + labelDisplay + "\n• Odo: " + oSub.odo + " km | Xăng: " + oSub.fuel + "%\n👉 Vui lòng chuyển sang vai trò 'Người thuê' để đối chiếu.")
+            }
         }
         return
     }
@@ -1370,8 +1476,30 @@ document.getElementById("btnToggleIncident").addEventListener("click", function 
 var btnSendIncident = document.getElementById("btnSendIncident")
 if (btnSendIncident != null) {
     btnSendIncident.addEventListener("click", async function () {
-        var orderInputVal = document.getElementById("hoOrderInput") ? document.getElementById("hoOrderInput").value : ""
-        var code = extractOrderCode(orderInputVal) || "BK0001"
+        var incSel = document.getElementById("incidentOrderSelect")
+        var orderInputVal = (incSel && incSel.value) ? incSel.value : (document.getElementById("hoOrderInput") ? document.getElementById("hoOrderInput").value : "")
+        var code = extractOrderCode(orderInputVal)
+        if (!code) {
+            alert("⚠️ Vui lòng chọn mã đơn đặt xe (#BK) gặp sự cố!")
+            if (incSel) incSel.focus()
+            return
+        }
+
+        var descInput = document.getElementById("incidentDescInput")
+        var desc = descInput ? descInput.value.trim() : ""
+        if (!desc) {
+            alert("⚠️ Vui lòng nhập mô tả chi tiết vị trí hư hỏng hoặc sự cố phát sinh!")
+            if (descInput) descInput.focus()
+            return
+        }
+
+        var costInput = document.getElementById("incidentCostInput")
+        var cost = costInput ? Number(costInput.value) : 150000
+        if (isNaN(cost) || cost < 0) {
+            alert("⚠️ Chi phí đền bù dự kiến không hợp lệ!")
+            return
+        }
+
         try {
             var res = await fetch("/api/handover/incidents", {
                 method: "POST",
@@ -1380,13 +1508,18 @@ if (btnSendIncident != null) {
                     bookingCode: code,
                     transactionType: "Check-out",
                     role: "Khách thuê",
-                    description: "Trầy xước phần đuôi xe khi bàn giao",
-                    estimatedCost: 200000
+                    description: desc,
+                    estimatedCost: cost
                 })
             })
             var data = await res.json().catch(function() { return {} })
-            alert("✅ " + (data.message || "Đã gửi báo cáo sự cố thành công lên hệ thống CSDL!"))
-            document.getElementById("incidentBox").classList.add("hidden")
+            if (res.ok) {
+                alert("✅ " + (data.message || "Đã gửi báo cáo sự cố thành công lên hệ thống CSDL!"))
+                if (descInput) descInput.value = ""
+                document.getElementById("incidentBox").classList.add("hidden")
+            } else {
+                alert("⚠️ " + (data.message || "Không thể gửi báo cáo sự cố!"))
+            }
         } catch (e) {
             alert("❌ Lỗi kết nối gửi sự cố: " + e.message)
         }
@@ -1404,10 +1537,28 @@ for (var st = 0; st < starBtns.length; st++) {
 var btnSendReview = document.getElementById("btnSendReview")
 if (btnSendReview != null) {
     btnSendReview.addEventListener("click", async function () {
-        var orderInputVal = document.getElementById("hoOrderInput") ? document.getElementById("hoOrderInput").value : ""
-        var code = extractOrderCode(orderInputVal) || "BK0001"
+        var revSel = document.getElementById("reviewOrderSelect")
+        var orderInputVal = (revSel && revSel.value) ? revSel.value : (document.getElementById("hoOrderInput") ? document.getElementById("hoOrderInput").value : "")
+        var code = extractOrderCode(orderInputVal)
+        if (!code) {
+            alert("⚠️ Vui lòng chọn mã đơn đặt xe (#BK) cần gửi đánh giá!")
+            if (revSel) revSel.focus()
+            return
+        }
+
         var activeStar = document.querySelector("#starRow .star-btn.active")
-        var starVal = activeStar ? (activeStar.textContent.match(/⭐/g) || [1,2,3,4,5]).length : 5
+        var starVal = 5
+        if (activeStar) {
+            starVal = Number(activeStar.getAttribute("data-star")) || 5
+        }
+
+        var textInput = document.getElementById("reviewTextInput")
+        var comment = textInput ? textInput.value.trim() : ""
+        if (!comment) {
+            alert("⚠️ Vui lòng nhập nhận xét chất lượng xe máy & dịch vụ!")
+            if (textInput) textInput.focus()
+            return
+        }
 
         try {
             var res = await fetch("/api/handover/reviews", {
@@ -1415,14 +1566,17 @@ if (btnSendReview != null) {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     bookingCode: code,
-                    renterId: currentUserId || 8,
+                    renterId: currentUserId || 6,
                     rating: starVal,
-                    comment: "Xe chạy rất êm và bền bỉ, nhận trả xe đúng giờ!"
+                    comment: comment
                 })
             })
             var data = await res.json().catch(function() { return {} })
             if (res.ok) {
                 alert("⭐ " + (data.message || "Cảm ơn bạn đã gửi đánh giá vào CSDL!"))
+                if (typeof fetchBikesFromBackend === "function") {
+                    fetchBikesFromBackend()
+                }
             } else {
                 alert("⚠️ " + (data.message || "Không thể gửi đánh giá!"))
             }
@@ -2152,7 +2306,146 @@ document.getElementById("btnWithdraw").addEventListener("click", async function 
     }
 })
 
-// Cập nhật và gửi duyệt hồ sơ eKYC lên CSDL
+// =========================================================================
+// QUẢN LÝ eKYC THỰC TẾ: TẢI THÔNG TIN, CHỌN 1 HOẶC NHIỀU ẢNH & DUYỆT ADMIN
+// =========================================================================
+
+var selectedEkycFiles = []
+
+// Tải thông tin hồ sơ eKYC của người dùng từ CSDL
+async function loadUserProfileData() {
+    if (!isLoggedIn || !currentUserId) return
+    try {
+        var res = await fetch("/api/user/profile?user_id=" + currentUserId)
+        if (!res.ok) return
+        var u = await res.json()
+
+        var fnInput = document.getElementById("ekycFullName")
+        var cccdInput = document.getElementById("ekycCccd")
+        var phoneInput = document.getElementById("ekycPhone")
+        var emailInput = document.getElementById("ekycEmail")
+        var statusBadge = document.getElementById("ekycStatusBadge")
+
+        if (fnInput) fnInput.value = u.full_name || currentUserName || ""
+        if (cccdInput) cccdInput.value = u.identity_card_no || ""
+        if (phoneInput) phoneInput.value = u.phone || ""
+        if (emailInput) emailInput.value = u.email || ""
+
+        if (statusBadge) {
+            if (u.kyc_status === "verified") {
+                statusBadge.className = "badge-success"
+                statusBadge.textContent = "Đã xác thực"
+                statusBadge.style.background = ""
+                statusBadge.style.color = ""
+            } else if (u.kyc_status === "pending") {
+                statusBadge.className = "badge-warn-sm"
+                statusBadge.style.background = "#fef3c7"
+                statusBadge.style.color = "#d97706"
+                statusBadge.textContent = "Đang chờ duyệt"
+            } else if (u.kyc_status === "rejected") {
+                statusBadge.className = "badge-warn-sm"
+                statusBadge.style.background = "#fee2e2"
+                statusBadge.style.color = "#ef4444"
+                statusBadge.textContent = "Bị từ chối"
+            } else {
+                statusBadge.className = "badge-info-sm"
+                statusBadge.style.background = "#f1f5f9"
+                statusBadge.style.color = "#64748b"
+                statusBadge.textContent = "Chưa xác thực"
+            }
+        }
+
+        // Tải danh sách ảnh minh chứng đã nộp trước đó từ CSDL
+        var kycRes = await fetch("/api/user/kyc?user_id=" + currentUserId)
+        if (kycRes.ok) {
+            var kycDocs = await kycRes.json()
+            var prevBox = document.getElementById("ekycPreviewContainer")
+            if (prevBox && Array.isArray(kycDocs) && kycDocs.length > 0 && selectedEkycFiles.length === 0) {
+                var htmlPrev = ""
+                var latest = kycDocs[0]
+                var imgList = (latest.image_url || "").split(";").filter(Boolean)
+                if (imgList.length > 0) {
+                    htmlPrev += '<div style="width: 100%; font-size: 11.5px; color: #64748b; margin-bottom: 4px;">Giấy tờ đã lưu trong CSDL (' + latest.type + ' • ' + latest.document_no + '):</div>'
+                    for (var p = 0; p < imgList.length; p++) {
+                        var imgItem = imgList[p]
+                        var isBase64 = imgItem.startsWith("data:image")
+                        var imgSrc = isBase64 ? imgItem : (imgItem.startsWith("http") || imgItem.startsWith("/") ? imgItem : ("/" + imgItem))
+                        htmlPrev += '<div class="ekyc-badge-pill" style="display: inline-flex; align-items: center; gap: 6px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 4px 8px;">'
+                        if (isBase64) {
+                            htmlPrev += '<img src="' + imgSrc + '" style="width: 32px; height: 32px; object-fit: cover; border-radius: 4px;">'
+                        } else {
+                            htmlPrev += '<span style="font-size: 16px;">🖼️</span>'
+                        }
+                        htmlPrev += '<span style="font-size: 12px; font-weight: 500;">Ảnh minh chứng ' + (p + 1) + '</span>'
+                        htmlPrev += '</div>'
+                    }
+                    prevBox.innerHTML = htmlPrev
+                    var summaryEl = document.getElementById("ekycFileSummaryText")
+                    if (summaryEl) summaryEl.textContent = "Đã lưu " + imgList.length + " ảnh minh chứng trong CSDL (" + (latest.status === 'verified' ? 'Đã duyệt' : (latest.status === 'pending' ? 'Chờ duyệt' : latest.status)) + ")"
+                }
+            }
+        }
+    } catch (e) {
+        console.warn("Lỗi tải thông tin cá nhân eKYC:", e.message)
+    }
+}
+
+// Xử lý việc chọn MỘT HOẶC NHIỀU ẢNH minh chứng eKYC
+var ekycFileInput = document.getElementById("ekycMultiFileInput")
+var btnTriggerEkyc = document.getElementById("btnTriggerEkycFiles")
+var ekycFileBar = document.getElementById("ekycFileBar")
+
+if (btnTriggerEkyc && ekycFileInput) {
+    btnTriggerEkyc.addEventListener("click", function (e) {
+        e.stopPropagation()
+        ekycFileInput.click()
+    })
+}
+if (ekycFileBar && ekycFileInput) {
+    ekycFileBar.addEventListener("click", function () {
+        ekycFileInput.click()
+    })
+}
+
+if (ekycFileInput) {
+    ekycFileInput.addEventListener("change", function () {
+        var files = this.files
+        if (!files || files.length === 0) return
+
+        selectedEkycFiles = []
+        var prevBox = document.getElementById("ekycPreviewContainer")
+        var summaryEl = document.getElementById("ekycFileSummaryText")
+        if (prevBox) prevBox.innerHTML = ""
+
+        var names = []
+        for (var i = 0; i < files.length; i++) names.push(files[i].name)
+        if (summaryEl) {
+            summaryEl.textContent = "Đã chọn " + files.length + " ảnh minh chứng: " + names.join(", ")
+        }
+
+        for (var f = 0; f < files.length; f++) {
+            (function (file, idx) {
+                var reader = new FileReader()
+                reader.onload = function (e) {
+                    var dataUrl = e.target.result
+                    selectedEkycFiles.push({ name: file.name, dataUrl: dataUrl })
+
+                    if (prevBox) {
+                        var thumb = document.createElement("div")
+                        thumb.className = "ekyc-badge-pill"
+                        thumb.style.cssText = "display: inline-flex; align-items: center; gap: 6px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 4px 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);"
+                        thumb.innerHTML = '<img src="' + dataUrl + '" style="width: 36px; height: 36px; object-fit: cover; border-radius: 4px;">' +
+                            '<span style="font-size: 11.5px; font-weight: 500; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + file.name + '</span>'
+                        prevBox.appendChild(thumb)
+                    }
+                }
+                reader.readAsDataURL(file)
+            })(files[f], f)
+        }
+    })
+}
+
+// Cập nhật và gửi duyệt hồ sơ eKYC lên CSDL (hỗ trợ nhiều ảnh minh chứng)
 var btnUpdateEkyc = document.getElementById("btnUpdateEkyc")
 if (btnUpdateEkyc != null) {
     btnUpdateEkyc.addEventListener("click", async function () {
@@ -2162,8 +2455,31 @@ if (btnUpdateEkyc != null) {
             return
         }
 
-        var cccdInputs = document.querySelectorAll("#tab3 input.input-soft")
-        var cccdVal = (cccdInputs.length > 1 && cccdInputs[1].value.trim()) ? cccdInputs[1].value.trim() : "089206001234"
+        var fullNameVal = document.getElementById("ekycFullName") ? document.getElementById("ekycFullName").value.trim() : ""
+        var cccdVal = document.getElementById("ekycCccd") ? document.getElementById("ekycCccd").value.trim() : ""
+        var phoneVal = document.getElementById("ekycPhone") ? document.getElementById("ekycPhone").value.trim() : ""
+
+        if (!fullNameVal) {
+            alert("⚠️ Vui lòng nhập họ và tên đầy đủ theo CCCD!")
+            if (document.getElementById("ekycFullName")) document.getElementById("ekycFullName").focus()
+            return
+        }
+        if (!cccdVal || cccdVal.length < 9) {
+            alert("⚠️ Vui lòng nhập số CCCD hợp lệ (9 đến 12 số)!")
+            if (document.getElementById("ekycCccd")) document.getElementById("ekycCccd").focus()
+            return
+        }
+        if (!phoneVal) {
+            alert("⚠️ Vui lòng nhập số điện thoại chính chủ!")
+            if (document.getElementById("ekycPhone")) document.getElementById("ekycPhone").focus()
+            return
+        }
+
+        // Lấy danh sách ảnh minh chứng (chấp nhận 1 hoặc nhiều ảnh)
+        var imagesToSend = []
+        if (selectedEkycFiles && selectedEkycFiles.length > 0) {
+            imagesToSend = selectedEkycFiles.map(function (item) { return item.dataUrl })
+        }
 
         try {
             var res = await fetch("/api/user/kyc", {
@@ -2173,12 +2489,23 @@ if (btnUpdateEkyc != null) {
                     user_id: currentUserId,
                     type: "CCCD",
                     document_no: cccdVal,
-                    image_url: "uploads/kyc/cccd_user" + currentUserId + ".jpg"
+                    full_name: fullNameVal,
+                    phone: phoneVal,
+                    images: imagesToSend,
+                    image_url: imagesToSend.length > 0 ? imagesToSend[0] : ("uploads/kyc/cccd_user" + currentUserId + ".jpg")
                 })
             })
             var data = await res.json().catch(function() { return {} })
             if (res.ok) {
-                alert("✅ " + (data.message || "Đã nộp hồ sơ eKYC lên hệ thống CSDL thành công!"))
+                alert("✅ " + (data.message || "Đã nộp hồ sơ eKYC kèm ảnh minh chứng lên hệ thống CSDL thành công!"))
+                var statusBadge = document.getElementById("ekycStatusBadge")
+                if (statusBadge) {
+                    statusBadge.className = "badge-warn-sm"
+                    statusBadge.style.background = "#fef3c7"
+                    statusBadge.style.color = "#d97706"
+                    statusBadge.textContent = "Đang chờ duyệt"
+                }
+                loadUserProfileData()
             } else {
                 alert("⚠️ " + (data.message || "Gửi eKYC thất bại!"))
             }
@@ -2186,6 +2513,142 @@ if (btnUpdateEkyc != null) {
             alert("❌ Lỗi kết nối: " + e.message)
         }
     })
+}
+
+// Tải danh sách hồ sơ eKYC thực tế từ CSDL cho Quản trị viên (Tab 5)
+async function loadAdminKycList() {
+    var container = document.getElementById("adminKycListContainer")
+    if (!container) return
+
+    try {
+        var res = await fetch("/api/admin/kyc")
+        if (!res.ok) return
+        var list = await res.json()
+
+        if (!Array.isArray(list) || list.length === 0) {
+            container.innerHTML = '<div style="text-align: center; padding: 25px; color: #64748b; font-size: 13px;">Hiện chưa có hồ sơ eKYC nào được gửi lên hệ thống.</div>'
+            return
+        }
+
+        var html = ""
+        for (var i = 0; i < list.length; i++) {
+            var doc = list[i]
+            var isPending = (doc.status === "pending")
+            var isVerified = (doc.status === "verified")
+
+            var statusBadge = '<span class="badge-warn-sm" style="background: #fef3c7; color: #d97706;">Chờ duyệt</span>'
+            if (isVerified) {
+                statusBadge = '<span class="badge-success">Đã xác thực</span>'
+            } else if (doc.status === "rejected") {
+                statusBadge = '<span class="badge-warn-sm" style="background: #fee2e2; color: #ef4444;">Bị từ chối</span>'
+            }
+
+            // Xử lý hiển thị các ảnh minh chứng (1 hoặc nhiều ảnh)
+            var imgList = (doc.image_url || "").split(";").filter(Boolean)
+            var proofHtml = ""
+            if (imgList.length > 0) {
+                proofHtml += '<div style="display: flex; gap: 6px; align-items: center; margin-top: 6px; flex-wrap: wrap;">'
+                for (var p = 0; p < imgList.length; p++) {
+                    var img = imgList[p]
+                    var isBase64 = img.startsWith("data:image")
+                    var src = isBase64 ? img : (img.startsWith("http") || img.startsWith("/") ? img : ("/" + img))
+                    proofHtml += '<a href="' + src + '" target="_blank" title="Bấm để xem ảnh minh chứng ' + (p + 1) + '" style="display: inline-block;">'
+                    if (isBase64) {
+                        proofHtml += '<img src="' + src + '" style="width: 38px; height: 38px; object-fit: cover; border-radius: 6px; border: 1px solid #cbd5e1; box-shadow: 0 1px 3px rgba(0,0,0,0.06);">'
+                    } else {
+                        proofHtml += '<span style="display: inline-flex; align-items: center; gap: 4px; background: #e2e8f0; border-radius: 6px; padding: 3px 8px; font-size: 11.5px; color: #0d74e7; text-decoration: underline;">📄 Ảnh ' + (p + 1) + '</span>'
+                    }
+                    proofHtml += '</a>'
+                }
+                proofHtml += '<span style="font-size: 11px; color: #64748b;">(' + imgList.length + ' ảnh minh chứng)</span>'
+                proofHtml += '</div>'
+            } else {
+                proofHtml = '<div style="font-size: 11px; color: #94a3b8; margin-top: 4px;">Chưa đính kèm ảnh</div>'
+            }
+
+            var actionHtml = ""
+            if (isPending) {
+                actionHtml = '<div style="display: flex; gap: 6px; justify-content: flex-end;">' +
+                    '<button type="button" class="btn-primary-xs btn-approve-kyc" data-id="' + doc.document_id + '">Duyệt eKYC</button>' +
+                    '<button type="button" class="btn-danger-xs btn-reject-kyc" data-id="' + doc.document_id + '">Từ chối</button>' +
+                    '</div>'
+            } else if (isVerified) {
+                actionHtml = '<button type="button" class="btn-disabled-sm" disabled style="float: right;">Đã duyệt eKYC</button>'
+            } else {
+                actionHtml = '<button type="button" class="btn-disabled-sm" disabled style="color: #ef4444; float: right;">Bị từ chối</button>'
+            }
+
+            html += '<div class="admin-approve-row">'
+            html += '<div><strong>Duyệt eKYC (' + doc.type + ')</strong><div style="font-size: 11px; color: #64748b;">Mã HS #' + doc.document_id + ' • User #' + doc.user_id + '</div></div>'
+            html += '<div>' +
+                '<strong>' + (doc.full_name || "Người dùng") + '</strong> • CCCD: <strong>' + doc.document_no + '</strong>' +
+                '<div style="font-size: 11.5px; color: #475569; margin-top: 2px;">SĐT: ' + (doc.phone || "—") + ' • Email: ' + (doc.email || "—") + '</div>' +
+                proofHtml +
+                '</div>'
+            html += '<div>' + statusBadge + '</div>'
+            html += '<div>' + actionHtml + '</div>'
+            html += '</div>'
+        }
+        container.innerHTML = html
+
+        // Bắt sự kiện Duyệt eKYC
+        var appBtns = container.querySelectorAll(".btn-approve-kyc")
+        for (var a = 0; a < appBtns.length; a++) {
+            appBtns[a].addEventListener("click", async function () {
+                var docId = this.getAttribute("data-id")
+                if (!confirm("Bạn có chắc chắn muốn PHÊ DUYỆT hồ sơ eKYC này không?")) return
+                try {
+                    var r = await fetch("/api/admin/kyc/" + docId + "/approve", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ adminId: currentUserId || 6 })
+                    })
+                    var d = await r.json().catch(function() { return {} })
+                    if (r.ok) {
+                        alert("✅ " + (d.message || "Đã duyệt eKYC thành công!"))
+                        loadAdminKycList()
+                    } else {
+                        alert("⚠️ " + (d.message || "Duyệt thất bại!"))
+                    }
+                } catch (err) {
+                    alert("❌ Lỗi: " + err.message)
+                }
+            })
+        }
+
+        // Bắt sự kiện Từ chối eKYC
+        var rejBtns = container.querySelectorAll(".btn-reject-kyc")
+        for (var b = 0; b < rejBtns.length; b++) {
+            rejBtns[b].addEventListener("click", async function () {
+                var docId = this.getAttribute("data-id")
+                var reason = prompt("Vui lòng nhập lý do từ chối hồ sơ eKYC:", "Ảnh CCCD mờ hoặc không khớp thông tin")
+                if (reason === null) return
+                try {
+                    var r = await fetch("/api/admin/kyc/" + docId + "/reject", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ adminId: currentUserId || 6, reason: reason })
+                    })
+                    var d = await r.json().catch(function() { return {} })
+                    if (r.ok) {
+                        alert("✅ " + (d.message || "Đã từ chối hồ sơ eKYC!"))
+                        loadAdminKycList()
+                    } else {
+                        alert("⚠️ " + (d.message || "Từ chối thất bại!"))
+                    }
+                } catch (err) {
+                    alert("❌ Lỗi: " + err.message)
+                }
+            })
+        }
+    } catch (e) {
+        console.warn("Lỗi tải danh sách admin eKYC:", e.message)
+    }
+}
+
+var btnRefreshAdminKyc = document.getElementById("btnRefreshAdminKyc")
+if (btnRefreshAdminKyc) {
+    btnRefreshAdminKyc.addEventListener("click", loadAdminKycList)
 }
 
 // Tải thông tin ví và lịch sử biến động từ CSDL
@@ -2252,7 +2715,9 @@ async function fetchBikesFromBackend() {
                     deposit: Number(v.deposit) || 300000,
                     area: v.area || areas[idx % areas.length],
                     owner: v.owner || "Chủ xe",
-                    license_plate: v.license_plate
+                    license_plate: v.license_plate,
+                    avg_rating: (v.avg_rating !== undefined && v.avg_rating !== null) ? Number(v.avg_rating) : 0.0,
+                    total_reviews: Number(v.total_reviews) || 0
                 }
             })
             renderBikes()
@@ -2816,7 +3281,7 @@ function renderDailyRevenueUI(data) {
 
         chartHtml += '<div style="display: flex; flex-direction: column; align-items: center; justify-content: flex-end; flex: 1; min-width: 50px; height: 160px; position: relative;">'
         chartHtml += '<div style="font-size: 11px; font-weight: 700; color: #0d74e7; margin-bottom: 6px;">' + netFormatted + '</div>'
-        chartHtml += '<div title="Ngày: ' + item.date_formatted + '&#10;Tổng thu: ' + gross.toLocaleString('vi-VN') + ' đ&#10;Cọc xe: ' + deposit.toLocaleString('vi-VN') + ' đ&#10;Thực nhận 90%: ' + net.toLocaleString('vi-VN') + ' đ" style="width: 34px; height: ' + heightPct + 'px; background: linear-gradient(180deg, #38bdf8 0%, #0284c7 100%); border-radius: 6px 6px 0 0; transition: height 0.3s ease; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(2, 132, 199, 0.2);"></div>'
+        chartHtml += '<div title="Ngày: ' + item.date_formatted + '&#10;Tổng thu: ' + gross.toLocaleString('vi-VN') + ' đ&#10;Thực nhận 90%: ' + net.toLocaleString('vi-VN') + ' đ" style="width: 34px; height: ' + heightPct + 'px; background: linear-gradient(180deg, #38bdf8 0%, #0284c7 100%); border-radius: 6px 6px 0 0; transition: height 0.3s ease; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(2, 132, 199, 0.2);"></div>'
         chartHtml += '<div style="font-size: 11px; color: #64748b; margin-top: 8px; font-weight: 500;">' + item.date_formatted.split('/').slice(0, 2).join('/') + '</div>'
         chartHtml += '</div>'
     }
@@ -2826,15 +3291,13 @@ function renderDailyRevenueUI(data) {
     for (var j = 0; j < data.length; j++) {
         var row = data[j]
         var gTotal = Number(row.gross_total) || 0
-        var depTotal = Number(row.deposit_total) || 0
         var nRev = Number(row.net_revenue) || 0
         var pRev = Number(row.platform_revenue) || 0
 
-        tableHtml += '<div style="display: grid; grid-template-columns: 1.5fr 1fr 1.5fr 1.5fr 1.5fr 1.2fr; align-items: center; padding: 12px; border-bottom: 1px solid #f1f5f9; font-size: 13px; color: #334155;">'
+        tableHtml += '<div style="display: grid; grid-template-columns: 1.8fr 1fr 1.8fr 1.8fr 1.4fr; align-items: center; padding: 12px; border-bottom: 1px solid #f1f5f9; font-size: 13px; color: #334155;">'
         tableHtml += '<span style="font-weight: 600; color: #0f172a;">📅 ' + row.date_formatted + '</span>'
         tableHtml += '<span><span style="background: #e0f2fe; color: #0284c7; padding: 3px 8px; border-radius: 999px; font-weight: 600; font-size: 12px;">' + row.total_orders + ' đơn</span></span>'
         tableHtml += '<span style="font-weight: 500;">' + gTotal.toLocaleString('vi-VN') + ' đ</span>'
-        tableHtml += '<span style="color: #64748b;">' + depTotal.toLocaleString('vi-VN') + ' đ</span>'
         tableHtml += '<span style="color: #16a34a; font-weight: 700;">+' + nRev.toLocaleString('vi-VN') + ' đ</span>'
         tableHtml += '<span style="color: #d97706; font-weight: 600;">' + pRev.toLocaleString('vi-VN') + ' đ</span>'
         tableHtml += '</div>'
@@ -2941,7 +3404,9 @@ if (isLoggedIn) {
     loadWalletData()
     fetchOwnerVehicles()
     fetchMyBookingsFromBackend()
+    loadUserProfileData()
 }
 loadAdminPendingVehicles()
 loadAdminPendingDeposits()
 loadDailyRevenueReport()
+loadAdminKycList()

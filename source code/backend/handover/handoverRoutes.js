@@ -85,21 +85,21 @@ router.post("/reports", wrap(async (req, res) => {
     try {
         await conn.beginTransaction();
 
-        // 1. Kiểm tra xem đơn booking có tồn tại trong CSDL không
+        // 1. Kiểm tra và khóa dòng đơn booking trong CSDL với khóa bi quan (Pessimistic Locking)
         let booking = null;
         if (bId) {
             const [bRows] = await conn.query(
-                "SELECT booking_id, vehicle_id, renter_id, total_amount, deposit_amount, status FROM bookings WHERE booking_id = ?",
+                "SELECT booking_id, vehicle_id, renter_id, total_amount, deposit_amount, deposit_status, status FROM bookings WHERE booking_id = ? FOR UPDATE",
                 [bId]
             );
             if (bRows.length > 0) booking = bRows[0];
         }
 
-        // 2. YÊU CẦU: Nếu xe/đơn đã check-out (completed) thì KHÓA, không cho tương tác tiếp
-        if (booking && booking.status === "completed") {
+        // 2. YÊU CẦU: Nếu xe/đơn đã check-out (completed) và cọc đã hoàn thì KHÓA, không cho tương tác tiếp
+        if (booking && booking.status === "completed" && booking.deposit_status === "refunded") {
             await conn.rollback();
             return res.status(400).json({ 
-                message: "Đơn đặt xe này đã hoàn tất Check-out (Đã trả xe) và đã bị khóa. Vui lòng thực hiện theo quy trình: Đặt xe mới -> Check-in từ đầu!" 
+                message: "Đơn đặt xe này đã hoàn tất Check-out (Đã trả xe & hoàn cọc) và đã bị khóa. Vui lòng thực hiện theo quy trình: Đặt xe mới -> Check-in từ đầu!" 
             });
         }
 
@@ -117,48 +117,69 @@ router.post("/reports", wrap(async (req, res) => {
             }
         }
 
+        // Kiểm tra xem bên đối ứng đã gửi biên bản cùng loại giao dịch chưa (Đối chiếu 2 chiều)
+        let isTwoWayCompleted = false;
+        if (transactionType === "Check-out") {
+            const [otherReports] = await conn.query(
+                "SELECT report_id, role, odometer, fuel_level FROM check_in_out_reports WHERE (booking_id = ? OR booking_code = ?) AND transaction_type = 'Check-out' AND role != ?",
+                [bId || 0, cleanCode, role]
+            );
+            if (otherReports.length > 0) {
+                isTwoWayCompleted = true;
+                // Cập nhật biên bản của bên thứ nhất thành COMPLETED & MATCHED
+                await conn.query(
+                    "UPDATE check_in_out_reports SET status = 'COMPLETED', matched = TRUE WHERE report_id = ?",
+                    [otherReports[0].report_id]
+                );
+            }
+        }
+
         // Lưu bản ghi vào bảng check_in_out_reports
+        const reportStatus = (transactionType === "Check-in" || isTwoWayCompleted) ? "COMPLETED" : "PENDING";
+        const isMatched = (transactionType === "Check-in" || isTwoWayCompleted);
+
         const [result] = await conn.query(
             `INSERT INTO check_in_out_reports 
              (booking_id, booking_code, transaction_type, role, odometer, fuel_level, inspection_photos, damage_notes, status, matched, created_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'COMPLETED', TRUE, NOW())`,
-            [bId || 1, cleanCode, transactionType, role, odo, fuel, imageUrl || null, note || null]
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+            [bId || 1, cleanCode, transactionType, role, odo, fuel, imageUrl || null, note || null, reportStatus, isMatched]
         );
 
-        // 4. Cập nhật trạng thái booking và cộng doanh thu nếu là Check-out
+        // 4. Cập nhật trạng thái booking và xử lý hoàn cọc / doanh thu nguyên tử
         if (booking) {
             if (transactionType === "Check-in") {
                 await conn.query("UPDATE bookings SET status = 'active' WHERE booking_id = ?", [bId]);
-            } else if (transactionType === "Check-out") {
-                // Chuyển đơn sang completed
+            } else if (transactionType === "Check-out" && isTwoWayCompleted) {
+                // CHỈ KHI CẢ 2 BÊN ĐÃ GỬI BIÊN BẢN CHECK-OUT MỚI HOÀN TẤT ĐƠN & HOÀN CỌC NGUYÊN TỬ
                 await conn.query("UPDATE bookings SET status = 'completed' WHERE booking_id = ?", [bId]);
 
-                // Mở lại trạng thái sẵn sàng cho xe để khách có thể đặt lại từ đầu theo quy trình mới
+                // Mở lại trạng thái sẵn sàng cho xe
                 await conn.query("UPDATE vehicles SET availability_status = 'available' WHERE vehicle_id = ?", [booking.vehicle_id]);
 
-                // 5. YÊU CẦU: Hoàn cọc tự động cho người đặt & Tính doanh thu chủ xe: Tiền thuê * 90%
+                // 5. Tính toán doanh thu và hoàn cọc
                 const gross = Number(booking.total_amount) || 0;
                 const deposit = Number(booking.deposit_amount) || 0;
                 const rentalAmount = (gross > deposit) ? (gross - deposit) : gross;
                 const netRevenue = Math.round(rentalAmount * 0.9);
 
-                // Hoàn cọc tự động vào tài khoản của người đặt xe
+                // HOÀN CỌC 100% VỀ VÍ NGƯỜI ĐẶT XE (Khóa ví người thuê với FOR UPDATE chống race condition)
                 const renterId = booking.renter_id;
                 const refundDeposit = deposit > 0 ? deposit : 300000;
 
-                await conn.query("UPDATE bookings SET deposit_status = 'refunded' WHERE booking_id = ?", [bId]);
+                if (booking.deposit_status !== "refunded" && renterId && refundDeposit > 0) {
+                    await conn.query("UPDATE bookings SET deposit_status = 'refunded' WHERE booking_id = ?", [bId]);
 
-                if (renterId && refundDeposit > 0) {
                     await conn.query("INSERT IGNORE INTO wallets (user_id, balance) VALUES (?, 0)", [renterId]);
-                    await conn.query("UPDATE wallets SET balance = balance + ? WHERE user_id = ?", [refundDeposit, renterId]);
-
-                    const [renterWallet] = await conn.query("SELECT wallet_id FROM wallets WHERE user_id = ?", [renterId]);
-                    if (renterWallet.length > 0) {
+                    const [renterWallets] = await conn.query("SELECT wallet_id, balance FROM wallets WHERE user_id = ? FOR UPDATE", [renterId]);
+                    
+                    if (renterWallets.length > 0) {
+                        const rWallet = renterWallets[0];
+                        await conn.query("UPDATE wallets SET balance = balance + ? WHERE wallet_id = ?", [refundDeposit, rWallet.wallet_id]);
                         await conn.query(`
                             INSERT INTO transactions (wallet_id, booking_id, amount, type, status, description, created_at)
                             VALUES (?, ?, ?, 'deposit_refund', 'completed', ?, NOW())
                         `, [
-                            renterWallet[0].wallet_id,
+                            rWallet.wallet_id,
                             bId,
                             refundDeposit,
                             `Hoàn tiền cọc tự động đơn #${cleanCode}`
@@ -166,23 +187,44 @@ router.post("/reports", wrap(async (req, res) => {
                     }
                 }
 
-                // Lấy chủ sở hữu xe và cộng doanh thu (tiền thuê * 90%) vào ví chủ xe
+                // CỘNG DOANH THU CHO CHỦ XE (Khóa ví chủ xe với FOR UPDATE)
                 const [vehRows] = await conn.query("SELECT owner_id, brand, model FROM vehicles WHERE vehicle_id = ?", [booking.vehicle_id]);
                 if (vehRows.length > 0) {
                     const ownerId = vehRows[0].owner_id;
                     await conn.query("INSERT IGNORE INTO wallets (user_id, balance) VALUES (?, 0)", [ownerId]);
-                    await conn.query("UPDATE wallets SET balance = balance + ? WHERE user_id = ?", [netRevenue, ownerId]);
+                    const [ownerWallets] = await conn.query("SELECT wallet_id, balance FROM wallets WHERE user_id = ? FOR UPDATE", [ownerId]);
 
-                    const [wRows] = await conn.query("SELECT wallet_id FROM wallets WHERE user_id = ?", [ownerId]);
-                    if (wRows.length > 0) {
+                    if (ownerWallets.length > 0) {
+                        const oWallet = ownerWallets[0];
+                        await conn.query("UPDATE wallets SET balance = balance + ? WHERE wallet_id = ?", [netRevenue, oWallet.wallet_id]);
                         await conn.query(`
                             INSERT INTO transactions (wallet_id, booking_id, amount, type, status, description, created_at)
                             VALUES (?, ?, ?, 'rental_income', 'completed', ?, NOW())
                         `, [
-                            wRows[0].wallet_id,
+                            oWallet.wallet_id,
                             bId,
                             netRevenue,
                             `Cộng doanh thu đơn #${cleanCode} (${vehRows[0].brand} ${vehRows[0].model}): Tiền thuê ${rentalAmount.toLocaleString('vi-VN')}đ x 90%`
+                        ]);
+                    }
+                }
+
+                // GHI NHẬN HOA HỒNG SÀN 10% VÀO VÍ ADMIN (Đảm bảo bất biến SUM(amount) = 0)
+                const platformFee = rentalAmount - netRevenue;
+                if (platformFee > 0) {
+                    await conn.query("INSERT IGNORE INTO wallets (user_id, balance) VALUES (6, 0)");
+                    const [adminWallets] = await conn.query("SELECT wallet_id, balance FROM wallets WHERE user_id = 6 FOR UPDATE");
+                    if (adminWallets.length > 0) {
+                        const aWallet = adminWallets[0];
+                        await conn.query("UPDATE wallets SET balance = balance + ? WHERE wallet_id = ?", [platformFee, aWallet.wallet_id]);
+                        await conn.query(`
+                            INSERT INTO transactions (wallet_id, booking_id, amount, type, status, description, created_at)
+                            VALUES (?, ?, ?, 'platform_fee', 'completed', ?, NOW())
+                        `, [
+                            aWallet.wallet_id,
+                            bId,
+                            platformFee,
+                            `Hoa hồng nền tảng 10% đơn #${cleanCode}`
                         ]);
                     }
                 }

@@ -115,6 +115,19 @@ router.patch("/users/:id/status", wrap(async (req, res) => {
    2. DUYỆT HỒ SƠ eKYC (Chuyển từ AdminService.java)
    ========================================================================= */
 
+// GET /api/admin/kyc - Danh sách hồ sơ eKYC (toàn bộ, ưu tiên pending)
+router.get("/kyc", wrap(async (req, res) => {
+    const [rows] = await pool.query(`
+        SELECT d.document_id, d.user_id, d.type, d.document_no, d.image_url, d.status,
+               DATE_FORMAT(d.verified_at, '%d/%m/%Y %H:%i') AS verified_at,
+               u.full_name, u.email, u.phone
+        FROM identity_documents d
+        JOIN users u ON d.user_id = u.user_id
+        ORDER BY (d.status = 'pending') DESC, d.document_id DESC
+    `);
+    res.json(rows);
+}));
+
 // GET /api/admin/kyc/pending - Danh sách hồ sơ eKYC chờ duyệt
 router.get("/kyc/pending", wrap(async (req, res) => {
     const [rows] = await pool.query(`
@@ -261,20 +274,20 @@ router.post("/refunds/:id/approve", wrap(async (req, res) => {
             return res.status(404).json({ message: "Không tìm thấy đơn đặt xe!" });
         }
         const b = bookings[0];
-        if (b.deposit_status === "approved_refund") {
+        if (b.deposit_status === "approved_refund" || b.deposit_status === "refunded") {
             await conn.rollback();
-            return res.status(409).json({ message: "Đơn này đã được duyệt hoàn cọc rồi!" });
+            return res.status(409).json({ message: "Đơn này đã được hoàn cọc rồi, không thể hoàn lại lần hai!" });
         }
 
         // 1. Cập nhật deposit_status
         await conn.query("UPDATE bookings SET deposit_status = 'approved_refund' WHERE booking_id = ?", [bookingId]);
 
-        // 2. Đảm bảo ví tồn tại và cộng lại tiền cọc
+        // 2. Đảm bảo ví tồn tại và khóa ví trước khi cộng lại tiền cọc
         await conn.query("INSERT IGNORE INTO wallets (user_id, balance) VALUES (?, 0)", [b.renter_id]);
-        await conn.query("UPDATE wallets SET balance = balance + ? WHERE user_id = ?", [b.deposit_amount, b.renter_id]);
-
-        const [wallets] = await conn.query("SELECT wallet_id FROM wallets WHERE user_id = ?", [b.renter_id]);
+        const [wallets] = await conn.query("SELECT wallet_id, balance FROM wallets WHERE user_id = ? FOR UPDATE", [b.renter_id]);
         const walletId = wallets[0].wallet_id;
+
+        await conn.query("UPDATE wallets SET balance = balance + ? WHERE wallet_id = ?", [b.deposit_amount, walletId]);
 
         // 3. Ghi lịch sử giao dịch
         await conn.query(`

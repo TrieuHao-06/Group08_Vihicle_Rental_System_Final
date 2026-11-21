@@ -6,7 +6,8 @@ const mysql = require("mysql2/promise");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(express.json());
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
 const frontEndPath = path.join(__dirname, "source code", "front-end");
 app.use(express.static(frontEndPath));
 app.use(express.static(path.join(__dirname, "scr")));
@@ -204,7 +205,7 @@ app.get("/api/health", async (req, res) => {
     }
 });
 
-// Lấy danh sách xe đã được Admin duyệt từ bảng vehicles để hiển thị cho khách thuê
+// Lấy danh sách xe đã được Admin duyệt từ bảng vehicles để hiển thị cho khách thuê kèm đánh giá trung bình
 app.get("/api/vehicles", async (req, res) => {
     try {
         const [rows] = await pool.query(
@@ -219,10 +220,14 @@ app.get("/api/vehicles", async (req, res) => {
                     COALESCE(v.price_per_hour, ROUND(v.price_per_day / 6, -3)) AS hourPrice,
                     v.price_per_day AS dayPrice,
                     COALESCE(v.deposit_amount, 300000) AS deposit,
-                    v.approval_status, v.availability_status
+                    v.approval_status, v.availability_status,
+                    COALESCE(ROUND(AVG(r.rating), 1), 0.0) AS avg_rating,
+                    COUNT(r.review_id) AS total_reviews
              FROM vehicles v
              JOIN users u ON v.owner_id = u.user_id
+             LEFT JOIN reviews r ON v.vehicle_id = r.vehicle_id
              WHERE v.approval_status = 'approved' AND v.availability_status = 'available'
+             GROUP BY v.vehicle_id, v.owner_id, u.full_name, v.brand, v.model, v.vehicle_type, v.engine_cc, v.fuel_type, v.area, v.license_plate, v.price_per_hour, v.price_per_day, v.deposit_amount, v.approval_status, v.availability_status
              ORDER BY v.vehicle_id ASC`
         );
         res.json(rows);
