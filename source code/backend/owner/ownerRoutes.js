@@ -22,7 +22,7 @@ const express = require("express");
 const path = require("path");
 const fs = require("fs");
 const multer = require("multer");
-const pool = require("../booking&promotion/backend/config/db"); // pool kết nối MySQL dùng chung
+const pool = require("../config/db"); // pool kết nối MySQL dùng chung
 
 const router = express.Router();
 

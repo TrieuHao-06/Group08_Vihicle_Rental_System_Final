@@ -10,7 +10,6 @@ app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 const frontEndPath = path.join(__dirname, "source code", "front-end");
 app.use(express.static(frontEndPath));
-app.use(express.static(path.join(__dirname, "scr")));
 app.use("/uploads", express.static(path.join(__dirname, "source code", "uploads")));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 

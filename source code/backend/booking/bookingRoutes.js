@@ -1,5 +1,5 @@
 const express = require("express");
-const pool = require("../booking&promotion/backend/config/db");
+const pool = require("../config/db");
 
 const router = express.Router();
 const wrap = fn => (req, res, next) => fn(req, res, next).catch(err => {

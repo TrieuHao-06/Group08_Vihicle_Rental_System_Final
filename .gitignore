@@ -1,12 +1,21 @@
-# Docker images exported
+# Dependencies & Environment
+node_modules/
+.env
+.env.local
+
+# Compiled Java Bytecode
+*.class
+
+# Docker Images / Archives
 *.tar
 
-# MySQL runtime data directory (bỏ qua file nhị phân & socket, giữ lại file schema sql)
+# MySQL runtime data directory (Bỏ qua file nhị phân & socket, giữ lại file schema SQL và ghi chú)
 database/*
 !database/database_schema.sql
 !database/DATABASE_NOTES.md
+!database/README.md
 
-# Keys & certificates
+# Keys & Certificates
 *.pem
 *.key
 
@@ -23,4 +32,3 @@ Thumbs.db
 *.log
 tmp/
 temp/
-lib/
