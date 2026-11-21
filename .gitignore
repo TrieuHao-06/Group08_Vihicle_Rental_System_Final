@@ -1,5 +1,10 @@
-# MySQL runtime data directory
-database/
+# Docker images exported
+*.tar
+
+# MySQL runtime data directory (bỏ qua file nhị phân & socket, giữ lại file schema sql)
+database/*
+!database/database_schema.sql
+!database/DATABASE_NOTES.md
 
 # Keys & certificates
 *.pem
@@ -19,5 +24,3 @@ Thumbs.db
 tmp/
 temp/
 lib/
-
-database/

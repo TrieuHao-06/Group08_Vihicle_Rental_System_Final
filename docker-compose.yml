@@ -1,0 +1,40 @@
+services:
+  # 1. Ứng dụng Web Thuê Xe Máy (Node.js + Express + Frontend)
+  app:
+    build: .
+    container_name: group08-rental-app
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: 123456
+      DB_NAME: group08_db
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # 2. Cơ sở dữ liệu MySQL (Tự động nạp schema bảng ban đầu)
+  db:
+    image: mysql:8.0
+    container_name: group08-mysql-db
+    restart: always
+    ports:
+      - "3307:3306" # Mở port 3307 trên máy host để tránh trùng port 3306 của MySQL local
+    environment:
+      MYSQL_ROOT_PASSWORD: "123456"
+      MYSQL_DATABASE: "group08_db"
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./database/database_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p123456"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  db_data:
